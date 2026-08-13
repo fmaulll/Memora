@@ -29,9 +29,22 @@
 		CE84D4E3302D90C700D41AB2 /* MemoraUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MemoraUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		CE4CC5BB302DF4E9005AB0F7 /* Exceptions for "Memora" folder in "Memora" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = CE84D4C6302D90C400D41AB2 /* Memora */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		CE84D4C9302D90C400D41AB2 /* Memora */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				CE4CC5BB302DF4E9005AB0F7 /* Exceptions for "Memora" folder in "Memora" target */,
+			);
 			path = Memora;
 			sourceTree = "<group>";
 		};
@@ -398,6 +411,8 @@
 				DEVELOPMENT_ASSET_PATHS = "\"Memora/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Memora/Info.plist;
+				INFOPLIST_KEY_UIAppFonts = "Fonts/PlusJakartaSans-Bold.ttf Fonts/PlusJakartaSans-Regular.ttf Fonts/PlusJakartaSans-SemiBold.ttf";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -426,6 +441,8 @@
 				DEVELOPMENT_ASSET_PATHS = "\"Memora/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Memora/Info.plist;
+				INFOPLIST_KEY_UIAppFonts = "Fonts/PlusJakartaSans-Bold.ttf Fonts/PlusJakartaSans-Regular.ttf Fonts/PlusJakartaSans-SemiBold.ttf";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
