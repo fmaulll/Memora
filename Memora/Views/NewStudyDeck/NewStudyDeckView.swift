@@ -18,93 +18,87 @@ struct NewStudyDeckView: View {
     private let methods = StudyDeckMethod.allCases
 
     var body: some View {
-        NavigationStack {
-            ZStack(alignment: .topTrailing) {
-                background.ignoresSafeArea()
+        ZStack(alignment: .topTrailing) {
+            background.ignoresSafeArea()
 
-                DecorativeBackground()
-                    .ignoresSafeArea()
+            DecorativeBackground()
+                .ignoresSafeArea()
 
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        HStack {
-                            Button {
-                                dismiss()
-                            } label: {
-                                Image(systemName: "arrow.left")
-                                    .font(.system(size: 22, weight: .medium))
-                                    .foregroundStyle(.white.opacity(0.78))
-                                    .frame(width: 56, height: 56)
-                                    .background(.white.opacity(0.18), in: Circle())
-                            }
-                            .accessibilityLabel("Back")
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack {
+                        BackButton()
 
-                            Spacer()
-                        }
+                        Spacer()
+                    }
 
-                        WorkflowIndicator(
-                            numberOfSteps: selectedMethod?.stepCount ?? methods.count,
-                            currentStep: 0,
-                            accent: accent
-                        )
-                        .padding(.top, 32)
+                    WorkflowIndicator(
+                        numberOfSteps: selectedMethod?.stepCount ?? methods.count,
+                        currentStep: 0,
+                        accent: accent
+                    )
+                    .padding(.top, 32)
 
-                        Text("NEW STUDY DECK")
-                            .font(.custom("PlusJakartaSans-Bold", size: 14))
-                            .foregroundStyle(.white.opacity(0.62))
-                            .padding(.top, 16)
+                    Text("NEW STUDY DECK")
+                        .font(.custom("PlusJakartaSans-Bold", size: 14))
+                        .foregroundStyle(.white.opacity(0.62))
+                        .padding(.top, 16)
 
-                        Text("How do you want\nto study?")
-                            .font(.custom("PlusJakartaSans-ExtraBold", size: 40))
-                            .foregroundStyle(.white)
-                            .tracking(-1)
-                            .lineSpacing(-3)
-                            .padding(.top, 16)
+                    Text("How do you want\nto study?")
+                        .font(.custom("PlusJakartaSans-ExtraBold", size: 40))
+                        .foregroundStyle(.white)
+                        .tracking(-1)
+                        .lineSpacing(-3)
+                        .padding(.top, 16)
 
-                        Text("Choose your method to get started")
-                            .font(.custom("PlusJakartaSans-Regular", size: 16))
-                            .foregroundStyle(.white.opacity(0.62))
-                            .padding(.top, 20)
+                    Text("Choose your method to get started")
+                        .font(.custom("PlusJakartaSans-Regular", size: 16))
+                        .foregroundStyle(.white.opacity(0.62))
+                        .padding(.top, 20)
 
-                        VStack(spacing: 12) {
-                            ForEach(methods) { method in
-                                StudyDeckMethodCard(
-                                    method: method,
-                                    isSelected: selectedMethod == method,
-                                    accent: accent
-                                ) {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                        selectedMethod = method
-                                    }
+                    VStack(spacing: 12) {
+                        ForEach(methods) { method in
+                            StudyDeckMethodCard(
+                                method: method,
+                                isSelected: selectedMethod == method,
+                                accent: accent
+                            ) {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    selectedMethod = method
+                                }
 
-                                    if method == .upload {
-                                        isShowingUploadMaterials = true
-                                    }
+                                if method == .upload {
+                                    isShowingUploadMaterials = true
                                 }
                             }
                         }
-                        .padding(.top, 30)
-                        .padding(.bottom, 34)
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.top, 30)
+                    .padding(.bottom, 34)
                 }
+                .padding(.horizontal, 20)
+            }
 
-                Button("Set up later") {
-                    dismiss()
-                }
-                .font(.custom("PlusJakartaSans-Regular", size: 14))
-                .foregroundStyle(.white.opacity(0.5))
-                .padding(.horizontal, 15)
-                .frame(height: 34)
-                .background(.white.opacity(0.07), in: Capsule())
-                .padding(.trailing, 20)
+            Button("Set up later") {
+                dismiss()
             }
-            .navigationBarBackButtonHidden()
-            .navigationDestination(isPresented: $isShowingUploadMaterials) {
-                UploadStudyMaterialsView()
+            .font(.custom("PlusJakartaSans-Regular", size: 14))
+            .foregroundStyle(.white.opacity(0.5))
+            .padding(.horizontal, 15)
+            .frame(height: 34)
+            .background(.white.opacity(0.07), in: Capsule())
+            .padding(.trailing, 20)
+
+            NavigationLink(
+                destination: UploadStudyMaterialsView(),
+                isActive: $isShowingUploadMaterials
+            ) {
+                EmptyView()
             }
+            .hidden()
         }
         .preferredColorScheme(.dark)
+        .navigationBarBackButtonHidden()
     }
 }
 
