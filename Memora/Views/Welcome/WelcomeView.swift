@@ -33,7 +33,7 @@ struct WelcomeView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                    Text("Your personal AI tutor for notes, flashcards, and exams.")
+                    Text("Your personal AI tutor for notes,\n flashcards, and exams.")
                         .font(.custom("PlusJakartaSans-Regular", size: 16))
                         .foregroundStyle(.white.opacity(0.62))
                         .lineSpacing(6)
@@ -44,17 +44,21 @@ struct WelcomeView: View {
                 Spacer(minLength: 46)
 
                 VStack(spacing: 20) {
-                    AppButton(title: "Continue with Apple", icon: .sf("apple.logo"), foreground: .black, background: .white) { }
-                    AppButton(title: "Continue with Google", icon: .asset("GoogleIcon"), foreground: .white, background: Color(red: 0.02, green: 0.28, blue: 0.65)) { }
-                    AppButton(title: "Sign up with Email", icon: .sf("envelope.fill"), foreground: .white, background: Color(red: 0.40, green: 0.40, blue: 0.53)) { }
+                    NavigationButton(title: "Continue with Apple", icon: .sf("apple.logo"), foreground: .black, background: .white) { }
+                    NavigationButton(title: "Continue with Google", icon: .asset("GoogleIcon"), foreground: .white, background: Color(red: 0.02, green: 0.28, blue: 0.65)) { }
+                    NavigationButton(title: "Sign up with Email", icon: .sf("envelope.fill"), foreground: .white, background: Color(red: 0.40, green: 0.40, blue: 0.53)) { }
 
                     Text("OR")
                         .font(.custom("PlusJakartaSans-Regular", size: 14))
                         .foregroundStyle(.white.opacity(0.7))
                         .padding(.vertical, 6)
 
-                    
-                    AppButton(title: "Continue as Guest", icon: .sf("person.fill"), foreground: .white) { }
+                    NavigationButton(
+                        title: "Continue as Guest",
+                        icon: .sf("person.fill")
+                    ) {
+                        NewStudyDeckView()
+                    }
                     
 
                     HStack(spacing: 4) {
