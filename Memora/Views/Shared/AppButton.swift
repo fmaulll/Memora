@@ -88,34 +88,3 @@ struct AppButton: View {
         }
     }
 }
-
-//#Preview {
-//    VStack(spacing: 16) {
-//
-//        AppButton(
-//            title: "Continue with Apple",
-//            icon: .sf("apple.logo"),
-//            foreground: .black,
-//            background: .white
-//        ) {}
-//
-//        AppButton(
-//            title: "Continue with Google",
-//            icon: .asset("GoogleIcon"),
-//            background: .blue
-//        ) {}
-//
-//        AppButton(
-//            title: "Get Started",
-//            background: .indigo
-//        ) {}
-//
-//        AppButton(
-//            title: "Next",
-//            icon: .sf("arrow.right"),
-//            iconPosition: .right,
-//            background: .purple
-//        ) {}
-//    }
-//    .padding()
-//}
