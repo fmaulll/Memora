@@ -36,16 +36,7 @@ struct UploadStudyMaterialsView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
                     HStack {
-                        Button {
-                            dismiss()
-                        } label: {
-                            Image(systemName: "arrow.left")
-                                .font(.system(size: 22, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.78))
-                                .frame(width: 56, height: 56)
-                                .background(.white.opacity(0.18), in: Circle())
-                        }
-                        .accessibilityLabel("Back")
+                        BackButton()
 
                         Spacer()
                     }
@@ -62,22 +53,23 @@ struct UploadStudyMaterialsView: View {
                         .font(.custom("PlusJakartaSans-ExtraBold", size: 40))
                         .foregroundStyle(.white)
                         .tracking(-1)
-                        .padding(.top, 68)
+                        .lineSpacing(-3)
+                        .padding(.top, 16)
 
                     Text("PDF, DOCX, or TXT supported")
-                        .font(.custom("PlusJakartaSans-Regular", size: 20))
+                        .font(.custom("PlusJakartaSans-Regular", size: 16))
                         .foregroundStyle(.white.opacity(0.62))
                         .padding(.top, 20)
 
                     Button {
                         isShowingFileImporter = true
                     } label: {
-                        VStack(spacing: 26) {
+                        VStack(spacing: 12) {
                             Image(systemName: hasSelectedFile ? "checkmark" : "arrow.up")
-                                .font(.system(size: 27, weight: .medium))
+                                .font(.system(size: 20, weight: .medium))
                                 .foregroundStyle(.white)
-                                .frame(width: 92, height: 92)
-                                .background(accent, in: RoundedRectangle(cornerRadius: 22))
+                                .frame(width: 48, height: 48)
+                                .background(accent, in: RoundedRectangle(cornerRadius: 13))
 
                             Text(selectedFileName ?? "Tap to browse files")
                                 .font(.custom("PlusJakartaSans-SemiBold", size: 18))
@@ -86,19 +78,19 @@ struct UploadStudyMaterialsView: View {
                                 .truncationMode(.middle)
                         }
                         .frame(maxWidth: .infinity)
-                        .frame(minHeight: 278)
+                        .frame(minHeight: 200)
                         .padding(.horizontal, 20)
-                        .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 24))
+                        .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 16))
                         .overlay {
-                            RoundedRectangle(cornerRadius: 24)
+                            RoundedRectangle(cornerRadius: 16)
                                 .stroke(
                                     .white.opacity(0.38),
-                                    style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])
+                                    style: StrokeStyle(lineWidth: 1.03, dash: [5, 5])
                                 )
                         }
                     }
                     .buttonStyle(.plain)
-                    .padding(.top, 68)
+                    .padding(.top, 30)
                     .accessibilityLabel(hasSelectedFile ? "Selected file \(selectedFileName ?? "")" : "Browse files")
 
                     Button {
@@ -109,22 +101,25 @@ struct UploadStudyMaterialsView: View {
                             .foregroundStyle(accent)
                             .frame(maxWidth: .infinity)
                     }
-                    .padding(.top, 28)
+                    .padding(.top, 24)
 
-                    Spacer(minLength: 180)
-
-                    AppButton(
-                        title: "Continue",
-                        foreground: hasSelectedFile ? .white : .white.opacity(0.45),
-                        background: hasSelectedFile ? AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing)) : AnyShapeStyle(.white.opacity(0.16))
-                    ) {
-                        guard hasSelectedFile else { return }
-                        isShowingContinueAlert = true
-                    }
-                    .disabled(!hasSelectedFile)
-                    .padding(.bottom, 28)
+                    Color.clear
+                        .frame(height: 110)
                 }
-                .padding(.horizontal, 36)
+                .padding(.horizontal, 20)
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                AppButton(
+                    title: "Continue",
+                    foreground: hasSelectedFile ? .white : .white.opacity(0.45),
+                    background: hasSelectedFile ? AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing)) : AnyShapeStyle(.white.opacity(0.16))
+                ) {
+                    guard hasSelectedFile else { return }
+                    isShowingContinueAlert = true
+                }
+                .disabled(!hasSelectedFile)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 28)
             }
         }
         .preferredColorScheme(.dark)
