@@ -9,96 +9,111 @@
 import SwiftUI
 
 struct NewStudyDeckView: View {
-    @Environment(\.dismiss) private var dismiss
+    private let showsSetUpLater: Bool
     @State private var selectedMethod: StudyDeckMethod?
     @State private var isShowingUploadMaterials = false
+    @State private var isShowingCreateOwnDeck = false
+    @State private var isShowingHome = false
 
     private let background = Color(red: 0.04, green: 0.04, blue: 0.13)
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
     private let methods = StudyDeckMethod.allCases
 
+    init(showsSetUpLater: Bool = false) {
+        self.showsSetUpLater = showsSetUpLater
+    }
+
     var body: some View {
         ZStack(alignment: .topTrailing) {
             background.ignoresSafeArea()
+            
+            AppBackground {
+                
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack {
+                            BackButton()
+                            
+                            Spacer()
+                        }
+                        
+                        WorkflowIndicator(
+                            numberOfSteps: selectedMethod?.stepCount ?? methods.count,
+                            currentStep: 0,
+                            accent: accent
+                        )
+                        .padding(.top, 32)
+                        
+                        Text("NEW STUDY DECK")
+                            .font(.custom("PlusJakartaSans-Bold", size: 14))
+                            .foregroundStyle(.white.opacity(0.62))
+                            .padding(.top, 16)
+                        
+                        Text("How do you want\nto study?")
+                            .font(.custom("PlusJakartaSans-ExtraBold", size: 40))
+                            .foregroundStyle(.white)
+                            .tracking(-1)
+                            .lineSpacing(-3)
+                            .padding(.top, 16)
+                        
+                        Text("Choose your method to get started")
+                            .font(.custom("PlusJakartaSans-Regular", size: 16))
+                            .foregroundStyle(.white.opacity(0.62))
+                            .padding(.top, 20)
+                        
+                        VStack(spacing: 12) {
+                            ForEach(methods) { method in
+                                StudyDeckMethodCard(
+                                    method: method,
+                                    isSelected: selectedMethod == method,
+                                    accent: accent
+                                ) {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        selectedMethod = method
+                                    }
+                                    
+                                    if method == .upload {
+                                        isShowingUploadMaterials = true
+                                    }
 
-            DecorativeBackground()
-                .ignoresSafeArea()
-
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack {
-                        BackButton()
-
-                        Spacer()
-                    }
-
-                    WorkflowIndicator(
-                        numberOfSteps: selectedMethod?.stepCount ?? methods.count,
-                        currentStep: 0,
-                        accent: accent
-                    )
-                    .padding(.top, 32)
-
-                    Text("NEW STUDY DECK")
-                        .font(.custom("PlusJakartaSans-Bold", size: 14))
-                        .foregroundStyle(.white.opacity(0.62))
-                        .padding(.top, 16)
-
-                    Text("How do you want\nto study?")
-                        .font(.custom("PlusJakartaSans-ExtraBold", size: 40))
-                        .foregroundStyle(.white)
-                        .tracking(-1)
-                        .lineSpacing(-3)
-                        .padding(.top, 16)
-
-                    Text("Choose your method to get started")
-                        .font(.custom("PlusJakartaSans-Regular", size: 16))
-                        .foregroundStyle(.white.opacity(0.62))
-                        .padding(.top, 20)
-
-                    VStack(spacing: 12) {
-                        ForEach(methods) { method in
-                            StudyDeckMethodCard(
-                                method: method,
-                                isSelected: selectedMethod == method,
-                                accent: accent
-                            ) {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    selectedMethod = method
-                                }
-
-                                if method == .upload {
-                                    isShowingUploadMaterials = true
+                                    if method == .custom {
+                                        isShowingCreateOwnDeck = true
+                                    }
                                 }
                             }
                         }
+                        .padding(.top, 30)
+                        .padding(.bottom, 34)
                     }
-                    .padding(.top, 30)
-                    .padding(.bottom, 34)
+                    .padding(.horizontal, 20)
                 }
-                .padding(.horizontal, 20)
+                
             }
-
-            Button("Set up later") {
-                dismiss()
+            .preferredColorScheme(.dark)
+            .navigationBarBackButtonHidden()
+            
+            
+            if showsSetUpLater {
+                Button("Set up later") {
+                    isShowingHome = true
+                }
+                .font(.custom("PlusJakartaSans-Regular", size: 14))
+                .foregroundStyle(.white.opacity(0.5))
+                .padding(.horizontal, 15)
+                .frame(height: 34)
+                .background(.white.opacity(0.07), in: Capsule())
+                .padding(.trailing, 20)
             }
-            .font(.custom("PlusJakartaSans-Regular", size: 14))
-            .foregroundStyle(.white.opacity(0.5))
-            .padding(.horizontal, 15)
-            .frame(height: 34)
-            .background(.white.opacity(0.07), in: Capsule())
-            .padding(.trailing, 20)
-
-            NavigationLink(
-                destination: UploadStudyMaterialsView(),
-                isActive: $isShowingUploadMaterials
-            ) {
-                EmptyView()
-            }
-            .hidden()
         }
-        .preferredColorScheme(.dark)
-        .navigationBarBackButtonHidden()
+        .navigationDestination(isPresented: $isShowingUploadMaterials) {
+            UploadStudyMaterialsView()
+        }
+        .navigationDestination(isPresented: $isShowingCreateOwnDeck) {
+            CreateOwnDeckView()
+        }
+        .navigationDestination(isPresented: $isShowingHome) {
+            HomeView()
+        }
     }
 }
 
