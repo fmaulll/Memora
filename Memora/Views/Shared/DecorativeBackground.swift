@@ -8,53 +8,26 @@ struct DecorativeBackground: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
+                
                 Circle()
-                    .fill(bandColor)
+                    .fill(bandColor.opacity(0.42))
                     .frame(width: 420, height: 420)
                     .offset(x: 180, y: -360)
-                    .scaleEffect(isAnimating ? 1.0 : 0.97)
-                    .offset(y: isAnimating ? -6 : 6)
-                    .opacity(isAnimating ? 0.42 : 0.40)
-                    .animation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true), value: isAnimating)
-                    .onAppear {
-                        isAnimating = true
-                    }
 
                 Circle()
-                    .fill(bandColor)
+                    .fill(bandColor.opacity(0.42))
                     .frame(width: 320, height: 420)
                     .offset(x: 180, y: -360)
-                    .scaleEffect(isAnimating ? 1.0 : 0.97)
-                    .offset(y: isAnimating ? -6 : 6)
-                    .opacity(isAnimating ? 0.42 : 0.40)
-                    .animation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true), value: isAnimating)
-                    .onAppear {
-                        isAnimating = true
-                    }
 
                 Circle()
-                    .fill(bandColor)
+                    .fill(bandColor.opacity(0.42))
                     .frame(width: 420, height: 420)
                     .offset(x: -180, y: 360)
-                    .scaleEffect(isAnimating ? 1.0 : 0.97)
-                    .offset(y: isAnimating ? -6 : 6)
-                    .opacity(isAnimating ? 0.42 : 0.40)
-                    .animation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true), value: isAnimating)
-                    .onAppear {
-                        isAnimating = true
-                    }
 
                 Circle()
-                    .fill(bandColor)
+                    .fill(bandColor.opacity(0.42))
                     .frame(width: 320, height: 420)
                     .offset(x: -180, y: 360)
-                    .scaleEffect(isAnimating ? 1.0 : 0.97)
-                    .offset(y: isAnimating ? -6 : 6)
-                    .opacity(isAnimating ? 0.42 : 0.40)
-                    .animation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true), value: isAnimating)
-                    .onAppear {
-                        isAnimating = true
-                    }
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
         }
