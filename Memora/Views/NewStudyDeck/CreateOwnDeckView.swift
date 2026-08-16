@@ -13,7 +13,13 @@ struct CreateOwnDeckView: View {
     @State private var subject = ""
     @State private var isShowingManualSubjectField = false
     @State private var educationLevel: EducationLevel = .highSchool
-    @State private var isShowingContinueAlert = false
+    @State private var isShowingAddFlashcards = false
+    @FocusState private var focusedField: Field?
+
+    private enum Field {
+        case deckTitle
+        case subject
+    }
 
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
     private let levels = EducationLevel.allCases
@@ -70,7 +76,7 @@ struct CreateOwnDeckView: View {
                             .foregroundStyle(.white.opacity(0.62))
                             .padding(.top, 24)
 
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                             ForEach(levels) { level in
                                 Button {
                                     educationLevel = level
@@ -103,6 +109,7 @@ struct CreateOwnDeckView: View {
         }
         .preferredColorScheme(.dark)
         .navigationBarBackButtonHidden()
+        .dismissKeyboardOnTap()
         .safeAreaInset(edge: .bottom, spacing: 0) {
             HStack {
                 AppButton(
@@ -110,7 +117,7 @@ struct CreateOwnDeckView: View {
                     foreground: canContinue ? .white : .white.opacity(0.45),
                     background: canContinue ? AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing)) : AnyShapeStyle(.white.opacity(0.16))
                 ) {
-                    isShowingContinueAlert = true
+                    isShowingAddFlashcards = true
                 }
                 .disabled(!canContinue)
                 .padding(.horizontal, 20)
@@ -122,10 +129,8 @@ struct CreateOwnDeckView: View {
             .background(.black.opacity(0.92))
             
         }
-        .alert("Deck details saved", isPresented: $isShowingContinueAlert) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text("Your \(educationLevel.title.lowercased()) deck is ready to continue.")
+        .navigationDestination(isPresented: $isShowingAddFlashcards) {
+            AddFlashcardView(deckTitle: deckTitle, subject: subject, educationLevel: educationLevel.title)
         }
     }
 
@@ -140,12 +145,18 @@ struct CreateOwnDeckView: View {
                     .font(.custom("PlusJakartaSans-Regular", size: 18))
                     .foregroundStyle(.white)
                     .tint(accent)
+                    .focused($focusedField, equals: .subject)
                     .padding(.horizontal, 30)
+                    .frame(maxWidth: .infinity)
                     .frame(height: 52)
+                    .contentShape(Rectangle())
                     .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 20))
                     .overlay {
                         RoundedRectangle(cornerRadius: 20)
                             .stroke(.white.opacity(0.28), lineWidth: 1.03)
+                    }
+                    .onTapGesture {
+                        focusedField = .subject
                     }
 
                 Button {
@@ -184,7 +195,7 @@ struct CreateOwnDeckView: View {
                 Button {
                     isShowingManualSubjectField = true
                 } label: {
-                    Text("Can't find it? Search manually")
+                    Text("Can't find it? Input manually")
                         .font(.custom("PlusJakartaSans-Regular", size: 14))
                         .foregroundStyle(accent)
                 }
@@ -204,12 +215,18 @@ struct CreateOwnDeckView: View {
                 .font(.custom("PlusJakartaSans-Regular", size: 18))
                 .foregroundStyle(.white)
                 .tint(accent)
+                .focused($focusedField, equals: .deckTitle)
                 .padding(.horizontal, 30)
+                .frame(maxWidth: .infinity)
                 .frame(height: 52)
+                .contentShape(Rectangle())
                 .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 20))
                 .overlay {
                     RoundedRectangle(cornerRadius: 20)
                         .stroke(.white.opacity(0.28), lineWidth: 1.03)
+                }
+                .onTapGesture {
+                    focusedField = .deckTitle
                 }
         }
     }
