@@ -1,11 +1,17 @@
 import SwiftUI
+import SwiftData
 
 struct HomeView: View {
+    @Query(sort: \StudyDeck.createdAt, order: .reverse) private var decks: [StudyDeck]
     @State private var selectedTab: BottomBar.Tab = .home
     @State private var isShowingNewStudyDeck = false
 
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
     private let cardFill = Color.white.opacity(0.18)
+
+    private var totalCardCount: Int {
+        decks.reduce(0) { $0 + $1.cards.count }
+    }
 
     var body: some View {
         ZStack {
@@ -103,20 +109,45 @@ struct HomeView: View {
 
     private var header: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Alex Rivera")
-                    .font(.custom("PlusJakartaSans-ExtraBold", size: 30))
+            if selectedTab == .home {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Alex Rivera")
+                        .font(.custom("PlusJakartaSans-ExtraBold", size: 30))
+                        .foregroundStyle(.white)
+                    Text("Tuesday, August 5 · 2026")
+                        .font(.custom("PlusJakartaSans-Regular", size: 14))
+                        .foregroundStyle(.white.opacity(0.32))
+                }
+                Spacer()
+                Text("AR")
+                    .font(.custom("PlusJakartaSans-Bold", size: 17))
                     .foregroundStyle(.white)
-                Text("Tuesday, August 5 · 2026")
-                    .font(.custom("PlusJakartaSans-Regular", size: 14))
-                    .foregroundStyle(.white.opacity(0.32))
+                    .frame(width: 52, height: 52)
+                    .background(accent, in: RoundedRectangle(cornerRadius: 17))
+            } else {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Library")
+                        .font(.custom("PlusJakartaSans-ExtraBold", size: 30))
+                        .foregroundStyle(.white)
+                    Text("\(decks.count) deck\(decks.count == 1 ? "" : "s") · \(totalCardCount) cards")
+                        .font(.custom("PlusJakartaSans-Regular", size: 14))
+                        .foregroundStyle(.white.opacity(0.32))
+                }
+                Spacer()
+                Button {
+                    isShowingNewStudyDeck = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 52, height: 52)
+                        .background(
+                            LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing),
+                            in: RoundedRectangle(cornerRadius: 16)
+                        )
+                }
+                .accessibilityLabel("Create a new study deck")
             }
-            Spacer()
-            Text("AR")
-                .font(.custom("PlusJakartaSans-Bold", size: 17))
-                .foregroundStyle(.white)
-                .frame(width: 58, height: 58)
-                .background(accent, in: RoundedRectangle(cornerRadius: 17))
         }
     }
 
