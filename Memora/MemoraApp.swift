@@ -13,6 +13,8 @@ struct MemoraApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Item.self,
+            StudyDeck.self,
+            StudyFlashcardCard.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
