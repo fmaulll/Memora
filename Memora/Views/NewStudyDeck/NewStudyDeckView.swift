@@ -37,13 +37,6 @@ struct NewStudyDeckView: View {
                             Spacer()
                         }
                         
-                        WorkflowIndicator(
-                            numberOfSteps: selectedMethod?.stepCount ?? methods.count,
-                            currentStep: 0,
-                            accent: accent
-                        )
-                        .padding(.top, 32)
-                        
                         Text("NEW STUDY DECK")
                             .font(.custom("PlusJakartaSans-Bold", size: 14))
                             .foregroundStyle(.white.opacity(0.62))
@@ -71,14 +64,6 @@ struct NewStudyDeckView: View {
                                     withAnimation(.easeInOut(duration: 0.2)) {
                                         selectedMethod = method
                                     }
-                                    
-                                    if method == .upload {
-                                        isShowingUploadMaterials = true
-                                    }
-
-                                    if method == .custom {
-                                        isShowingCreateOwnDeck = true
-                                    }
                                 }
                             }
                         }
@@ -105,6 +90,32 @@ struct NewStudyDeckView: View {
                 .padding(.trailing, 20)
             }
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 0) {
+                WorkflowIndicator(
+                    numberOfSteps: selectedMethod?.stepCount ?? methods.count,
+                    currentStep: 0,
+                    accent: accent
+                )
+                .padding(.horizontal, 20)
+                .padding(.bottom, 12)
+
+                HStack {
+                    AppButton(
+                        title: "Continue",
+                        foreground: selectedMethod == nil ? .white.opacity(0.45) : .white,
+                        background: selectedMethod == nil ? AnyShapeStyle(.white.opacity(0.16)) : AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing))
+                    ) {
+                        continueToSelectedMethod()
+                    }
+                    .disabled(selectedMethod == nil)
+                    .padding(.horizontal, 20)
+                }
+            }
+            .padding(.top, 12)
+            .padding(.bottom, 12)
+            .background(.black.opacity(0.92))
+        }
         .navigationDestination(isPresented: $isShowingUploadMaterials) {
             UploadStudyMaterialsView()
         }
@@ -115,24 +126,16 @@ struct NewStudyDeckView: View {
             HomeView()
         }
     }
-}
 
-private struct WorkflowIndicator: View {
-    let numberOfSteps: Int
-    let currentStep: Int
-    let accent: Color
-
-    var body: some View {
-        HStack(spacing: 12) {
-            ForEach(0..<max(numberOfSteps, 1), id: \.self) { step in
-                Capsule()
-                    .fill(step == currentStep ? accent : .white.opacity(0.12))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 6)
-            }
+    private func continueToSelectedMethod() {
+        switch selectedMethod {
+        case .upload:
+            isShowingUploadMaterials = true
+        case .custom:
+            isShowingCreateOwnDeck = true
+        case .aiTopic, .anki, nil:
+            break
         }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Step \(currentStep + 1) of \(max(numberOfSteps, 1))")
     }
 }
 
@@ -193,7 +196,7 @@ private enum StudyDeckMethod: String, CaseIterable, Identifiable {
         switch self {
         case .upload: 3
         case .aiTopic: 4
-        case .custom: 2
+        case .custom: 3
         case .anki: 3
         }
     }

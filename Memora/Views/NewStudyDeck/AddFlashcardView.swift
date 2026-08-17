@@ -58,9 +58,6 @@ struct AddFlashcardView: View {
                             Spacer()
                         }
 
-                        AddFlashcardProgressIndicator(accent: accent)
-                            .padding(.top, 32)
-
                         HStack(alignment: .top) {
                             Text("NEW STUDY DECK")
                                 .font(.custom("PlusJakartaSans-Bold", size: 14))
@@ -132,17 +129,23 @@ struct AddFlashcardView: View {
         .dismissKeyboardOnTap()
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            HStack {
-                AppButton(
-                    title: "Finish Deck · \(cards.count) card\(cards.count == 1 ? "" : "s")",
-                    foreground: cards.isEmpty ? .white.opacity(0.45) : .white,
-                    background: cards.isEmpty ? AnyShapeStyle(.white.opacity(0.16)) : AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing))
-                ) {
-                    finishDeck()
+            VStack(spacing: 0) {
+                WorkflowIndicator(numberOfSteps: 3, currentStep: 2, accent: accent)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 12)
+
+                HStack {
+                    AppButton(
+                        title: "Finish Deck · \(cards.count) card\(cards.count == 1 ? "" : "s")",
+                        foreground: cards.isEmpty ? .white.opacity(0.45) : .white,
+                        background: cards.isEmpty ? AnyShapeStyle(.white.opacity(0.16)) : AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing))
+                    ) {
+                        finishDeck()
+                    }
+                    .disabled(cards.isEmpty)
+                    .padding(.horizontal, 20)
+                    .ignoresSafeArea(.keyboard, edges: .bottom)
                 }
-                .disabled(cards.isEmpty)
-                .padding(.horizontal, 20)
-                .ignoresSafeArea(.keyboard, edges: .bottom)
             }
             .padding(.top, 12)
             .padding(.bottom, 12)
@@ -447,23 +450,6 @@ private struct EditorHeightPreferenceKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = nextValue()
-    }
-}
-
-private struct AddFlashcardProgressIndicator: View {
-    let accent: Color
-
-    var body: some View {
-        HStack(spacing: 12) {
-            ForEach(0..<3, id: \.self) { step in
-                Capsule()
-                    .fill(step == 2 ? accent : .white.opacity(0.12))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 6)
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Step 3 of 3")
     }
 }
 

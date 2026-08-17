@@ -41,9 +41,6 @@ struct CreateOwnDeckView: View {
                             Spacer()
                         }
 
-                        CreateDeckProgressIndicator(accent: accent)
-                            .padding(.top, 32)
-
                         Text("NEW STUDY DECK")
                             .font(.custom("PlusJakartaSans-Bold", size: 14))
                             .foregroundStyle(.white.opacity(0.62))
@@ -111,23 +108,27 @@ struct CreateOwnDeckView: View {
         .navigationBarBackButtonHidden()
         .dismissKeyboardOnTap()
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            HStack {
-                AppButton(
-                    title: "Continue",
-                    foreground: canContinue ? .white : .white.opacity(0.45),
-                    background: canContinue ? AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing)) : AnyShapeStyle(.white.opacity(0.16))
-                ) {
-                    isShowingAddFlashcards = true
+            VStack(spacing: 0) {
+                WorkflowIndicator(numberOfSteps: 3, currentStep: 1, accent: accent)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 12)
+
+                HStack {
+                    AppButton(
+                        title: "Continue",
+                        foreground: canContinue ? .white : .white.opacity(0.45),
+                        background: canContinue ? AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing)) : AnyShapeStyle(.white.opacity(0.16))
+                    ) {
+                        isShowingAddFlashcards = true
+                    }
+                    .disabled(!canContinue)
+                    .padding(.horizontal, 20)
+                    .ignoresSafeArea(.keyboard, edges: .bottom)
                 }
-                .disabled(!canContinue)
-                .padding(.horizontal, 20)
-                .ignoresSafeArea(.keyboard, edges: .bottom)
-                
             }
             .padding(.top, 12)
             .padding(.bottom, 12)
             .background(.black.opacity(0.92))
-            
         }
         .navigationDestination(isPresented: $isShowingAddFlashcards) {
             AddFlashcardView(deckTitle: deckTitle, subject: subject, educationLevel: educationLevel.title)
@@ -271,23 +272,6 @@ private struct FlowLayout: Layout {
             x += size.width + spacing
             rowHeight = max(rowHeight, size.height)
         }
-    }
-}
-
-private struct CreateDeckProgressIndicator: View {
-    let accent: Color
-
-    var body: some View {
-        HStack(spacing: 12) {
-            ForEach(0..<3, id: \.self) { step in
-                Capsule()
-                    .fill(step == 1 ? accent : .white.opacity(0.12))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 6)
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Step 2 of 3")
     }
 }
 

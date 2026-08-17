@@ -39,9 +39,6 @@ struct UploadStudyMaterialsView: View {
                             Spacer()
                         }
                         
-                        UploadProgressIndicator(accent: accent)
-                            .padding(.top, 32)
-                        
                         Text("NEW STUDY DECK")
                             .font(.custom("PlusJakartaSans-Bold", size: 14))
                             .foregroundStyle(.white.opacity(0.62))
@@ -107,17 +104,23 @@ struct UploadStudyMaterialsView: View {
                     .padding(.horizontal, 20)
                 }
                 .safeAreaInset(edge: .bottom, spacing: 0) {
-                    HStack {
-                        AppButton(
-                            title: "Continue",
-                            foreground: hasSelectedFile ? .white : .white.opacity(0.45),
-                            background: hasSelectedFile ? AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing)) : AnyShapeStyle(.white.opacity(0.16))
-                        ) {
-                            guard hasSelectedFile else { return }
-                            isShowingContinueAlert = true
+                    VStack(spacing: 0) {
+                        WorkflowIndicator(numberOfSteps: 3, currentStep: 1, accent: accent)
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 12)
+
+                        HStack {
+                            AppButton(
+                                title: "Continue",
+                                foreground: hasSelectedFile ? .white : .white.opacity(0.45),
+                                background: hasSelectedFile ? AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing)) : AnyShapeStyle(.white.opacity(0.16))
+                            ) {
+                                guard hasSelectedFile else { return }
+                                isShowingContinueAlert = true
+                            }
+                            .disabled(!hasSelectedFile)
+                            .padding(.horizontal, 20)
                         }
-                        .disabled(!hasSelectedFile)
-                        .padding(.horizontal, 20)
                     }
                     .padding(.top, 12)
                     .padding(.bottom, 12)
@@ -144,23 +147,6 @@ struct UploadStudyMaterialsView: View {
                 Text("\(selectedFileName ?? "Your file") is ready for processing.")
             }
         }
-    }
-}
-
-private struct UploadProgressIndicator: View {
-    let accent: Color
-
-    var body: some View {
-        HStack(spacing: 12) {
-            ForEach(0..<3, id: \.self) { step in
-                Capsule()
-                    .fill(step == 1 ? accent : .white.opacity(0.12))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 6)
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Step 2 of 3")
     }
 }
 
