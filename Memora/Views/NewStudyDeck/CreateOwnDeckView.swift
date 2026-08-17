@@ -8,11 +8,13 @@
 import SwiftUI
 
 struct CreateOwnDeckView: View {
+    let existingDeck: StudyDeck?
+
     @Environment(\.dismiss) private var dismiss
-    @State private var deckTitle = ""
-    @State private var subject = ""
+    @State private var deckTitle: String
+    @State private var subject: String
     @State private var isShowingManualSubjectField = false
-    @State private var educationLevel: EducationLevel = .highSchool
+    @State private var educationLevel: EducationLevel
     @State private var isShowingAddFlashcards = false
     @FocusState private var focusedField: Field?
 
@@ -25,6 +27,13 @@ struct CreateOwnDeckView: View {
     private let levels = EducationLevel.allCases
     // Hardcoded for now — will be generated from deckTitle later.
     private let subjectSuggestions = ["Biology", "Excel", "Chemistry", "Anatomy", "Genetics"]
+
+    init(existingDeck: StudyDeck? = nil) {
+        self.existingDeck = existingDeck
+        _deckTitle = State(initialValue: existingDeck?.title ?? "")
+        _subject = State(initialValue: existingDeck?.subject ?? "")
+        _educationLevel = State(initialValue: EducationLevel(title: existingDeck?.educationLevel) ?? .highSchool)
+    }
 
     private var canContinue: Bool {
         !deckTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
@@ -117,7 +126,7 @@ struct CreateOwnDeckView: View {
                     AppButton(
                         title: "Continue",
                         foreground: canContinue ? .white : .white.opacity(0.45),
-                        background: canContinue ? AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing)) : AnyShapeStyle(.white.opacity(0.16))
+                        background: AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing))
                     ) {
                         isShowingAddFlashcards = true
                     }
@@ -131,7 +140,7 @@ struct CreateOwnDeckView: View {
             .background(.black.opacity(0.92))
         }
         .navigationDestination(isPresented: $isShowingAddFlashcards) {
-            AddFlashcardView(deckTitle: deckTitle, subject: subject, educationLevel: educationLevel.title)
+            AddFlashcardView(deckTitle: deckTitle, subject: subject, educationLevel: educationLevel.title, existingDeck: existingDeck)
         }
     }
 
@@ -294,6 +303,11 @@ private enum EducationLevel: String, CaseIterable, Identifiable {
         case .professional: "Professional"
         case .selfStudy: "Self-Study"
         }
+    }
+
+    init?(title: String?) {
+        guard let match = EducationLevel.allCases.first(where: { $0.title == title }) else { return nil }
+        self = match
     }
 }
 
