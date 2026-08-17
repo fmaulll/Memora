@@ -7,6 +7,7 @@ struct LibraryView: View {
 
     @State private var searchText = ""
     @State private var selectedFilter: LibraryFilter = .all
+    @State private var selectedDeck: StudyDeck?
 
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
     private let recentLimit = 5
@@ -64,6 +65,9 @@ struct LibraryView: View {
             .padding(.horizontal, 20)
         }
         .navigationBarBackButtonHidden()
+        .navigationDestination(item: $selectedDeck) { deck in
+            DeckDetailsView(deck: deck)
+        }
     }
 
     private var searchField: some View {
@@ -115,69 +119,74 @@ struct LibraryView: View {
     }
 
     private func deckCard(for deck: StudyDeck, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text(deck.subject.uppercased())
-                    .font(.custom("PlusJakartaSans-Bold", size: 12))
-                    .foregroundStyle(color)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(color.opacity(0.18), in: Capsule())
-
-                Spacer()
-
-                Button {
-                    toggleFavorite(deck)
-                } label: {
-                    Image(systemName: deck.isFavorite ? "heart.fill" : "heart")
-                        .foregroundStyle(deck.isFavorite ? .red : .white.opacity(0.4))
-                        .font(.system(size: 18))
-                }
-                .buttonStyle(.plain)
-            }
-
-            Text(deck.title)
-                .font(.custom("PlusJakartaSans-Bold", size: 20))
-                .foregroundStyle(.white)
-
-            VStack(alignment: .leading, spacing: 8) {
+        Button {
+            selectedDeck = deck
+        } label: {
+            VStack(alignment: .leading, spacing: 16) {
                 HStack {
-                    Text("MASTERY")
-                        .font(.custom("PlusJakartaSans-Regular", size: 12))
-                        .foregroundStyle(.white.opacity(0.5))
+                    Text(deck.subject.uppercased())
+                        .font(.custom("PlusJakartaSans-Bold", size: 12))
+                        .foregroundStyle(color)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(color.opacity(0.18), in: Capsule())
 
                     Spacer()
 
-                    Text("0%")
-                        .font(.custom("PlusJakartaSans-Bold", size: 14))
-                        .foregroundStyle(.white.opacity(0.5))
+                    Button {
+                        toggleFavorite(deck)
+                    } label: {
+                        Image(systemName: deck.isFavorite ? "heart.fill" : "heart")
+                            .foregroundStyle(deck.isFavorite ? .red : .white.opacity(0.4))
+                            .font(.system(size: 18))
+                    }
+                    .buttonStyle(.plain)
                 }
 
-                ProgressView(value: 0, total: 100)
-                    .tint(color)
+                Text(deck.title)
+                    .font(.custom("PlusJakartaSans-Bold", size: 20))
+                    .foregroundStyle(.white)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("MASTERY")
+                            .font(.custom("PlusJakartaSans-Regular", size: 12))
+                            .foregroundStyle(.white.opacity(0.5))
+
+                        Spacer()
+
+                        Text("0%")
+                            .font(.custom("PlusJakartaSans-Bold", size: 14))
+                            .foregroundStyle(.white.opacity(0.5))
+                    }
+
+                    ProgressView(value: 0, total: 100)
+                        .tint(color)
+                }
+
+                HStack(spacing: 6) {
+                    Image(systemName: "square.stack.3d.up.fill")
+                        .font(.system(size: 12))
+                    Text("\(deck.cards.count) card\(deck.cards.count == 1 ? "" : "s")")
+                        .font(.custom("PlusJakartaSans-Regular", size: 13))
+
+                    Text("·")
+
+                    Image(systemName: "calendar")
+                        .font(.system(size: 12))
+                    Text(dateLabel(for: deck.createdAt))
+                        .font(.custom("PlusJakartaSans-Regular", size: 13))
+                }
+                .foregroundStyle(.white.opacity(0.5))
             }
-
-            HStack(spacing: 6) {
-                Image(systemName: "square.stack.3d.up.fill")
-                    .font(.system(size: 12))
-                Text("\(deck.cards.count) card\(deck.cards.count == 1 ? "" : "s")")
-                    .font(.custom("PlusJakartaSans-Regular", size: 13))
-
-                Text("·")
-
-                Image(systemName: "calendar")
-                    .font(.system(size: 12))
-                Text(dateLabel(for: deck.createdAt))
-                    .font(.custom("PlusJakartaSans-Regular", size: 13))
+            .padding(20)
+            .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 20))
+            .overlay {
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(color.opacity(0.7), lineWidth: 1.5)
             }
-            .foregroundStyle(.white.opacity(0.5))
         }
-        .padding(20)
-        .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 20))
-        .overlay {
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(color.opacity(0.7), lineWidth: 1.5)
-        }
+        .buttonStyle(.plain)
     }
 
     private var emptyState: some View {
