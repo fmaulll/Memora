@@ -34,6 +34,11 @@ struct HomeView: View {
                     Color(red: 0.04, green: 0.04, blue: 0.13)
                         .ignoresSafeArea(edges: .top)
                 )
+                .overlay(alignment: .bottom) {
+                    Rectangle()
+                        .fill(.white.opacity(0.10))
+                        .frame(height: 1)
+                }
         }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -54,7 +59,7 @@ struct HomeView: View {
                     summaryCard(title: "STREAK", value: "14", icon: "flame.fill", color: .orange)
                     summaryCard(title: "GOAL", value: "82", icon: "target", color: accent)
                 }
-                .padding(.top, 36)
+                .padding(.top, 24)
 
                 sectionHeader("Recent Decks")
                     .padding(.top, 24)
