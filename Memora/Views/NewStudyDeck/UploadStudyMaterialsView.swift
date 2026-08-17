@@ -113,7 +113,7 @@ struct UploadStudyMaterialsView: View {
                             AppButton(
                                 title: "Continue",
                                 foreground: hasSelectedFile ? .white : .white.opacity(0.45),
-                                background: hasSelectedFile ? AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing)) : AnyShapeStyle(.white.opacity(0.16))
+                                background: AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing))
                             ) {
                                 guard hasSelectedFile else { return }
                                 isShowingContinueAlert = true
