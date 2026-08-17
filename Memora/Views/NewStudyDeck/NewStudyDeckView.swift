@@ -25,7 +25,6 @@ struct NewStudyDeckView: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            background.ignoresSafeArea()
             
             AppBackground {
                 
@@ -104,7 +103,7 @@ struct NewStudyDeckView: View {
                     AppButton(
                         title: "Continue",
                         foreground: selectedMethod == nil ? .white.opacity(0.45) : .white,
-                        background: selectedMethod == nil ? AnyShapeStyle(.white.opacity(0.16)) : AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing))
+                        background: AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing))
                     ) {
                         continueToSelectedMethod()
                     }
