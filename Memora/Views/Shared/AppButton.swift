@@ -63,12 +63,13 @@ struct AppButton: View {
                     iconView
                 }
             }
+            .foregroundStyle(foreground)
             .frame(maxWidth: .infinity)
             .frame(height: 54)
+            .background(background)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
         }
-        .foregroundStyle(foreground)
-        .background(background)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
