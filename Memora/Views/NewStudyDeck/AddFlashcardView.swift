@@ -25,6 +25,7 @@ struct AddFlashcardView: View {
     let deckTitle: String
     let subject: String
     let educationLevel: String
+    let existingDeck: StudyDeck?
 
     @Environment(\.modelContext) private var modelContext
     @State private var cards: [Flashcard] = []
@@ -43,6 +44,16 @@ struct AddFlashcardView: View {
 
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
     private let minEditorHeight: CGFloat = 44
+
+    init(deckTitle: String, subject: String, educationLevel: String, existingDeck: StudyDeck? = nil) {
+        self.deckTitle = deckTitle
+        self.subject = subject
+        self.educationLevel = educationLevel
+        self.existingDeck = existingDeck
+        _cards = State(initialValue: existingDeck?.cards.map {
+            Flashcard(front: $0.front, back: $0.back, frontImageData: $0.frontImageData, backImageData: $0.backImageData)
+        } ?? [])
+    }
 
     private var editorHeight: CGFloat {
         max(minEditorHeight, measuredEditorHeight)
@@ -138,7 +149,7 @@ struct AddFlashcardView: View {
                     AppButton(
                         title: "Finish Deck · \(cards.count) card\(cards.count == 1 ? "" : "s")",
                         foreground: cards.isEmpty ? .white.opacity(0.45) : .white,
-                        background: cards.isEmpty ? AnyShapeStyle(.white.opacity(0.16)) : AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing))
+                        background: AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing))
                     ) {
                         finishDeck()
                     }
@@ -435,11 +446,16 @@ struct AddFlashcardView: View {
     }
 
     private func finishDeck() {
-        let deck = StudyDeck(title: deckTitle, subject: subject, educationLevel: educationLevel)
+        let deck = existingDeck ?? StudyDeck(title: deckTitle, subject: subject, educationLevel: educationLevel)
+        deck.title = deckTitle
+        deck.subject = subject
+        deck.educationLevel = educationLevel
         deck.cards = cards.map {
             StudyFlashcardCard(front: $0.front, back: $0.back, frontImageData: $0.frontImageData, backImageData: $0.backImageData)
         }
-        modelContext.insert(deck)
+        if existingDeck == nil {
+            modelContext.insert(deck)
+        }
         try? modelContext.save()
         savedDeck = deck
         isShowingDeckReady = true
@@ -454,5 +470,5 @@ private struct EditorHeightPreferenceKey: PreferenceKey {
 }
 
 #Preview {
-    AddFlashcardView(deckTitle: "Methaphetamine Formula", subject: "Chemistry", educationLevel: "High School")
+    AddFlashcardView(deckTitle: "Methaphetamine Formula", subject: "Chemistry", educationLevel: "High School", existingDeck: nil)
 }
