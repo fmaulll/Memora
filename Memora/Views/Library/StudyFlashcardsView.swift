@@ -4,21 +4,45 @@ struct StudyFlashcardsView: View {
     let deck: StudyDeck
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
 
-    @State private var currentCardIndex = 0
+    // MARK: Study Session Queues
+    //
+    // `sessionCards` is the initial, one-pass-through queue for this session.
+    // Cards leave it permanently once rated — either into `learningCards`
+    // (Again/Hard) or straight to completion (Good/Easy).
+    //
+    // `learningCards` is the "learning boundary" queue. Once `sessionCards`
+    // is empty, Memora cycles ONLY through `learningCards` until every card
+    // in it has been rated Good or Easy. A card can never re-enter
+    // `learningCards` once it has left via Good/Easy.
+    @State private var sessionCards: [StudyFlashcardCard]
+    @State private var learningCards: [StudyFlashcardCard] = []
+
     @State private var isAnswerRevealed = false
     @State private var isSessionComplete = false
+    @State private var completedCardCount = 0
 
     private let background = Color(red: 0.04, green: 0.04, blue: 0.13)
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
     private let subjectColor = Color(red: 0.13, green: 0.77, blue: 0.37)
 
-    private var currentCard: StudyFlashcardCard? {
-        guard deck.cards.indices.contains(currentCardIndex) else {
-            return nil
-        }
+    private let spacedRepetitionService = SpacedRepetitionService()
 
-        return deck.cards[currentCardIndex]
+    // How many other learning-queue cards a requeued card is reinserted behind.
+    // Again resurfaces sooner than Hard, mirroring Anki's short learning steps.
+    private static let againRequeueDelay = 1
+    private static let hardRequeueDelay = 2
+
+    init(deck: StudyDeck) {
+        self.deck = deck
+        _sessionCards = State(initialValue: deck.cards)
+    }
+
+    // The card currently on screen: the initial queue is always shown first,
+    // then the learning queue once the initial queue is exhausted.
+    private var currentCard: StudyFlashcardCard? {
+        sessionCards.first ?? learningCards.first
     }
 
     private var progress: Double {
@@ -26,7 +50,7 @@ struct StudyFlashcardsView: View {
             return 0
         }
 
-        return Double(currentCardIndex + 1) / Double(deck.cards.count)
+        return Double(completedCardCount) / Double(deck.cards.count)
     }
 
     var body: some View {
@@ -52,7 +76,7 @@ struct StudyFlashcardsView: View {
 
                     Spacer()
 
-                    Text("\(min(currentCardIndex + 1, deck.cards.count)) / \(deck.cards.count)")
+                    Text("\(deck.cards.count - completedCardCount) remaining")
                         .font(.custom("PlusJakartaSans-SemiBold", size: 14))
                         .foregroundStyle(.white.opacity(0.55))
                 }
@@ -146,18 +170,105 @@ struct StudyFlashcardsView: View {
     }
 
     // MARK: Rating
-
     private func rateCard(_ rating: CardRating) {
+        guard let card = currentCard else {
+            return
+        }
+
+        // Save spaced-repetition data — future scheduling is entirely owned
+        // by SpacedRepetitionService, never computed here in the view.
+        spacedRepetitionService.review(
+            card: card,
+            rating: rating
+        )
+
+        do {
+            try modelContext.save()
+        } catch {
+            print("Failed to save card review: \(error)")
+        }
+
         withAnimation(.easeInOut(duration: 0.25)) {
-            if currentCardIndex >= deck.cards.count - 1 {
-                isSessionComplete = true
+
+            if !sessionCards.isEmpty {
+                handleInitialCardRating(card, rating)
             } else {
-                currentCardIndex += 1
-                isAnswerRevealed = false
+                handleLearningCardRating(card, rating)
             }
+
+            isAnswerRevealed = false
+            advanceToNextCard()
         }
     }
 
+    /// Handles a rating for a card still in the initial, one-pass-through queue.
+    /// Good/Easy leave the session for good; Again/Hard move into the learning queue.
+    private func handleInitialCardRating(
+        _ card: StudyFlashcardCard,
+        _ rating: CardRating
+    ) {
+        // The initial queue is only ever shown once per card — always dequeue from the front.
+        sessionCards.removeFirst()
+
+        switch rating {
+
+        case .again, .hard:
+            // Card was difficult — it does not count toward completion yet.
+            // It now belongs to the learning queue only.
+            requeueLearningCard(card, rating: rating)
+
+        case .good, .easy:
+            // Card was successfully learned on the first pass.
+            completedCardCount += 1
+        }
+    }
+
+    /// Handles a rating for a card being cycled through the learning queue.
+    /// A card can only leave the learning queue permanently via Good/Easy.
+    private func handleLearningCardRating(
+        _ card: StudyFlashcardCard,
+        _ rating: CardRating
+    ) {
+        // Always dequeue from the front of the learning queue before rescheduling it.
+        learningCards.removeFirst()
+
+        switch rating {
+
+        case .again, .hard:
+            // Still struggling — goes back into the learning queue, never completed.
+            requeueLearningCard(card, rating: rating)
+
+        case .good, .easy:
+            // Finally learned — leaves the learning queue permanently for this session.
+            completedCardCount += 1
+        }
+    }
+
+    /// Reinserts a struggling card into the learning queue at a short delay.
+    /// Again resurfaces sooner than Hard; Good/Easy never call this.
+    private func requeueLearningCard(_ card: StudyFlashcardCard, rating: CardRating) {
+        let requeueDelay: Int
+
+        switch rating {
+        case .again:
+            requeueDelay = Self.againRequeueDelay
+        case .hard:
+            requeueDelay = Self.hardRequeueDelay
+        case .good, .easy:
+            return
+        }
+
+        let insertionIndex = min(requeueDelay, learningCards.count)
+        learningCards.insert(card, at: insertionIndex)
+    }
+
+    /// The session only completes once both the initial queue and the
+    /// learning queue are empty — never just because `sessionCards` ran out.
+    private func advanceToNextCard() {
+        if sessionCards.isEmpty && learningCards.isEmpty {
+            isSessionComplete = true
+        }
+    }
     // MARK: Empty State
 
     private var emptyState: some View {
@@ -441,15 +552,6 @@ private struct StudyProgressBar: View {
             value: progress
         )
     }
-}
-
-// MARK: - Rating
-
-private enum CardRating {
-    case again
-    case hard
-    case good
-    case easy
 }
 
 // MARK: - Preview

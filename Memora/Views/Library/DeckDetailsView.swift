@@ -8,6 +8,32 @@ struct DeckDetailsView: View {
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
     private let cardFill = Color.white.opacity(0.18)
 
+    private var totalCards: Int {
+        deck.cards.count
+    }
+
+    private var masteredCards: Int {
+        deck.cards.filter { $0.correctCount > 0 }.count
+    }
+
+    private var learningCards: Int {
+        deck.cards.filter {
+            $0.reviewCount > 0 && $0.correctCount == 0
+        }.count
+    }
+
+    private var newCards: Int {
+        deck.cards.filter {
+            $0.reviewCount == 0
+        }.count
+    }
+
+    private var masteryProgress: Double {
+        guard totalCards > 0 else { return 0 }
+
+        return Double(masteredCards) / Double(totalCards)
+    }
+
     var body: some View {
         AppBackground {
             ScrollView(showsIndicators: false) {
@@ -41,7 +67,15 @@ struct DeckDetailsView: View {
                         }
                     }
                     .padding(.top, 16)
-                    .padding(.bottom, 40)
+                    // .padding(.bottom, 40)
+
+                    Text("Flashcards")
+                        .font(.custom("PlusJakartaSans-Bold", size: 20))
+                        .foregroundStyle(.white)
+                        .padding(.top, 32)
+
+                    flashcardList
+                        .padding(.top, 16)
                 }
                 .padding(.horizontal, 20)
             }
@@ -81,39 +115,136 @@ struct DeckDetailsView: View {
     }
 
     private var masteryCard: some View {
-        HStack(spacing: 24) {
-            ZStack {
-                Circle()
-                    .stroke(.white.opacity(0.12), lineWidth: 10)
+        VStack(spacing: 20) {
 
-                Circle()
-                    .trim(from: 0, to: 0)
-                    .stroke(accent, style: StrokeStyle(lineWidth: 10, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
+            HStack(spacing: 24) {
 
-                VStack(spacing: 2) {
-                    Text("0%")
-                        .font(.custom("PlusJakartaSans-Bold", size: 22))
-                        .foregroundStyle(.white)
-                    Text("MASTERY")
-                        .font(.custom("PlusJakartaSans-Regular", size: 10))
-                        .foregroundStyle(.white.opacity(0.5))
+                ZStack {
+
+                    Circle()
+                        .stroke(
+                            .white.opacity(0.12),
+                            lineWidth: 10
+                        )
+
+                    Circle()
+                        .trim(
+                            from: 0,
+                            to: masteryProgress
+                        )
+                        .stroke(
+                            accent,
+                            style: StrokeStyle(
+                                lineWidth: 10,
+                                lineCap: .round
+                            )
+                        )
+                        .rotationEffect(.degrees(-90))
+
+                    VStack(spacing: 2) {
+                        Text("\(Int(masteryProgress * 100))%")
+                            .font(
+                                .custom(
+                                    "PlusJakartaSans-Bold",
+                                    size: 22
+                                )
+                            )
+                            .foregroundStyle(.white)
+
+                        Text("MASTERY")
+                            .font(
+                                .custom(
+                                    "PlusJakartaSans-Regular",
+                                    size: 10
+                                )
+                            )
+                            .foregroundStyle(
+                                .white.opacity(0.5)
+                            )
+                    }
+                }
+                .frame(width: 96, height: 96)
+
+                VStack(alignment: .leading, spacing: 14) {
+
+                    statRow(
+                        label: "Total Cards",
+                        value: "\(totalCards)"
+                    )
+
+                    statRow(
+                        label: "Mastered",
+                        value: "\(masteredCards)"
+                    )
+
+                    statRow(
+                        label: "Learning",
+                        value: "\(learningCards)"
+                    )
+
+                    statRow(
+                        label: "New",
+                        value: "\(newCards)"
+                    )
                 }
             }
-            .frame(width: 96, height: 96)
 
-            VStack(alignment: .leading, spacing: 14) {
-                statRow(label: "Total Cards", value: "\(deck.cards.count)")
-                statRow(label: "Created", value: dateLabel(for: deck.createdAt))
-                statRow(label: "Last Studied", value: "Not studied yet")
+            // Overall progress
+            VStack(alignment: .leading, spacing: 8) {
+
+                HStack {
+                    Text("Progress")
+                        .font(
+                            .custom(
+                                "PlusJakartaSans-Bold",
+                                size: 14
+                            )
+                        )
+                        .foregroundStyle(
+                            .white.opacity(0.55)
+                        )
+
+                    Spacer()
+
+                    Text("\(masteredCards) / \(totalCards)")
+                        .font(
+                            .custom(
+                                "PlusJakartaSans-Bold",
+                                size: 14
+                            )
+                        )
+                        .foregroundStyle(accent)
+                }
+
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+
+                        Capsule()
+                            .fill(.white.opacity(0.08))
+
+                        Capsule()
+                            .fill(accent)
+                            .frame(
+                                width: geometry.size.width
+                                    * masteryProgress
+                            )
+                    }
+                }
+                .frame(height: 6)
             }
         }
         .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(cardFill, in: RoundedRectangle(cornerRadius: 20))
+        .frame(maxWidth: .infinity)
+        .background(
+            cardFill,
+            in: RoundedRectangle(cornerRadius: 20)
+        )
         .overlay {
             RoundedRectangle(cornerRadius: 20)
-                .stroke(.white.opacity(0.28), lineWidth: 1.5)
+                .stroke(
+                    .white.opacity(0.28),
+                    lineWidth: 1.5
+                )
         }
     }
 
@@ -191,7 +322,123 @@ struct DeckDetailsView: View {
         return formatter.string(from: date)
     }
 
-    
+    private var flashcardList: some View {
+        VStack(spacing: 12) {
+
+            ForEach(
+                Array(deck.cards.enumerated()),
+                id: \.element.persistentModelID
+            ) { index, card in
+
+                flashcardRow(
+                    number: index + 1,
+                    card: card
+                )
+            }
+        }
+    }
+
+    private func flashcardRow(
+        number: Int,
+        card: StudyFlashcardCard
+    ) -> some View {
+
+        HStack(spacing: 14) {
+
+            Text(String(format: "%02d", number))
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Bold",
+                        size: 13
+                    )
+                )
+                .foregroundStyle(
+                    .white.opacity(0.35)
+                )
+                .frame(width: 28)
+
+            VStack(
+                alignment: .leading,
+                spacing: 6
+            ) {
+
+                Text(card.front)
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-SemiBold",
+                            size: 15
+                        )
+                    )
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+
+                cardStatus(card)
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(
+                    .white.opacity(0.25)
+                )
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity)
+        .background(
+            cardFill,
+            in: RoundedRectangle(cornerRadius: 16)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(
+                    .white.opacity(0.15),
+                    lineWidth: 1
+                )
+        }
+    }
+
+    @ViewBuilder
+    private func cardStatus(
+        _ card: StudyFlashcardCard
+    ) -> some View {
+
+        if card.reviewCount == 0 {
+
+            Label("New", systemImage: "circle")
+                .font(
+                    .custom(
+                        "PlusJakartaSans-SemiBold",
+                        size: 11
+                    )
+                )
+                .foregroundStyle(
+                    .white.opacity(0.4)
+                )
+
+        } else if card.interval < 7 {
+
+            Label("Learning", systemImage: "arrow.triangle.2.circlepath")
+                .font(
+                    .custom(
+                        "PlusJakartaSans-SemiBold",
+                        size: 11
+                    )
+                )
+                .foregroundStyle(.orange)
+
+        } else {
+
+            Label("Mastered", systemImage: "checkmark.circle.fill")
+                .font(
+                    .custom(
+                        "PlusJakartaSans-SemiBold",
+                        size: 11
+                    )
+                )
+                .foregroundStyle(.green)
+        }
+    }
 }
 
 #Preview {

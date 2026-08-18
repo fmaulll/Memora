@@ -15,6 +15,7 @@ final class StudyDeck {
     var educationLevel: String
     var createdAt: Date
     var isFavorite: Bool = false
+    var lastRating: String?
 
     @Relationship(deleteRule: .cascade, inverse: \StudyFlashcardCard.deck)
     var cards: [StudyFlashcardCard]
@@ -38,8 +39,24 @@ final class StudyDeck {
 final class StudyFlashcardCard {
     var front: String
     var back: String
+
     var frontImageData: Data?
     var backImageData: Data?
+
+    // MARK: Study Progress
+
+    var reviewCount: Int = 0
+    var correctCount: Int = 0
+
+    var lastReviewedAt: Date?
+    var nextReviewAt: Date?
+
+    // How difficult this card currently is
+    var difficulty: Double = 0.0
+
+    // Current interval in days
+    var interval: Int = 0
+
     var deck: StudyDeck?
 
     init(
