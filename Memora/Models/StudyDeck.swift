@@ -1,10 +1,3 @@
-//
-//  StudyDeck.swift
-//  Memora
-//
-//  Created by fuckdazeshit on 16/08/26.
-//
-
 import Foundation
 import SwiftData
 
@@ -17,7 +10,19 @@ final class StudyDeck {
     var isFavorite: Bool = false
     var lastRating: String?
 
-    @Relationship(deleteRule: .cascade, inverse: \StudyFlashcardCard.deck)
+    // MARK: - Persistent Study Session
+
+    var studyQueueIDs: [UUID] = []
+    var learningQueueIDs: [UUID] = []
+    var studyCompletedCount: Int = 0
+    var isStudySessionActive: Bool = false
+
+    // MARK: - Cards
+
+    @Relationship(
+        deleteRule: .cascade,
+        inverse: \StudyFlashcardCard.deck
+    )
     var cards: [StudyFlashcardCard]
 
     init(
@@ -37,13 +42,14 @@ final class StudyDeck {
 
 @Model
 final class StudyFlashcardCard {
+    var id: UUID
     var front: String
     var back: String
 
     var frontImageData: Data?
     var backImageData: Data?
 
-    // MARK: Study Progress
+    // MARK: - Study Progress
 
     var reviewCount: Int = 0
     var correctCount: Int = 0
@@ -51,10 +57,8 @@ final class StudyFlashcardCard {
     var lastReviewedAt: Date?
     var nextReviewAt: Date?
 
-    // How difficult this card currently is
     var difficulty: Double = 0.0
 
-    // Current interval in days
     var interval: Int = 0
 
     var deck: StudyDeck?
@@ -65,6 +69,9 @@ final class StudyFlashcardCard {
         frontImageData: Data? = nil,
         backImageData: Data? = nil
     ) {
+
+        self.id = UUID()
+
         self.front = front
         self.back = back
         self.frontImageData = frontImageData

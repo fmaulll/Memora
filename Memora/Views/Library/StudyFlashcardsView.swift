@@ -36,7 +36,40 @@ struct StudyFlashcardsView: View {
 
     init(deck: StudyDeck) {
         self.deck = deck
-        _sessionCards = State(initialValue: deck.cards)
+
+        let cardsByID = Dictionary(
+            uniqueKeysWithValues: deck.cards.map { ($0.id, $0) }
+        )
+
+        if deck.isStudySessionActive {
+            _sessionCards = State(
+                initialValue: deck.studyQueueIDs.compactMap {
+                    cardsByID[$0]
+                }
+            )
+
+            _learningCards = State(
+                initialValue: deck.learningQueueIDs.compactMap {
+                    cardsByID[$0]
+                }
+            )
+
+            _completedCardCount = State(
+                initialValue: deck.studyCompletedCount
+            )
+        } else {
+            _sessionCards = State(
+                initialValue: deck.cards
+            )
+
+            _learningCards = State(
+                initialValue: []
+            )
+
+            _completedCardCount = State(
+                initialValue: 0
+            )
+        }
     }
 
     // The card currently on screen: the initial queue is always shown first,
@@ -61,6 +94,7 @@ struct StudyFlashcardsView: View {
 
                 HStack {
                     Button {
+                        saveStudySession()
                         dismiss()
                     } label: {
                         Image(systemName: "xmark")
@@ -175,28 +209,26 @@ struct StudyFlashcardsView: View {
             return
         }
 
-        // Save spaced-repetition data — future scheduling is entirely owned
-        // by SpacedRepetitionService, never computed here in the view.
         spacedRepetitionService.review(
             card: card,
             rating: rating
         )
 
-        do {
-            try modelContext.save()
-        } catch {
-            print("Failed to save card review: \(error)")
+        if !sessionCards.isEmpty {
+            handleInitialCardRating(card, rating)
+        } else {
+            handleLearningCardRating(card, rating)
+        }
+
+        isAnswerRevealed = false
+
+        if sessionCards.isEmpty && learningCards.isEmpty {
+            finishStudySession()
+        } else {
+            saveStudySession()
         }
 
         withAnimation(.easeInOut(duration: 0.25)) {
-
-            if !sessionCards.isEmpty {
-                handleInitialCardRating(card, rating)
-            } else {
-                handleLearningCardRating(card, rating)
-            }
-
-            isAnswerRevealed = false
             advanceToNextCard()
         }
     }
@@ -262,6 +294,19 @@ struct StudyFlashcardsView: View {
         learningCards.insert(card, at: insertionIndex)
     }
 
+    private func saveStudySession() {
+        deck.studyQueueIDs = sessionCards.map(\.id)
+        deck.learningQueueIDs = learningCards.map(\.id)
+        deck.studyCompletedCount = completedCardCount
+        deck.isStudySessionActive = true
+
+        do {
+            try modelContext.save()
+        } catch {
+            print("Failed to save study session: \(error)")
+        }
+    }
+
     /// The session only completes once both the initial queue and the
     /// learning queue are empty — never just because `sessionCards` ran out.
     private func advanceToNextCard() {
@@ -269,6 +314,20 @@ struct StudyFlashcardsView: View {
             isSessionComplete = true
         }
     }
+
+    private func finishStudySession() {
+        deck.studyQueueIDs = []
+        deck.learningQueueIDs = []
+        deck.studyCompletedCount = 0
+        deck.isStudySessionActive = false
+
+        do {
+            try modelContext.save()
+        } catch {
+            print("Failed to finish study session: \(error)")
+        }
+    }
+
     // MARK: Empty State
 
     private var emptyState: some View {
