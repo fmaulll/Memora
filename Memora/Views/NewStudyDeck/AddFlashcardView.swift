@@ -9,11 +9,25 @@ import SwiftUI
 import PhotosUI
 
 private struct Flashcard: Identifiable {
-    let id = UUID()
+    let id: UUID
     var front: String
     var back: String
     var frontImageData: Data?
     var backImageData: Data?
+
+    init(
+        id: UUID = UUID(),
+        front: String,
+        back: String,
+        frontImageData: Data?,
+        backImageData: Data?
+    ) {
+        self.id = id
+        self.front = front
+        self.back = back
+        self.frontImageData = frontImageData
+        self.backImageData = backImageData
+    }
 }
 
 private enum CardSide {
@@ -40,6 +54,7 @@ struct AddFlashcardView: View {
     @State private var measuredEditorHeight: CGFloat = 0
     @State private var savedDeck: StudyDeck?
     @State private var isShowingDeckReady = false
+
     @FocusState private var isEditorFocused: Bool
 
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
@@ -51,7 +66,13 @@ struct AddFlashcardView: View {
         self.educationLevel = educationLevel
         self.existingDeck = existingDeck
         _cards = State(initialValue: existingDeck?.cards.map {
-            Flashcard(front: $0.front, back: $0.back, frontImageData: $0.frontImageData, backImageData: $0.backImageData)
+            Flashcard(
+                id: $0.id,
+                front: $0.front,
+                back: $0.back,
+                frontImageData: $0.frontImageData,
+                backImageData: $0.backImageData
+            )
         } ?? [])
     }
 
@@ -409,10 +430,26 @@ struct AddFlashcardView: View {
     }
 
     private func saveCard() {
-        if let editingCardID, let index = cards.firstIndex(where: { $0.id == editingCardID }) {
-            cards[index] = Flashcard(front: frontText, back: backText, frontImageData: frontImageData, backImageData: backImageData)
+        if let editingCardID,
+        let index = cards.firstIndex(where: { $0.id == editingCardID }) {
+
+            cards[index] = Flashcard(
+                id: editingCardID,
+                front: frontText,
+                back: backText,
+                frontImageData: frontImageData,
+                backImageData: backImageData
+            )
+
         } else {
-            cards.append(Flashcard(front: frontText, back: backText, frontImageData: frontImageData, backImageData: backImageData))
+            cards.append(
+                Flashcard(
+                    front: frontText,
+                    back: backText,
+                    frontImageData: frontImageData,
+                    backImageData: backImageData
+                )
+            )
         }
 
         frontText = ""
@@ -446,19 +483,112 @@ struct AddFlashcardView: View {
     }
 
     private func finishDeck() {
-        let deck = existingDeck ?? StudyDeck(title: deckTitle, subject: subject, educationLevel: educationLevel)
+        // MARK: - Creating a NEW deck
+        if existingDeck == nil {
+            let deck = StudyDeck(
+                title: deckTitle,
+                subject: subject,
+                educationLevel: educationLevel
+            )
+
+            // Insert the deck first
+            modelContext.insert(deck)
+
+            // Add every flashcard created in the editor
+            for card in cards {
+                let newCard = StudyFlashcardCard(
+                    front: card.front,
+                    back: card.back,
+                    frontImageData: card.frontImageData,
+                    backImageData: card.backImageData
+                )
+
+                deck.cards.append(newCard)
+            }
+
+            do {
+                try modelContext.save()
+
+                savedDeck = deck
+                isShowingDeckReady = true
+            } catch {
+                print("Failed to create deck: \(error)")
+            }
+
+            return
+        }
+
+        // MARK: - Editing an EXISTING deck
+
+        guard let deck = existingDeck else {
+            return
+        }
+
         deck.title = deckTitle
         deck.subject = subject
         deck.educationLevel = educationLevel
-        deck.cards = cards.map {
-            StudyFlashcardCard(front: $0.front, back: $0.back, frontImageData: $0.frontImageData, backImageData: $0.backImageData)
+
+        let originalCardIDs = Set(deck.cards.map(\.id))
+        let currentCardIDs = Set(cards.map(\.id))
+
+        // Update existing cards / add new cards
+        for card in cards {
+            if let existingCard = deck.cards.first(where: { $0.id == card.id }) {
+
+                // Existing card
+                existingCard.front = card.front
+                existingCard.back = card.back
+                existingCard.frontImageData = card.frontImageData
+                existingCard.backImageData = card.backImageData
+
+            } else {
+
+                // New card added while editing
+                let newCard = StudyFlashcardCard(
+                    front: card.front,
+                    back: card.back,
+                    frontImageData: card.frontImageData,
+                    backImageData: card.backImageData
+                )
+
+                deck.cards.append(newCard)
+            }
         }
-        if existingDeck == nil {
-            modelContext.insert(deck)
+
+        // Remove cards deleted from the editor
+        deck.cards.removeAll { card in
+            originalCardIDs.contains(card.id) &&
+            !currentCardIDs.contains(card.id)
         }
-        try? modelContext.save()
-        savedDeck = deck
-        isShowingDeckReady = true
+
+        // Remove deleted cards from any saved study queues
+        deck.studyQueueIDs.removeAll { !currentCardIDs.contains($0) }
+        deck.learningQueueIDs.removeAll { !currentCardIDs.contains($0) }
+
+        // Add newly created cards to the study queue
+        if deck.isStudySessionActive {
+
+            let queuedIDs = Set(
+                deck.studyQueueIDs + deck.learningQueueIDs
+            )
+
+            for card in deck.cards {
+                let wasExistingCard = originalCardIDs.contains(card.id)
+
+                if !wasExistingCard && !queuedIDs.contains(card.id) {
+                    deck.studyQueueIDs.append(card.id)
+                }
+            }
+        }
+
+        do {
+            try modelContext.save()
+
+            savedDeck = deck
+            isShowingDeckReady = true
+        } catch {
+            print("Failed to save edited deck: \(error)")
+        }
     }
 }
 
