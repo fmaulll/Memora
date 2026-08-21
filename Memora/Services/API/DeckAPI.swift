@@ -1,0 +1,89 @@
+import Foundation
+
+final class DeckAPI {
+
+    static let shared = DeckAPI()
+
+    private init() {}
+
+    // MARK: - Create
+
+    func create(
+        title: String,
+        subject: String,
+        educationLevel: String,
+        isFavorite: Bool = false
+    ) async throws -> DeckResponse {
+
+        let request = DeckCreateRequest(
+            title: title,
+            subject: subject,
+            educationLevel: educationLevel,
+            isFavorite: isFavorite
+        )
+
+        return try await APIClient.shared.request(
+            endpoint: "/decks",
+            method: .post,
+            body: request
+        )
+    }
+
+    // MARK: - Get All
+
+    func getAll() async throws -> [DeckResponse] {
+
+        return try await APIClient.shared.request(
+            endpoint: "/decks",
+            method: .get
+        )
+    }
+
+    // MARK: - Get One
+
+    func get(
+        id: UUID
+    ) async throws -> DeckResponse {
+
+        return try await APIClient.shared.request(
+            endpoint: "/decks/\(id)",
+            method: .get
+        )
+    }
+
+    // MARK: - Update
+
+    func update(
+        id: UUID,
+        title: String? = nil,
+        subject: String? = nil,
+        educationLevel: String? = nil,
+        isFavorite: Bool? = nil
+    ) async throws -> DeckResponse {
+
+        let request = DeckUpdateRequest(
+            title: title,
+            subject: subject,
+            educationLevel: educationLevel,
+            isFavorite: isFavorite
+        )
+
+        return try await APIClient.shared.request(
+            endpoint: "/decks/\(id)",
+            method: .put,
+            body: request
+        )
+    }
+
+    // MARK: - Delete
+
+    func delete(
+        id: UUID
+    ) async throws {
+
+        try await APIClient.shared.requestWithoutResponse(
+            endpoint: "/decks/\(id)",
+            method: .delete
+        )
+    }
+}
