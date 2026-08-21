@@ -41,8 +41,10 @@ struct WelcomeView: View {
                 VStack(spacing: 20) {
                     NavigationButton(title: "Continue with Apple", icon: .sf("apple.logo"), foreground: .black, background: .white) { }
                     NavigationButton(title: "Continue with Google", icon: .asset("GoogleIcon"), foreground: .white, background: Color(red: 0.02, green: 0.28, blue: 0.65)) { }
-                    NavigationButton(title: "Sign up with Email", icon: .sf("envelope.fill"), foreground: .white, background: Color(red: 0.40, green: 0.40, blue: 0.53)) { }
-                    
+                    NavigationButton(title: "Sign up with Email", icon: .sf("envelope.fill"), foreground: .white, background: Color(red: 0.40, green: 0.40, blue: 0.53)) { 
+                        RegisterView()
+                    }
+
                     Text("OR")
                         .font(.custom("PlusJakartaSans-Regular", size: 14))
                         .foregroundStyle(.white.opacity(0.7))
@@ -60,10 +62,14 @@ struct WelcomeView: View {
                         Text("Have an account?")
                             .foregroundStyle(.white.opacity(0.8))
                         
-                        Button("Login") { }
-                            .foregroundStyle(accent)
+                        NavigationLink {
+                            LoginView()
+                        } label: {
+                            Text("Login")
+                                .foregroundStyle(accent)
+                        }
                     }
-                    .font(.custom("PlusJakartaSans-Regular", size: 16))
+                    .font(.custom("PlusJakartaSans-Regular", size: 14))
                     
                     (
                         Text("By continuing, you agree to our ")
