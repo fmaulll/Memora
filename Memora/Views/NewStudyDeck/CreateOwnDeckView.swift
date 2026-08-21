@@ -152,17 +152,17 @@ struct CreateOwnDeckView: View {
 
             if isShowingManualSubjectField {
                 TextField("e.g. Biology, Physics, History", text: $subject)
-                    .font(.custom("PlusJakartaSans-Regular", size: 18))
+                    .font(.custom("PlusJakartaSans-Regular", size: 16))
                     .foregroundStyle(.white)
                     .tint(accent)
                     .focused($focusedField, equals: .subject)
-                    .padding(.horizontal, 30)
+                    .padding(.horizontal, 15)
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
                     .contentShape(Rectangle())
-                    .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 20))
+                    .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 12))
                     .overlay {
-                        RoundedRectangle(cornerRadius: 20)
+                        RoundedRectangle(cornerRadius: 12)
                             .stroke(.white.opacity(0.28), lineWidth: 1.03)
                     }
                     .onTapGesture {
@@ -222,17 +222,17 @@ struct CreateOwnDeckView: View {
                 .foregroundStyle(.white.opacity(0.62))
 
             TextField(placeholder, text: text)
-                .font(.custom("PlusJakartaSans-Regular", size: 18))
+                .font(.custom("PlusJakartaSans-Regular", size: 16))
                 .foregroundStyle(.white)
                 .tint(accent)
                 .focused($focusedField, equals: .deckTitle)
-                .padding(.horizontal, 30)
+                .padding(.horizontal, 15)
                 .frame(maxWidth: .infinity)
                 .frame(height: 52)
                 .contentShape(Rectangle())
-                .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 20))
+                .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 12))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 20)
+                    RoundedRectangle(cornerRadius: 12)
                         .stroke(.white.opacity(0.28), lineWidth: 1.03)
                 }
                 .onTapGesture {
