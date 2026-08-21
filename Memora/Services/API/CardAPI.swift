@@ -9,6 +9,7 @@ final class CardAPI {
     // MARK: - Create One
 
     func create(
+        id: UUID,
         deckID: UUID,
         front: String,
         back: String,
@@ -17,7 +18,7 @@ final class CardAPI {
     ) async throws -> CardResponse {
 
         let request = CardCreateRequest(
-            id: UUID(),
+            id: id,
             front: front,
             back: back,
             frontImageURL: frontImageURL,
