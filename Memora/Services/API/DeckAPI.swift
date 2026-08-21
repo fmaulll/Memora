@@ -9,6 +9,7 @@ final class DeckAPI {
     // MARK: - Create
 
     func create(
+        id: UUID,
         title: String,
         subject: String,
         educationLevel: String,
@@ -16,6 +17,7 @@ final class DeckAPI {
     ) async throws -> DeckResponse {
 
         let request = DeckCreateRequest(
+            id: id,
             title: title,
             subject: subject,
             educationLevel: educationLevel,
