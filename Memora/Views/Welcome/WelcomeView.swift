@@ -1,6 +1,9 @@
 import SwiftUI
+import SwiftData
 
 struct WelcomeView: View {
+
+    @Environment(\.modelContext) private var modelContext
 
     @State private var deckID: UUID = UUID()
 
@@ -396,43 +399,93 @@ struct WelcomeView: View {
             //     }
             // }
 
-            Button("Test Card Reconciliation") {
+            // Button("Test Card Reconciliation") {
+            //     Task {
+            //         do {
+
+            //             // Use ONE fixed deck ID for both tests
+            //             let deckID = UUID(
+            //                 uuidString: "11111111-1111-1111-1111-111111111111"
+            //             )!
+
+            //             // First make sure the deck exists
+            //             do {
+            //                 _ = try await DeckAPI.shared.get(id: deckID)
+            //             } catch {
+            //                 _ = try await DeckAPI.shared.create(
+            //                     id: deckID,
+            //                     title: "Reconciliation Test",
+            //                     subject: "Testing",
+            //                     educationLevel: "Beginner"
+            //                 )
+            //             }
+
+            //             // A, C, D
+            //             let cards: [CardCreateRequest] = []
+
+            //             let result = try await CardAPI.shared.createBulk(
+            //                 deckID: deckID,
+            //                 cards: cards
+            //             )
+
+            //             print("SERVER CARDS:", result.count)
+
+            //             for card in result {
+            //                 print(card.front, card.id)
+            //             }
+
+            //         } catch {
+            //             print("RECONCILIATION ERROR:", error)
+            //         }
+            //     }
+            // }
+
+            Button("Test Full Sync") {
                 Task {
                     do {
 
-                        // Use ONE fixed deck ID for both tests
-                        let deckID = UUID(
-                            uuidString: "11111111-1111-1111-1111-111111111111"
-                        )!
-
-                        // First make sure the deck exists
-                        do {
-                            _ = try await DeckAPI.shared.get(id: deckID)
-                        } catch {
-                            _ = try await DeckAPI.shared.create(
-                                id: deckID,
-                                title: "Reconciliation Test",
-                                subject: "Testing",
-                                educationLevel: "Beginner"
-                            )
-                        }
-
-                        // A, C, D
-                        let cards: [CardCreateRequest] = []
-
-                        let result = try await CardAPI.shared.createBulk(
-                            deckID: deckID,
-                            cards: cards
+                        let deck = StudyDeck(
+                            title: "Full Sync Test",
+                            subject: "Biology",
+                            educationLevel: "Beginner"
                         )
 
-                        print("SERVER CARDS:", result.count)
+                        modelContext.insert(deck)
 
-                        for card in result {
-                            print(card.front, card.id)
-                        }
+                        let card1 = StudyFlashcardCard(
+                            front: "What is mitosis?",
+                            back: "Cell division."
+                        )
+
+                        let card2 = StudyFlashcardCard(
+                            front: "What is DNA?",
+                            back: "Deoxyribonucleic acid."
+                        )
+
+                        let card3 = StudyFlashcardCard(
+                            front: "What is RNA?",
+                            back: "Ribonucleic acid."
+                        )
+
+                        modelContext.insert(card1)
+                        modelContext.insert(card2)
+                        modelContext.insert(card3)
+
+                        deck.cards = [
+                            card1,
+                            card2,
+                            card3
+                        ]
+
+                        try modelContext.save()
+
+                        try await SyncManager.shared.syncDeck(deck)
+
+                        print("FULL SYNC SUCCESS")
+                        print("Deck:", deck.id)
 
                     } catch {
-                        print("RECONCILIATION ERROR:", error)
+                        print("FULL SYNC ERROR:", error)
                     }
                 }
             }

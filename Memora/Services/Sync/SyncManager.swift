@@ -11,37 +11,59 @@ final class SyncManager {
 
     func syncDeck(_ deck: StudyDeck) async throws {
 
-        // 1. Sync deck
         let exists = try await deckExists(deck.id)
 
         if exists {
-            _ = try await DeckAPI.shared.update(
-                id: deck.id,
-                title: deck.title,
-                subject: deck.subject,
-                educationLevel: deck.educationLevel,
-                isFavorite: deck.isFavorite
-            )
+            try await updateDeck(deck)
         } else {
-            _ = try await DeckAPI.shared.create(
-                id: deck.id,
-                title: deck.title,
-                subject: deck.subject,
-                educationLevel: deck.educationLevel,
-                isFavorite: deck.isFavorite
-            )
+            try await createDeck(deck)
         }
 
-        // 2. Sync entire card collection
         try await syncCards(
             deck.cards,
             deckID: deck.id
         )
     }
 
+    // MARK: - Create Deck
+
+    private func createDeck(
+        _ deck: StudyDeck
+    ) async throws {
+
+        let response = try await DeckAPI.shared.create(
+            id: deck.id,
+            title: deck.title,
+            subject: deck.subject,
+            educationLevel: deck.educationLevel,
+            isFavorite: deck.isFavorite
+        )
+
+        print("Created deck:", response.id)
+    }
+
+    // MARK: - Update Deck
+
+    private func updateDeck(
+        _ deck: StudyDeck
+    ) async throws {
+
+        let response = try await DeckAPI.shared.update(
+            id: deck.id,
+            title: deck.title,
+            subject: deck.subject,
+            educationLevel: deck.educationLevel,
+            isFavorite: deck.isFavorite
+        )
+
+        print("Updated deck:", response.id)
+    }
+
     // MARK: - Check Deck
 
-    private func deckExists(_ id: UUID) async throws -> Bool {
+    private func deckExists(
+        _ id: UUID
+    ) async throws -> Bool {
 
         do {
             _ = try await DeckAPI.shared.get(id: id)
@@ -57,9 +79,6 @@ final class SyncManager {
                 statusCode: statusCode,
                 message: nil
             )
-
-        } catch {
-            throw error
         }
     }
 
@@ -71,6 +90,7 @@ final class SyncManager {
     ) async throws {
 
         let requests = cards.map { card in
+
             CardCreateRequest(
                 id: card.id,
                 front: card.front,
@@ -80,9 +100,11 @@ final class SyncManager {
             )
         }
 
-        _ = try await CardAPI.shared.createBulk(
+        let response = try await CardAPI.shared.createBulk(
             deckID: deckID,
             cards: requests
         )
+
+        print("Synced cards:", response.count)
     }
 }
