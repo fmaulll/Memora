@@ -3,6 +3,8 @@ import SwiftData
 
 @Model
 final class StudyDeck {
+    var id: UUID
+
     var title: String
     var subject: String
     var educationLevel: String
@@ -10,14 +12,10 @@ final class StudyDeck {
     var isFavorite: Bool = false
     var lastRating: String?
 
-    // MARK: - Persistent Study Session
-
     var studyQueueIDs: [UUID] = []
     var learningQueueIDs: [UUID] = []
     var studyCompletedCount: Int = 0
     var isStudySessionActive: Bool = false
-
-    // MARK: - Cards
 
     @Relationship(
         deleteRule: .cascade,
@@ -26,12 +24,14 @@ final class StudyDeck {
     var cards: [StudyFlashcardCard]
 
     init(
+        id: UUID = UUID(),
         title: String,
         subject: String,
         educationLevel: String,
         createdAt: Date = .now,
         cards: [StudyFlashcardCard] = []
     ) {
+        self.id = id
         self.title = title
         self.subject = subject
         self.educationLevel = educationLevel
