@@ -70,7 +70,7 @@ struct NavigationButton<Destination: View>: View {
             .frame(height: 54)
             .foregroundStyle(foreground)
             .background(background)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
     }
