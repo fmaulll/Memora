@@ -11,7 +11,7 @@ final class APIClient {
     private let baseURL = URL(
         // string: "http://127.0.0.1:8000"
 
-        string: "http://192.168.0.101:8000"
+        string: "http://192.168.1.6:8000"
     )!
 
     private let session: URLSession = {
