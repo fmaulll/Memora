@@ -23,6 +23,7 @@ final class StudyDeck {
     )
     var cards: [StudyFlashcardCard]
 
+    
     init(
         id: UUID = UUID(),
         title: String,
@@ -36,7 +37,12 @@ final class StudyDeck {
         self.subject = subject
         self.educationLevel = educationLevel
         self.createdAt = createdAt
+
         self.cards = cards
+
+        for card in cards {
+            card.deck = self
+        }
     }
 }
 
@@ -67,14 +73,14 @@ final class StudyFlashcardCard {
         front: String,
         back: String,
         frontImageData: Data? = nil,
-        backImageData: Data? = nil
+        backImageData: Data? = nil,
+        deck: StudyDeck? = nil
     ) {
-
         self.id = UUID()
-
         self.front = front
         self.back = back
         self.frontImageData = frontImageData
         self.backImageData = backImageData
+        self.deck = deck
     }
 }

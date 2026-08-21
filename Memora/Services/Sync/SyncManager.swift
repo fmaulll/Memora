@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 
 @MainActor
 final class SyncManager {
@@ -10,42 +9,79 @@ final class SyncManager {
 
     // MARK: - Sync Deck
 
-    func syncDeck(
-        _ deck: StudyDeck
-    ) async throws {
+    func syncDeck(_ deck: StudyDeck) async throws {
 
-        let deckResponse = try await DeckAPI.shared.create(
-            id: deck.id,
-            title: deck.title,
-            subject: deck.subject,
-            educationLevel: deck.educationLevel,
-            isFavorite: deck.isFavorite
-        )
+        let exists = try await deckExists(deck.id)
 
-        print("Synced deck:")
-        print(deckResponse.id)
-        print(deckResponse.title)
+        if exists {
 
-        // Sync cards after deck succeeds
+            _ = try await DeckAPI.shared.update(
+                id: deck.id,
+                title: deck.title,
+                subject: deck.subject,
+                educationLevel: deck.educationLevel,
+                isFavorite: deck.isFavorite
+            )
+
+            print("Updated deck:", deck.id)
+
+        } else {
+
+            _ = try await DeckAPI.shared.create(
+                id: deck.id,
+                title: deck.title,
+                subject: deck.subject,
+                educationLevel: deck.educationLevel,
+                isFavorite: deck.isFavorite
+            )
+
+            print("Created deck:", deck.id)
+        }
+
+        // 👇 Sync all cards after deck exists
         try await syncCards(
-            deckID: deck.id,
-            cards: deck.cards
+            deck.cards,
+            deckID: deck.id
         )
+    }
+
+    // MARK: - Check Deck
+
+    private func deckExists(_ id: UUID) async throws -> Bool {
+
+        do {
+            _ = try await DeckAPI.shared.get(id: id)
+            return true
+
+        } catch APIError.httpError(let statusCode, _) {
+
+            if statusCode == 404 {
+                return false
+            }
+
+            throw APIError.httpError(
+                statusCode: statusCode,
+                message: nil
+            )
+
+        } catch {
+            throw error
+        }
     }
 
     // MARK: - Sync Cards
 
     private func syncCards(
-        deckID: UUID,
-        cards: [StudyFlashcardCard]
+        _ cards: [StudyFlashcardCard],
+        deckID: UUID
     ) async throws {
 
         guard !cards.isEmpty else {
+            print("No cards to sync.")
             return
         }
 
         let requests = cards.map { card in
-
             CardCreateRequest(
                 id: card.id,
                 front: card.front,

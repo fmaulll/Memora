@@ -184,7 +184,110 @@ struct WelcomeView: View {
                     }
                 }
             }
+            Button("Test UUID") {
+                Task {
+                    do {
+                        let localID = UUID()
 
+                        let response = try await DeckAPI.shared.create(
+                            id: localID,
+                            title: "UUID Test",
+                            subject: "Test",
+                            educationLevel: "Beginner"
+                        )
+
+                        print("LOCAL :", localID)
+                        print("SERVER:", response.id)
+                        print("MATCH :", localID == response.id)
+
+                    } catch {
+                        print("UUID test error:", error)
+                    }
+                }
+            }
+
+            Button("Test Sync") {
+                Task {
+                    do {
+
+                        let deck = StudyDeck(
+                            title: "Sync Test",
+                            subject: "Biology",
+                            educationLevel: "Beginner"
+                        )
+
+                        try await SyncManager.shared.syncDeck(deck)
+
+                        print("SYNC SUCCESS")
+                        print("Deck ID:", deck.id)
+
+                    } catch {
+                        print("SYNC ERROR:", error)
+                    }
+                }
+            }
+
+            Button("Test Sync Deck + Cards") {
+                Task {
+                    do {
+                        let deckID = UUID()
+
+                        // 1. Create deck on backend
+                        let deck = try await DeckAPI.shared.create(
+                            id: deckID,
+                            title: "Biology",
+                            subject: "Biology",
+                            educationLevel: "Beginner"
+                        )
+
+                        print("Created deck:", deck.id)
+
+                        // 2. Create cards WITHOUT StudyFlashcardCard
+                        let cards = [
+                            CardCreateRequest(
+                                id: UUID(),
+                                front: "What is mitosis?",
+                                back: "A process of cell division.",
+                                frontImageURL: nil,
+                                backImageURL: nil
+                            ),
+
+                            CardCreateRequest(
+                                id: UUID(),
+                                front: "What is DNA?",
+                                back: "Deoxyribonucleic acid.",
+                                frontImageURL: nil,
+                                backImageURL: nil
+                            ),
+
+                            CardCreateRequest(
+                                id: UUID(),
+                                front: "What is RNA?",
+                                back: "Ribonucleic acid.",
+                                frontImageURL: nil,
+                                backImageURL: nil
+                            )
+                        ]
+
+                        // 3. Upload all cards
+                        let createdCards = try await CardAPI.shared.createBulk(
+                            deckID: deck.id,
+                            cards: cards
+                        )
+
+                        print("Created \(createdCards.count) cards")
+
+                        for card in createdCards {
+                            print(card.id, card.front)
+                        }
+
+                        print("SYNC SUCCESS")
+
+                    } catch {
+                        print("SYNC ERROR:", error)
+                    }
+                }
+            }
 
             Button("Get Decks") {
                 Task {
