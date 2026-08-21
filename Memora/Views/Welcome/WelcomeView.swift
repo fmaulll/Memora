@@ -1,7 +1,11 @@
 import SwiftUI
 
 struct WelcomeView: View {
+
+    @State private var deckID: UUID = UUID()
+
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
+
 
     var body: some View {
         AppBackground {
@@ -37,6 +41,8 @@ struct WelcomeView: View {
                 }
                 
                 Spacer(minLength: 46)
+                
+                testField()
                 
                 VStack(spacing: 20) {
                     NavigationButton(title: "Continue with Apple", icon: .sf("apple.logo"), foreground: .black, background: .white) { }
@@ -91,6 +97,117 @@ struct WelcomeView: View {
             .padding(.horizontal, 20)
             .padding(.top, 100)
             .padding(.bottom, 28)
+        }
+    }
+
+
+    private func testField() -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+
+            Button("Login (Test)") {
+                Task {
+                    do {
+                        let user = try await AuthAPI.shared.login(
+                            email: "edi.s@example.com",
+                            password: "password123"
+                        )
+
+                        print("Logged in:", user.name)
+
+                        print(
+                            "Token exists:",
+                            KeychainService.shared.hasAccessToken()
+                        )
+
+                    } catch {
+                        print("Login error:", error)
+                    }
+                }
+            }
+
+            Button("Me (Test)") {
+                Task {
+                    do {
+                        let user = try await AuthAPI.shared.me()
+
+                        print("Current user:")
+                        print(user.id)
+                        print(user.name)
+                        print(user.email)
+
+                    } catch {
+                        print("Me error:", error)
+                    }
+                }
+            }
+            Button("Create Deck") {
+                Task {
+                    do {
+                        let deck = try await DeckAPI.shared.create(
+                            title: "How to make meth",
+                            subject: "Chemistry",
+                            educationLevel: "Beginner"
+                        )
+
+                        print("Created deck:")
+                        print(deck.id)
+                        print(deck.title)
+                        deckID = deck.id
+
+                    } catch {
+                        print("Deck error:", error)
+                    }
+                }
+            }
+
+
+            Button("Get Decks") {
+                Task {
+                    do {
+                        let decks = try await DeckAPI.shared.getAll()
+
+                        print("Deck count:", decks.count)
+
+                        for deck in decks {
+                            print(deck.title, deck.id)
+                        }
+
+                    } catch {
+                        print("Get decks error:", error)
+                    }
+                }
+            }
+
+            Button("Update Deck") {
+                Task {
+                    do {
+                        let updated = try await DeckAPI.shared.update(
+                            id: deckID,
+                            title: "Meth is awesome"
+                        )
+
+                        print("Updated:", updated.title)
+
+                    } catch {
+                        print("Update error:", error)
+                    }
+                }
+            }
+
+            Button("Delete Deck") {
+                Task {
+                    do {
+                        try await DeckAPI.shared.delete(
+                            id: deckID
+                        )
+
+                        print("Deck deleted")
+
+                    } catch {
+                        print("Delete error:", error)
+                    }
+                }
+            }
         }
     }
 }
