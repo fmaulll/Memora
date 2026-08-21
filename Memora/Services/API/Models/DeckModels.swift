@@ -23,12 +23,14 @@ struct DeckResponse: Decodable {
 }
 
 struct DeckCreateRequest: Encodable {
+    let id: UUID
     let title: String
     let subject: String
     let educationLevel: String
     let isFavorite: Bool
 
     enum CodingKeys: String, CodingKey {
+        case id
         case title
         case subject
         case educationLevel = "education_level"
