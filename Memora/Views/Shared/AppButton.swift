@@ -67,7 +67,7 @@ struct AppButton: View {
             .frame(maxWidth: .infinity)
             .frame(height: 54)
             .background(background)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
     }
