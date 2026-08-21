@@ -11,10 +11,10 @@ final class SyncManager {
 
     func syncDeck(_ deck: StudyDeck) async throws {
 
+        // 1. Sync deck
         let exists = try await deckExists(deck.id)
 
         if exists {
-
             _ = try await DeckAPI.shared.update(
                 id: deck.id,
                 title: deck.title,
@@ -22,11 +22,7 @@ final class SyncManager {
                 educationLevel: deck.educationLevel,
                 isFavorite: deck.isFavorite
             )
-
-            print("Updated deck:", deck.id)
-
         } else {
-
             _ = try await DeckAPI.shared.create(
                 id: deck.id,
                 title: deck.title,
@@ -34,11 +30,9 @@ final class SyncManager {
                 educationLevel: deck.educationLevel,
                 isFavorite: deck.isFavorite
             )
-
-            print("Created deck:", deck.id)
         }
 
-        // 👇 Sync all cards after deck exists
+        // 2. Sync entire card collection
         try await syncCards(
             deck.cards,
             deckID: deck.id
@@ -76,11 +70,6 @@ final class SyncManager {
         deckID: UUID
     ) async throws {
 
-        guard !cards.isEmpty else {
-            print("No cards to sync.")
-            return
-        }
-
         let requests = cards.map { card in
             CardCreateRequest(
                 id: card.id,
@@ -91,11 +80,9 @@ final class SyncManager {
             )
         }
 
-        let responses = try await CardAPI.shared.createBulk(
+        _ = try await CardAPI.shared.createBulk(
             deckID: deckID,
             cards: requests
         )
-
-        print("Synced \(responses.count) cards")
     }
 }
