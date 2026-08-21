@@ -5,7 +5,31 @@ struct WelcomeView: View {
     @State private var deckID: UUID = UUID()
 
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
+    let cards = [
+        CardCreateRequest(
+            id: UUID(),
+            front: "What is mitosis?",
+            back: "A process of cell division.",
+            frontImageURL: nil,
+            backImageURL: nil
+        ),
 
+        CardCreateRequest(
+            id: UUID(),
+            front: "What is meiosis?",
+            back: "A type of cell division that produces gametes.",
+            frontImageURL: nil,
+            backImageURL: nil
+        ),
+
+        CardCreateRequest(
+            id: UUID(),
+            front: "What is DNA?",
+            back: "Deoxyribonucleic acid.",
+            frontImageURL: nil,
+            backImageURL: nil
+        )
+    ]
 
     var body: some View {
         AppBackground {
@@ -41,7 +65,7 @@ struct WelcomeView: View {
                 }
                 
                 Spacer(minLength: 46)
-                
+
                 testField()
                 
                 VStack(spacing: 20) {
@@ -144,6 +168,7 @@ struct WelcomeView: View {
                 Task {
                     do {
                         let deck = try await DeckAPI.shared.create(
+                            id: UUID(),
                             title: "How to make meth",
                             subject: "Chemistry",
                             educationLevel: "Beginner"
@@ -170,6 +195,8 @@ struct WelcomeView: View {
 
                         for deck in decks {
                             print(deck.title, deck.id)
+
+                            deckID = deck.id
                         }
 
                     } catch {
@@ -205,6 +232,63 @@ struct WelcomeView: View {
 
                     } catch {
                         print("Delete error:", error)
+                    }
+                }
+            }
+
+            Button("Create Cards bulk") {
+                Task {
+                    do {
+                        let createdCards = try await CardAPI.shared.createBulk(
+                            deckID: deckID,
+                            cards: cards
+                        )
+
+                        print("Created \(createdCards.count) cards")
+
+                        for card in createdCards {
+                            print(card.id, card.front)
+                        }
+
+                    } catch {
+                        print("Card error:", error)
+                    }
+                }
+            }
+
+            Button("Get All Cards") {
+                Task {
+                    do {
+                        let cards = try await CardAPI.shared.getAll(
+                            deckID: deckID
+                        )
+
+                        print("Cards:", cards.count)
+
+                        for card in cards {
+                            print(card.id, card.front)
+                        }
+
+                    } catch {
+                        print("Get cards error:", error)
+                    }
+                }
+            }
+
+            Button("Get All Decks") {
+                Task {
+                    do {
+                        let decks = try await DeckAPI.shared.getAll()
+
+                        guard let deck = decks.first else {
+                            print("No decks")
+                            return
+                        }
+
+                        print("Found:", deck.title)
+
+                    } catch {
+                        print("Sync error:", error)
                     }
                 }
             }
