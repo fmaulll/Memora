@@ -107,4 +107,18 @@ final class SyncManager {
 
         print("Synced cards:", response.count)
     }
+
+    // MARK: - Download All Decks and Cards
+
+    func downloadAll() async throws {
+        let serverDecks = try await DeckAPI.shared.getAll()
+
+        for serverDeck in serverDecks {
+            let cards = try await CardAPI.shared.getAll(
+                deckID: serverDeck.id
+            )
+
+            // Convert server data → SwiftData
+        }
+    }
 }

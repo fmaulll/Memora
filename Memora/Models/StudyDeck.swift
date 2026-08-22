@@ -70,13 +70,14 @@ final class StudyFlashcardCard {
     var deck: StudyDeck?
 
     init(
+        id: UUID = UUID(),
         front: String,
         back: String,
         frontImageData: Data? = nil,
         backImageData: Data? = nil,
         deck: StudyDeck? = nil
     ) {
-        self.id = UUID()
+        self.id = id
         self.front = front
         self.back = back
         self.frontImageData = frontImageData

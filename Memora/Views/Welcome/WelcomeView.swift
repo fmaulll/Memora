@@ -440,52 +440,79 @@ struct WelcomeView: View {
             //     }
             // }
 
-            Button("Test Full Sync") {
+            // Button("Test Full Sync") {
+            //     Task {
+            //         do {
+
+            //             let deck = StudyDeck(
+            //                 title: "Full Sync Test",
+            //                 subject: "Biology",
+            //                 educationLevel: "Beginner"
+            //             )
+
+            //             modelContext.insert(deck)
+
+            //             let card1 = StudyFlashcardCard(
+            //                 front: "What is mitosis?",
+            //                 back: "Cell division."
+            //             )
+
+            //             let card2 = StudyFlashcardCard(
+            //                 front: "What is DNA?",
+            //                 back: "Deoxyribonucleic acid."
+            //             )
+
+            //             let card3 = StudyFlashcardCard(
+            //                 front: "What is RNA?",
+            //                 back: "Ribonucleic acid."
+            //             )
+
+            //             modelContext.insert(card1)
+            //             modelContext.insert(card2)
+            //             modelContext.insert(card3)
+
+            //             deck.cards = [
+            //                 card1,
+            //                 card2,
+            //                 card3
+            //             ]
+
+            //             try modelContext.save()
+
+            //             try await SyncManager.shared.syncDeck(deck)
+
+            //             print("FULL SYNC SUCCESS")
+            //             print("Deck:", deck.id)
+
+            //         } catch {
+            //             print("FULL SYNC ERROR:", error)
+            //         }
+            //     }
+            // }
+
+            Button("Test Download") {
                 Task {
                     do {
+                        let decks = try await DeckAPI.shared.getAll()
 
-                        let deck = StudyDeck(
-                            title: "Full Sync Test",
-                            subject: "Biology",
-                            educationLevel: "Beginner"
-                        )
+                        print("SERVER DECKS:", decks.count)
 
-                        modelContext.insert(deck)
+                        for deck in decks {
+                            print("DECK:", deck.id, deck.title)
 
-                        let card1 = StudyFlashcardCard(
-                            front: "What is mitosis?",
-                            back: "Cell division."
-                        )
+                            let cards = try await CardAPI.shared.getAll(
+                                deckID: deck.id
+                            )
 
-                        let card2 = StudyFlashcardCard(
-                            front: "What is DNA?",
-                            back: "Deoxyribonucleic acid."
-                        )
+                            print("  CARDS:", cards.count)
 
-                        let card3 = StudyFlashcardCard(
-                            front: "What is RNA?",
-                            back: "Ribonucleic acid."
-                        )
-
-                        modelContext.insert(card1)
-                        modelContext.insert(card2)
-                        modelContext.insert(card3)
-
-                        deck.cards = [
-                            card1,
-                            card2,
-                            card3
-                        ]
-
-                        try modelContext.save()
-
-                        try await SyncManager.shared.syncDeck(deck)
-
-                        print("FULL SYNC SUCCESS")
-                        print("Deck:", deck.id)
+                            for card in cards {
+                                print("  -", card.id, card.front)
+                            }
+                        }
 
                     } catch {
-                        print("FULL SYNC ERROR:", error)
+                        print("DOWNLOAD ERROR:", error)
                     }
                 }
             }
