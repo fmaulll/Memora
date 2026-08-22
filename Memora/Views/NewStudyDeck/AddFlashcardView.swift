@@ -497,6 +497,7 @@ struct AddFlashcardView: View {
             // Add every flashcard created in the editor
             for card in cards {
                 let newCard = StudyFlashcardCard(
+                    id: card.id,
                     front: card.front,
                     back: card.back,
                     frontImageData: card.frontImageData,
@@ -509,8 +510,20 @@ struct AddFlashcardView: View {
             do {
                 try modelContext.save()
 
+                // Save locally first
                 savedDeck = deck
                 isShowingDeckReady = true
+
+                // Then sync with backend
+                Task {
+                    do {
+                        try await SyncManager.shared.syncDeck(deck)
+                        print("Deck synced successfully:", deck.id)
+                    } catch {
+                        print("Deck sync failed:", error)
+                    }
+                }
+
             } catch {
                 print("Failed to create deck: \(error)")
             }
@@ -545,6 +558,7 @@ struct AddFlashcardView: View {
 
                 // New card added while editing
                 let newCard = StudyFlashcardCard(
+                    id: card.id,
                     front: card.front,
                     back: card.back,
                     frontImageData: card.frontImageData,
@@ -584,8 +598,20 @@ struct AddFlashcardView: View {
         do {
             try modelContext.save()
 
+            // Save local changes first
             savedDeck = deck
             isShowingDeckReady = true
+
+            // Then sync updated deck + cards
+            Task {
+                do {
+                    try await SyncManager.shared.syncDeck(deck)
+                    print("Edited deck synced successfully:", deck.id)
+                } catch {
+                    print("Edited deck sync failed:", error)
+                }
+            }
+
         } catch {
             print("Failed to save edited deck: \(error)")
         }
