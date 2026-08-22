@@ -267,7 +267,7 @@ struct LoginView: View {
 
         Task {
             do {
-                let user = try await AuthAPI.shared.login(
+                let user = try await AuthManager.shared.login(
                     email: email,
                     password: password
                 )

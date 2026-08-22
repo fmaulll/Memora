@@ -3,36 +3,36 @@ import SwiftData
 
 struct WelcomeView: View {
 
-    @Environment(\.modelContext) private var modelContext
+    // @Environment(\.modelContext) private var modelContext
 
     @State private var deckID: UUID = UUID()
 
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
-    let cards = [
-        CardCreateRequest(
-            id: UUID(),
-            front: "What is mitosis?",
-            back: "A process of cell division.",
-            frontImageURL: nil,
-            backImageURL: nil
-        ),
+    // let cards = [
+    //     CardCreateRequest(
+    //         id: UUID(),
+    //         front: "What is mitosis?",
+    //         back: "A process of cell division.",
+    //         frontImageURL: nil,
+    //         backImageURL: nil
+    //     ),
 
-        CardCreateRequest(
-            id: UUID(),
-            front: "What is meiosis?",
-            back: "A type of cell division that produces gametes.",
-            frontImageURL: nil,
-            backImageURL: nil
-        ),
+    //     CardCreateRequest(
+    //         id: UUID(),
+    //         front: "What is meiosis?",
+    //         back: "A type of cell division that produces gametes.",
+    //         frontImageURL: nil,
+    //         backImageURL: nil
+    //     ),
 
-        CardCreateRequest(
-            id: UUID(),
-            front: "What is DNA?",
-            back: "Deoxyribonucleic acid.",
-            frontImageURL: nil,
-            backImageURL: nil
-        )
-    ]
+    //     CardCreateRequest(
+    //         id: UUID(),
+    //         front: "What is DNA?",
+    //         back: "Deoxyribonucleic acid.",
+    //         frontImageURL: nil,
+    //         backImageURL: nil
+    //     )
+    // ]
 
     var body: some View {
         AppBackground {
@@ -130,6 +130,19 @@ struct WelcomeView: View {
 
     private func testField() -> some View {
         VStack(alignment: .leading, spacing: 16) {
+
+            Button("Logout / Clear Token") {
+                do {
+                    try KeychainService.shared.deleteAccessToken()
+                    print("TOKEN DELETED")
+                    print(
+                        "Token exists:",
+                        KeychainService.shared.hasAccessToken()
+                    )
+                } catch {
+                    print("TOKEN DELETE ERROR:", error)
+                }
+            }
 
             // Button("Login (Test)") {
             //     Task {
