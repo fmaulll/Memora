@@ -132,16 +132,7 @@ struct WelcomeView: View {
         VStack(alignment: .leading, spacing: 16) {
 
             Button("Logout / Clear Token") {
-                do {
-                    try KeychainService.shared.deleteAccessToken()
-                    print("TOKEN DELETED")
-                    print(
-                        "Token exists:",
-                        KeychainService.shared.hasAccessToken()
-                    )
-                } catch {
-                    print("TOKEN DELETE ERROR:", error)
-                }
+                KeychainService.shared.deleteAccessToken()
             }
 
             // Button("Login (Test)") {

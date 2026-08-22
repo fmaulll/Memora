@@ -15,6 +15,7 @@ struct MemoraApp: App {
             Item.self,
             StudyDeck.self,
             StudyFlashcardCard.self,
+            LocalUserProfile.self
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 

@@ -4,6 +4,7 @@ struct RegisterView: View {
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
 
     @State private var name = ""
     @State private var email = ""
@@ -248,10 +249,11 @@ struct RegisterView: View {
 
         Task {
             do {
-                let user = try await AuthAPI.shared.register(
+                let user = try await AuthManager.shared.register(
                     name: name,
                     email: email,
-                    password: password
+                    password: password,
+                    modelContext: modelContext
                 )
 
                 print("Registered:")

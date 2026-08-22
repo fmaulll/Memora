@@ -4,13 +4,14 @@ struct LoginView: View {
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
 
     @State private var email = ""
     @State private var password = ""
     @State private var isLoggingIn = false
     @State private var errorMessage: String?
     @State private var isPasswordVisible = false
-
+    
     @FocusState private var focusedField: Field?
 
     private enum Field {
@@ -269,7 +270,8 @@ struct LoginView: View {
             do {
                 let user = try await AuthManager.shared.login(
                     email: email,
-                    password: password
+                    password: password,
+                    modelContext: modelContext
                 )
 
                 print("Logged in:", user.name)

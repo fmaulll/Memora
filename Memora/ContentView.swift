@@ -50,6 +50,11 @@ struct ContentView: View {
                 )
             }
         }
+        .task {
+            await authManager.restoreSession(
+                modelContext: modelContext
+            )
+        }
 
         // Text(
         //     authManager.isAuthenticated

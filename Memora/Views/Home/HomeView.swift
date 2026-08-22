@@ -5,6 +5,7 @@ struct HomeView: View {
     @Query(sort: \StudyDeck.createdAt, order: .reverse) private var decks: [StudyDeck]
     @State private var selectedTab: BottomBar.Tab = .home
     @State private var isShowingNewStudyDeck = false
+    @State private var authManager = AuthManager.shared
 
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
     private let cardFill = Color.white.opacity(0.18)
@@ -61,14 +62,22 @@ struct HomeView: View {
                 }
                 .padding(.top, 24)
 
+                Button("Logout / Clear Token") {
+                    KeychainService.shared.deleteAccessToken()
+                }
+
                 sectionHeader("Recent Decks")
                     .padding(.top, 24)
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 14) {
-                        deckCard(title: "Biology", progress: 64, color: .green)
-                        deckCard(title: "Physics", progress: 45, color: .blue)
-                        deckCard(title: "Languages", progress: 28, color: .orange)
+                        ForEach(decks.prefix(3)) { deck in
+                            NavigationLink {
+                                DeckDetailsView(deck: deck)
+                            } label: {
+                                deckCard(for: deck)
+                            }
+                        }
                     }
                 }
                 .padding(.top, 14)
@@ -116,15 +125,16 @@ struct HomeView: View {
         HStack {
             if selectedTab == .home {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Alex Rivera")
+                    Text(authManager.currentUser?.name ?? "User")
                         .font(.custom("PlusJakartaSans-ExtraBold", size: 30))
                         .foregroundStyle(.white)
-                    Text("Tuesday, August 5 · 2026")
+                    Text(Date.now, format: .dateTime.weekday(.wide).month(.wide).day().year())
+                        .environment(\.locale, Locale(identifier: "en_US"))
                         .font(.custom("PlusJakartaSans-Regular", size: 14))
                         .foregroundStyle(.white.opacity(0.32))
                 }
                 Spacer()
-                Text("AR")
+                Text((authManager.currentUser?.name.prefix(2).uppercased()) ?? "US")
                     .font(.custom("PlusJakartaSans-Bold", size: 17))
                     .foregroundStyle(.white)
                     .frame(width: 52, height: 52)
@@ -198,18 +208,23 @@ struct HomeView: View {
         .frame(height: 150)
     }
 
-    private func deckCard(title: String, progress: Int, color: Color) -> some View {
+    private func deckCard(for deck: StudyDeck) -> some View {
         dashboardCard {
             VStack(alignment: .leading, spacing: 12) {
-                Text(String(title.prefix(2)).uppercased())
+                Text(String(deck.title.prefix(2)).uppercased())
                     .font(.custom("PlusJakartaSans-Bold", size: 14))
-                    .foregroundStyle(color)
+                    .foregroundStyle(.green)
                     .frame(width: 42, height: 42)
-                    .background(color.opacity(0.18), in: Circle())
-                Spacer()
-                Text(title)
+                    .background(.green.opacity(0.18), in: Circle())
+                // Spacer()
+                Text(deck.title)
                     .font(.custom("PlusJakartaSans-SemiBold", size: 16))
                     .foregroundStyle(.white)
+
+                Text("\(deck.cards.count) cards")
+                    .font(.custom("PlusJakartaSans-Regular", size: 13))
+                    .foregroundStyle(.white.opacity(0.5))
+
                 HStack {
                     Text("Progress")
                         .font(.custom("PlusJakartaSans-Bold", size: 14))
@@ -217,13 +232,13 @@ struct HomeView: View {
                     
                     Spacer()
                     
-                    Text("\(progress)%")
+                    Text("\(0)%")
                         .font(.custom("PlusJakartaSans-Bold", size: 14))
-                        .foregroundStyle(color)
+                        .foregroundStyle(.green)
                     
                 }
-                ProgressView(value: Double(progress), total: 100)
-                    .tint(color)
+                ProgressView(value: Double(0), total: 100)
+                    .tint(.green)
             }
         }
         .frame(width: 200, height: 200)
