@@ -526,9 +526,69 @@ struct WelcomeView: View {
 
                         print("LOCAL DOWNLOAD SUCCESS")
 
+                        // Fetch all local decks
+                        let descriptor = FetchDescriptor<StudyDeck>()
+
+                        let localDecks = try modelContext.fetch(descriptor)
+
+                        print("LOCAL DECKS:", localDecks.count)
+
+                        for deck in localDecks {
+
+                            print("")
+                            print("DECK:")
+                            print("  ID:", deck.id)
+                            print("  TITLE:", deck.title)
+                            print("  SUBJECT:", deck.subject)
+                            print("  SYNCED:", deck.isSynced)
+                            print("  CARDS:", deck.cards.count)
+
+                            for card in deck.cards {
+                                print(
+                                    "    CARD:",
+                                    card.id,
+                                    "|",
+                                    card.front,
+                                    "| synced:",
+                                    card.isSynced
+                                )
+                            }
+                        }
+
                     } catch {
                         print("DOWNLOAD SYNC ERROR:", error)
                     }
+                }
+            }
+
+            Button("Add Unsynced Card") {
+                do {
+                    let descriptor = FetchDescriptor<StudyDeck>(
+                        predicate: #Predicate<StudyDeck> { deck in
+                            deck.title == "Full Sync Test"
+                        }
+                    )
+
+                    guard let deck = try modelContext.fetch(descriptor).first else {
+                        print("Deck not found")
+                        return
+                    }
+
+                    let card = StudyFlashcardCard(
+                        front: "LOCAL ONLY",
+                        back: "This should survive"
+                    )
+
+                    card.isSynced = false
+
+                    deck.cards.append(card)
+
+                    try modelContext.save()
+
+                    print("Added unsynced card:", card.id)
+
+                } catch {
+                    print("ADD ERROR:", error)
                 }
             }
             
