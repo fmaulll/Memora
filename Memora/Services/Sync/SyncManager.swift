@@ -125,6 +125,10 @@ final class SyncManager {
 
         let serverDecks = try await DeckAPI.shared.getAll()
 
+        let serverDeckIDs = Set(
+            serverDecks.map { $0.id }
+        )
+
         for serverDeck in serverDecks {
 
             // Find existing local deck
@@ -205,6 +209,19 @@ final class SyncManager {
             // DELETE cards removed from server
             deck.cards.removeAll { card in
                 !incomingIDs.contains(card.id) && card.isSynced
+            }
+        }
+
+        // Delete locally synced decks that no longer exist on server
+        let localDecks = try modelContext.fetch(
+            FetchDescriptor<StudyDeck>()
+        )
+
+        for localDeck in localDecks {
+            if localDeck.isSynced &&
+            !serverDeckIDs.contains(localDeck.id) {
+
+                modelContext.delete(localDeck)
             }
         }
 

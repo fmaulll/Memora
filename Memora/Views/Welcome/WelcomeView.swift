@@ -490,32 +490,32 @@ struct WelcomeView: View {
             //     }
             // }
 
-            Button("Test Download") {
-                Task {
-                    do {
-                        let decks = try await DeckAPI.shared.getAll()
+            // Button("Test Download") {
+            //     Task {
+            //         do {
+            //             let decks = try await DeckAPI.shared.getAll()
 
-                        print("SERVER DECKS:", decks.count)
+            //             print("SERVER DECKS:", decks.count)
 
-                        for deck in decks {
-                            print("DECK:", deck.id, deck.title)
+            //             for deck in decks {
+            //                 print("DECK:", deck.id, deck.title)
 
-                            let cards = try await CardAPI.shared.getAll(
-                                deckID: deck.id
-                            )
+            //                 let cards = try await CardAPI.shared.getAll(
+            //                     deckID: deck.id
+            //                 )
 
-                            print("  CARDS:", cards.count)
+            //                 print("  CARDS:", cards.count)
 
-                            for card in cards {
-                                print("  -", card.id, card.front)
-                            }
-                        }
+            //                 for card in cards {
+            //                     print("  -", card.id, card.front)
+            //                 }
+            //             }
 
-                    } catch {
-                        print("DOWNLOAD ERROR:", error)
-                    }
-                }
-            }
+            //         } catch {
+            //             print("DOWNLOAD ERROR:", error)
+            //         }
+            //     }
+            // }
 
             Button("Test Download → SwiftData") {
                 Task {
@@ -561,34 +561,58 @@ struct WelcomeView: View {
                 }
             }
 
-            Button("Add Unsynced Card") {
+            // Button("Add Unsynced Card") {
+            //     do {
+            //         let descriptor = FetchDescriptor<StudyDeck>(
+            //             predicate: #Predicate<StudyDeck> { deck in
+            //                 deck.title == "Full Sync Test"
+            //             }
+            //         )
+
+            //         guard let deck = try modelContext.fetch(descriptor).first else {
+            //             print("Deck not found")
+            //             return
+            //         }
+
+            //         let card = StudyFlashcardCard(
+            //             front: "LOCAL ONLY",
+            //             back: "This should survive"
+            //         )
+
+            //         card.isSynced = false
+
+            //         deck.cards.append(card)
+
+            //         try modelContext.save()
+
+            //         print("Added unsynced card:", card.id)
+
+            //     } catch {
+            //         print("ADD ERROR:", error)
+            //     }
+            // }
+
+            Button("Add Offline Deck") {
                 do {
-                    let descriptor = FetchDescriptor<StudyDeck>(
-                        predicate: #Predicate<StudyDeck> { deck in
-                            deck.title == "Full Sync Test"
-                        }
+                    let deck = StudyDeck(
+                        title: "Offline Test",
+                        subject: "Testing",
+                        educationLevel: "Beginner"
                     )
 
-                    guard let deck = try modelContext.fetch(descriptor).first else {
-                        print("Deck not found")
-                        return
-                    }
+                    deck.isSynced = false
 
-                    let card = StudyFlashcardCard(
-                        front: "LOCAL ONLY",
-                        back: "This should survive"
-                    )
-
-                    card.isSynced = false
-
-                    deck.cards.append(card)
+                    modelContext.insert(deck)
 
                     try modelContext.save()
 
-                    print("Added unsynced card:", card.id)
+                    print("Created offline deck:")
+                    print("ID:", deck.id)
+                    print("Title:", deck.title)
+                    print("Synced:", deck.isSynced)
 
                 } catch {
-                    print("ADD ERROR:", error)
+                    print("OFFLINE DECK ERROR:", error)
                 }
             }
             
