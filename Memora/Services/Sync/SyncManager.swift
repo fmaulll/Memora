@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 @MainActor
 final class SyncManager {
@@ -110,15 +111,101 @@ final class SyncManager {
 
     // MARK: - Download All Decks and Cards
 
-    func downloadAll() async throws {
+    // MARK: - Download All
+
+    func downloadAll(
+        modelContext: ModelContext
+    ) async throws {
+
         let serverDecks = try await DeckAPI.shared.getAll()
 
         for serverDeck in serverDecks {
-            let cards = try await CardAPI.shared.getAll(
+
+            // Find existing local deck
+            let serverDeckID = serverDeck.id
+
+            let descriptor = FetchDescriptor<StudyDeck>(
+                predicate: #Predicate<StudyDeck> { deck in
+                    deck.id == serverDeckID
+                }
+            )
+
+            let localDeck = try modelContext.fetch(descriptor).first
+
+            let deck: StudyDeck
+
+            if let localDeck {
+                // Existing local deck → update
+                deck = localDeck
+
+                deck.title = serverDeck.title
+                deck.subject = serverDeck.subject
+                deck.educationLevel = serverDeck.educationLevel
+                deck.isFavorite = serverDeck.isFavorite
+
+            } else {
+                // New server deck → create locally
+                deck = StudyDeck(
+                    id: serverDeck.id,
+                    title: serverDeck.title,
+                    subject: serverDeck.subject,
+                    educationLevel: serverDeck.educationLevel
+                )
+
+                deck.isFavorite = serverDeck.isFavorite
+
+                modelContext.insert(deck)
+            }
+
+            // Download cards
+            let serverCards = try await CardAPI.shared.getAll(
                 deckID: serverDeck.id
             )
 
-            // Convert server data → SwiftData
+            // Existing local cards
+            let existingCards = deck.cards
+
+            let existingByID = Dictionary(
+                uniqueKeysWithValues: existingCards.map {
+                    ($0.id, $0)
+                }
+            )
+
+            var incomingIDs = Set<UUID>()
+
+            for serverCard in serverCards {
+
+                incomingIDs.insert(serverCard.id)
+
+                if let localCard = existingByID[serverCard.id] {
+
+                    // UPDATE
+                    localCard.front = serverCard.front
+                    localCard.back = serverCard.back
+
+                } else {
+
+                    // INSERT
+                    let newCard = StudyFlashcardCard(
+                        id: serverCard.id,
+                        front: serverCard.front,
+                        back: serverCard.back
+                    )
+
+                    deck.cards.append(newCard)
+                }
+            }
+
+            // DELETE cards removed from server
+            deck.cards.removeAll {
+                !incomingIDs.contains($0.id)
+            }
         }
+
+        try modelContext.save()
+
+        print("DOWNLOAD SYNC SUCCESS")
     }
+
+
 }

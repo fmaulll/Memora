@@ -516,6 +516,21 @@ struct WelcomeView: View {
                     }
                 }
             }
+
+            Button("Test Download → SwiftData") {
+                Task {
+                    do {
+                        try await SyncManager.shared.downloadAll(
+                            modelContext: modelContext
+                        )
+
+                        print("LOCAL DOWNLOAD SUCCESS")
+
+                    } catch {
+                        print("DOWNLOAD SYNC ERROR:", error)
+                    }
+                }
+            }
             
         }
     }
