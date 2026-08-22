@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 
 struct HomeView: View {
+
     @Query(sort: \StudyDeck.createdAt, order: .reverse) private var decks: [StudyDeck]
     @State private var selectedTab: BottomBar.Tab = .home
     @State private var isShowingNewStudyDeck = false
@@ -61,10 +62,6 @@ struct HomeView: View {
                     summaryCard(title: "GOAL", value: "82", icon: "target", color: accent)
                 }
                 .padding(.top, 24)
-
-                Button("Logout / Clear Token") {
-                    KeychainService.shared.deleteAccessToken()
-                }
 
                 sectionHeader("Recent Decks")
                     .padding(.top, 24)

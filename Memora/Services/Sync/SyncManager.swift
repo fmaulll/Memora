@@ -230,5 +230,63 @@ final class SyncManager {
         print("DOWNLOAD SYNC SUCCESS")
     }
 
+    func uploadUnsyncedDecks(
+        modelContext: ModelContext
+    ) async throws {
+
+        let descriptor = FetchDescriptor<StudyDeck>(
+            predicate: #Predicate<StudyDeck> { deck in
+                deck.isSynced == false
+            }
+        )
+
+        let unsyncedDecks = try modelContext.fetch(descriptor)
+
+        print("UNSYNCED DECKS:", unsyncedDecks.count)
+
+        for deck in unsyncedDecks {
+
+            print("UPLOADING DECK:", deck.id, deck.title)
+
+            do {
+
+                let serverDeck = try await DeckAPI.shared.create(
+                    id: deck.id,
+                    title: deck.title,
+                    subject: deck.subject,
+                    educationLevel: deck.educationLevel,
+                    isFavorite: deck.isFavorite
+                )
+
+                // Verify the server kept the same UUID
+                guard serverDeck.id == deck.id else {
+                    print("❌ UUID MISMATCH")
+                    print("LOCAL:", deck.id)
+                    print("SERVER:", serverDeck.id)
+
+                    continue
+                }
+
+                deck.isSynced = true
+
+                print("✅ DECK UPLOADED:", deck.id)
+
+            } catch {
+
+                print(
+                    "❌ FAILED TO UPLOAD DECK:",
+                    deck.id,
+                    error
+                )
+
+                // Don't mark it synced.
+                // It will be retried next time.
+            }
+        }
+
+        try modelContext.save()
+
+        print("DECK UPLOAD SYNC SUCCESS")
+    }
 
 }
