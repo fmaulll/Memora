@@ -81,7 +81,7 @@ final class CardAPI {
     // MARK: - Update
 
     func update(
-        id: UUID,
+        cardID: UUID,
         front: String? = nil,
         back: String? = nil,
         frontImageURL: String? = nil,
@@ -96,7 +96,7 @@ final class CardAPI {
         )
 
         return try await APIClient.shared.request(
-            endpoint: "/cards/\(id)",
+            endpoint: "/cards/\(cardID)",
             method: .put,
             body: request
         )

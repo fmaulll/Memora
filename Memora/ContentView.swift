@@ -65,49 +65,49 @@ struct ContentView: View {
         //         : "Not authenticated"
         // )
 
-        Button("Add Offline Deck") {
-            do {
-                let deck = StudyDeck(
-                    title: "Offline Card Test",
-                    subject: "Testing",
-                    educationLevel: "Beginner"
-                )
+        // Button("Add Offline Deck") {
+        //     do {
+        //         let deck = StudyDeck(
+        //             title: "Offline Card Test",
+        //             subject: "Testing",
+        //             educationLevel: "Beginner"
+        //         )
 
-                deck.isSynced = false
+        //         deck.isSynced = false
 
-                modelContext.insert(deck)
+        //         modelContext.insert(deck)
 
-                try modelContext.save()
+        //         try modelContext.save()
 
-                print("Created offline deck:")
-                print("ID:", deck.id)
-                print("Title:", deck.title)
-                print("Synced:", deck.isSynced)
+        //         print("Created offline deck:")
+        //         print("ID:", deck.id)
+        //         print("Title:", deck.title)
+        //         print("Synced:", deck.isSynced)
 
-            } catch {
-                print("OFFLINE DECK ERROR:", error)
-            }
-        }
+        //     } catch {
+        //         print("OFFLINE DECK ERROR:", error)
+        //     }
+        // }
 
 
-        Button("Logout / Clear Token") {
-            KeychainService.shared.deleteAccessToken()
-        }
+        // Button("Logout / Clear Token") {
+        //     KeychainService.shared.deleteAccessToken()
+        // }
 
-        Button("Upload Unsynced Decks") {
-            Task {
-                do {
-                    try await SyncManager.shared.uploadUnsyncedDecks(
-                        modelContext: modelContext
-                    )
+        // Button("Upload Unsynced Decks") {
+        //     Task {
+        //         do {
+        //             try await SyncManager.shared.uploadUnsyncedDecks(
+        //                 modelContext: modelContext
+        //             )
 
-                    print("UPLOAD SUCCESS")
+        //             print("UPLOAD SUCCESS")
 
-                } catch {
-                    print("UPLOAD ERROR:", error)
-                }
-            }
-        }
+        //         } catch {
+        //             print("UPLOAD ERROR:", error)
+        //         }
+        //     }
+        // }
 
         // Button("Verify Uploaded Deck") {
         //     Task {
@@ -187,233 +187,355 @@ struct ContentView: View {
         //     }
         // }
 
-        Button("Test Upload Unsynced Cards") {
+        // Button("Test Upload Unsynced Cards") {
+        //     Task {
+        //         do {
+        //             // Find the test deck
+        //             let descriptor = FetchDescriptor<StudyDeck>(
+        //                 predicate: #Predicate<StudyDeck> { deck in
+        //                     deck.title == "Offline Card Test"
+        //                 }
+        //             )
+
+        //             guard let deck = try modelContext.fetch(descriptor).first else {
+        //                 print("❌ Offline Card Test deck not found")
+        //                 return
+        //             }
+
+        //             // Create 3 local-only cards
+        //             let cards = [
+        //                 StudyFlashcardCard(
+        //                     front: "Card A",
+        //                     back: "Answer A"
+        //                 ),
+        //                 StudyFlashcardCard(
+        //                     front: "Card B",
+        //                     back: "Answer B"
+        //                 ),
+        //                 StudyFlashcardCard(
+        //                     front: "Card C",
+        //                     back: "Answer C"
+        //                 )
+        //             ]
+
+        //             for card in cards {
+        //                 card.isSynced = false
+        //                 deck.cards.append(card)
+
+        //                 print(
+        //                     "Created local card:",
+        //                     card.id,
+        //                     card.front
+        //                 )
+        //             }
+
+        //             try modelContext.save()
+
+        //             print("")
+        //             print("LOCAL CARDS CREATED:", cards.count)
+        //             print("DECK ID:", deck.id)
+
+        //             // Upload them
+        //             try await SyncManager.shared.uploadUnsyncedCards(
+        //                 modelContext: modelContext
+        //             )
+
+        //             print("")
+        //             print("🎉 CARD UPLOAD TEST SUCCESS")
+
+        //             // Verify local state
+        //             print("")
+        //             print("========== LOCAL CARD STATE ==========")
+
+        //             for card in cards {
+        //                 print(
+        //                     card.id,
+        //                     "|",
+        //                     card.front,
+        //                     "| synced:",
+        //                     card.isSynced
+        //                 )
+        //             }
+
+        //         } catch {
+        //             print(
+        //                 "❌ CARD UPLOAD TEST ERROR:",
+        //                 error
+        //             )
+        //         }
+        //     }
+        // }
+
+        // Button("Upload Unsynced Cards") {
+        //     Task {
+        //         do {
+
+        //             try await SyncManager.shared.uploadUnsyncedCards(
+        //                 modelContext: modelContext
+        //             )
+
+        //             print("CARD UPLOAD SUCCESS")
+
+        //         } catch {
+
+        //             print(
+        //                 "CARD UPLOAD ERROR:",
+        //                 error
+        //             )
+        //         }
+        //     }
+        // }
+
+        Button("Test Edit Card") {
+            do {
+
+                let cardID = UUID(
+                    uuidString: "1B9F159B-7A4C-4BAE-ACE7-09D3E3EC69BC"
+                )!
+
+                let descriptor = FetchDescriptor<StudyFlashcardCard>(
+                    predicate: #Predicate<StudyFlashcardCard> { card in
+                        card.id == cardID
+                    }
+                )
+
+                guard let card = try modelContext.fetch(
+                    descriptor
+                ).first else {
+
+                    print("❌ CARD NOT FOUND")
+                    return
+                }
+
+                print("")
+                print("BEFORE EDIT:")
+                print("ID:", card.id)
+                print("FRONT:", card.front)
+                print("SYNCED:", card.isSynced)
+
+                card.front = "Card A+ UPDATED OFFLINE"
+                card.back = "Answer A+  UPDATED OFFLINE"
+                card.isSynced = false
+
+                try modelContext.save()
+
+                print("")
+                print("AFTER EDIT:")
+                print("ID:", card.id)
+                print("FRONT:", card.front)
+                print("SYNCED:", card.isSynced)
+
+                print("")
+                print("✅ LOCAL EDIT COMPLETE")
+
+            } catch {
+
+                print(
+                    "❌ EDIT ERROR:",
+                    error
+                )
+            }
+        }
+
+        Button("Test Upload Updated Card") {
             Task {
                 do {
-                    // Find the test deck
-                    let descriptor = FetchDescriptor<StudyDeck>(
-                        predicate: #Predicate<StudyDeck> { deck in
-                            deck.title == "Offline Card Test"
+                    let cardID = UUID(
+                        uuidString: "1B9F159B-7A4C-4BAE-ACE7-09D3E3EC69BC"
+                    )!
+
+                    let descriptor = FetchDescriptor<StudyFlashcardCard>(
+                        predicate: #Predicate<StudyFlashcardCard> { card in
+                            card.id == cardID
                         }
                     )
 
-                    guard let deck = try modelContext.fetch(descriptor).first else {
-                        print("❌ Offline Card Test deck not found")
+                    guard let card = try modelContext.fetch(descriptor).first else {
+                        print("❌ CARD NOT FOUND")
                         return
                     }
 
-                    // Create 3 local-only cards
-                    let cards = [
-                        StudyFlashcardCard(
-                            front: "Card A",
-                            back: "Answer A"
-                        ),
-                        StudyFlashcardCard(
-                            front: "Card B",
-                            back: "Answer B"
-                        ),
-                        StudyFlashcardCard(
-                            front: "Card C",
-                            back: "Answer C"
-                        )
-                    ]
+                    print("")
+                    print("========== BEFORE UPLOAD ==========")
+                    print("ID:", card.id)
+                    print("FRONT:", card.front)
+                    print("BACK:", card.back)
+                    print("SYNCED:", card.isSynced)
 
-                    for card in cards {
-                        card.isSynced = false
-                        deck.cards.append(card)
-
-                        print(
-                            "Created local card:",
-                            card.id,
-                            card.front
-                        )
+                    guard card.isSynced == false else {
+                        print("⚠️ Card is already synced.")
+                        print("Run Test Edit Card first.")
+                        return
                     }
+
+                    let serverCard = try await CardAPI.shared.update(
+                        cardID: card.id,
+                        front: card.front,
+                        back: card.back,
+                        frontImageURL: nil,
+                        backImageURL: nil
+                    )
+
+                    print("")
+                    print("========== SERVER RESPONSE ==========")
+                    print("SERVER ID:", serverCard.id)
+                    print("SERVER FRONT:", serverCard.front)
+                    print("SERVER BACK:", serverCard.back)
+
+                    guard serverCard.id == card.id else {
+                        print("")
+                        print("❌ UUID MISMATCH")
+                        print("LOCAL :", card.id)
+                        print("SERVER:", serverCard.id)
+                        return
+                    }
+
+                    card.isSynced = true
 
                     try modelContext.save()
 
                     print("")
-                    print("LOCAL CARDS CREATED:", cards.count)
-                    print("DECK ID:", deck.id)
-
-                    // Upload them
-                    try await SyncManager.shared.uploadUnsyncedCards(
-                        modelContext: modelContext
-                    )
-
-                    print("")
-                    print("🎉 CARD UPLOAD TEST SUCCESS")
-
-                    // Verify local state
-                    print("")
-                    print("========== LOCAL CARD STATE ==========")
-
-                    for card in cards {
-                        print(
-                            card.id,
-                            "|",
-                            card.front,
-                            "| synced:",
-                            card.isSynced
-                        )
-                    }
+                    print("========== FINAL RESULT ==========")
+                    print("LOCAL ID:", card.id)
+                    print("SERVER ID:", serverCard.id)
+                    print("SYNCED:", card.isSynced)
+                    print("✅ CARD UPDATE SYNC SUCCESS")
 
                 } catch {
-                    print(
-                        "❌ CARD UPLOAD TEST ERROR:",
-                        error
-                    )
+                    print("")
+                    print("❌ UPDATE CARD ERROR:", error)
                 }
             }
         }
 
-        Button("Upload Unsynced Cards") {
-            Task {
-                do {
+        // Button("Verify Uploaded Cards") {
+        //     Task {
+        //         do {
 
-                    try await SyncManager.shared.uploadUnsyncedCards(
-                        modelContext: modelContext
-                    )
+        //             let deckID = UUID(
+        //                 uuidString: "E11BA336-B22E-42A2-822B-EDC7938B7D5C"
+        //             )!
 
-                    print("CARD UPLOAD SUCCESS")
+        //             // MARK: Server
 
-                } catch {
+        //             let serverCards = try await CardAPI.shared.getAll(
+        //                 deckID: deckID
+        //             )
 
-                    print(
-                        "CARD UPLOAD ERROR:",
-                        error
-                    )
-                }
-            }
-        }
+        //             print("")
+        //             print("========== SERVER CARDS ==========")
+        //             print("SERVER CARD COUNT:", serverCards.count)
 
-        Button("Verify Uploaded Cards") {
-            Task {
-                do {
+        //             for card in serverCards {
+        //                 print(
+        //                     "SERVER:",
+        //                     card.id,
+        //                     "|",
+        //                     card.front
+        //                 )
+        //             }
 
-                    let deckID = UUID(
-                        uuidString: "E11BA336-B22E-42A2-822B-EDC7938B7D5C"
-                    )!
+        //             // MARK: Local
 
-                    // MARK: Server
+        //             let descriptor = FetchDescriptor<StudyDeck>(
+        //                 predicate: #Predicate<StudyDeck> { deck in
+        //                     deck.id == deckID
+        //                 }
+        //             )
 
-                    let serverCards = try await CardAPI.shared.getAll(
-                        deckID: deckID
-                    )
+        //             guard let localDeck = try modelContext.fetch(
+        //                 descriptor
+        //             ).first else {
+        //                 print("❌ LOCAL DECK NOT FOUND")
+        //                 return
+        //             }
 
-                    print("")
-                    print("========== SERVER CARDS ==========")
-                    print("SERVER CARD COUNT:", serverCards.count)
+        //             print("")
+        //             print("========== LOCAL CARDS ==========")
+        //             print("LOCAL CARD COUNT:", localDeck.cards.count)
 
-                    for card in serverCards {
-                        print(
-                            "SERVER:",
-                            card.id,
-                            "|",
-                            card.front
-                        )
-                    }
+        //             for card in localDeck.cards {
+        //                 print(
+        //                     "LOCAL:",
+        //                     card.id,
+        //                     "|",
+        //                     card.front,
+        //                     "| synced:",
+        //                     card.isSynced
+        //                 )
+        //             }
 
-                    // MARK: Local
+        //             // MARK: UUID comparison
 
-                    let descriptor = FetchDescriptor<StudyDeck>(
-                        predicate: #Predicate<StudyDeck> { deck in
-                            deck.id == deckID
-                        }
-                    )
+        //             let localIDs = Set(
+        //                 localDeck.cards.map { $0.id }
+        //             )
 
-                    guard let localDeck = try modelContext.fetch(
-                        descriptor
-                    ).first else {
-                        print("❌ LOCAL DECK NOT FOUND")
-                        return
-                    }
+        //             let serverIDs = Set(
+        //                 serverCards.map { $0.id }
+        //             )
 
-                    print("")
-                    print("========== LOCAL CARDS ==========")
-                    print("LOCAL CARD COUNT:", localDeck.cards.count)
+        //             print("")
+        //             print("========== UUID VERIFICATION ==========")
 
-                    for card in localDeck.cards {
-                        print(
-                            "LOCAL:",
-                            card.id,
-                            "|",
-                            card.front,
-                            "| synced:",
-                            card.isSynced
-                        )
-                    }
+        //             print("LOCAL IDS:", localIDs.count)
+        //             print("SERVER IDS:", serverIDs.count)
 
-                    // MARK: UUID comparison
+        //             if localIDs == serverIDs {
 
-                    let localIDs = Set(
-                        localDeck.cards.map { $0.id }
-                    )
+        //                 print("✅ ALL CARD UUIDs MATCH")
 
-                    let serverIDs = Set(
-                        serverCards.map { $0.id }
-                    )
+        //             } else {
 
-                    print("")
-                    print("========== UUID VERIFICATION ==========")
+        //                 print("❌ CARD UUID MISMATCH")
 
-                    print("LOCAL IDS:", localIDs.count)
-                    print("SERVER IDS:", serverIDs.count)
+        //                 let missingOnServer = localIDs.subtracting(serverIDs)
+        //                 let missingLocally = serverIDs.subtracting(localIDs)
 
-                    if localIDs == serverIDs {
+        //                 print(
+        //                     "Missing on server:",
+        //                     missingOnServer
+        //                 )
 
-                        print("✅ ALL CARD UUIDs MATCH")
+        //                 print(
+        //                     "Missing locally:",
+        //                     missingLocally
+        //                 )
+        //             }
 
-                    } else {
+        //             // MARK: Synced verification
 
-                        print("❌ CARD UUID MISMATCH")
+        //             let unsyncedCards = localDeck.cards.filter {
+        //                 !$0.isSynced
+        //             }
 
-                        let missingOnServer = localIDs.subtracting(serverIDs)
-                        let missingLocally = serverIDs.subtracting(localIDs)
+        //             print("")
+        //             print("========== SYNC STATE ==========")
+        //             print(
+        //                 "UNSYNCED LOCAL CARDS:",
+        //                 unsyncedCards.count
+        //             )
 
-                        print(
-                            "Missing on server:",
-                            missingOnServer
-                        )
+        //             if localIDs == serverIDs &&
+        //                 unsyncedCards.isEmpty {
 
-                        print(
-                            "Missing locally:",
-                            missingLocally
-                        )
-                    }
+        //                 print("")
+        //                 print("🎉 CARD SYNC VERIFIED SUCCESSFULLY")
 
-                    // MARK: Synced verification
+        //             } else {
 
-                    let unsyncedCards = localDeck.cards.filter {
-                        !$0.isSynced
-                    }
+        //                 print("")
+        //                 print("❌ CARD SYNC VERIFICATION FAILED")
+        //             }
 
-                    print("")
-                    print("========== SYNC STATE ==========")
-                    print(
-                        "UNSYNCED LOCAL CARDS:",
-                        unsyncedCards.count
-                    )
-
-                    if localIDs == serverIDs &&
-                        unsyncedCards.isEmpty {
-
-                        print("")
-                        print("🎉 CARD SYNC VERIFIED SUCCESSFULLY")
-
-                    } else {
-
-                        print("")
-                        print("❌ CARD SYNC VERIFICATION FAILED")
-                    }
-
-                } catch {
-                    print(
-                        "❌ CARD VERIFICATION ERROR:",
-                        error
-                    )
-                }
-            }
-        }
+        //         } catch {
+        //             print(
+        //                 "❌ CARD VERIFICATION ERROR:",
+        //                 error
+        //             )
+        //         }
+        //     }
+        // }
 
 
     }

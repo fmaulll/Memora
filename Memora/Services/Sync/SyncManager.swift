@@ -117,8 +117,6 @@ final class SyncManager {
 
     // MARK: - Download All Decks and Cards
 
-    // MARK: - Download All
-
     func downloadAll(
         modelContext: ModelContext
     ) async throws {
@@ -230,6 +228,8 @@ final class SyncManager {
         print("DOWNLOAD SYNC SUCCESS")
     }
 
+    // MARK: - Upload Unsynced Decks
+
     func uploadUnsyncedDecks(
         modelContext: ModelContext
     ) async throws {
@@ -288,6 +288,8 @@ final class SyncManager {
 
         print("DECK UPLOAD SYNC SUCCESS")
     }
+
+    // MARK: - Upload Unsynced Cards
 
     func uploadUnsyncedCards(
         modelContext: ModelContext
@@ -383,6 +385,77 @@ final class SyncManager {
 
         print("")
         print("CARD UPLOAD SYNC SUCCESS")
+    }
+
+    // MARK: - Upload Updated Cards
+
+    func uploadUpdatedCards(
+        modelContext: ModelContext
+    ) async throws {
+
+        let descriptor = FetchDescriptor<StudyFlashcardCard>(
+            predicate: #Predicate<StudyFlashcardCard> { card in
+                card.isSynced == false
+            }
+        )
+
+        let unsyncedCards = try modelContext.fetch(descriptor)
+
+        print("UNSYNCED CARDS FOR UPDATE:", unsyncedCards.count)
+
+        for card in unsyncedCards {
+
+            guard let deck = card.deck else {
+                print("❌ CARD HAS NO DECK:", card.id)
+                continue
+            }
+
+            print("")
+            print("UPDATING CARD:", card.id)
+            print("DECK:", deck.id)
+            print("FRONT:", card.front)
+            print("BACK:", card.back)
+
+            do {
+
+                let serverCard = try await CardAPI.shared.update(
+                    cardID: card.id,
+                    front: card.front,
+                    back: card.back,
+                    frontImageURL: nil,
+                    backImageURL: nil
+                )
+
+                guard serverCard.id == card.id else {
+
+                    print("❌ UUID MISMATCH")
+                    print("LOCAL:", card.id)
+                    print("SERVER:", serverCard.id)
+
+                    continue
+                }
+
+                card.isSynced = true
+
+                print(
+                    "✅ CARD UPDATED:",
+                    card.id
+                )
+
+            } catch {
+
+                print(
+                    "❌ FAILED TO UPDATE CARD:",
+                    card.id,
+                    error
+                )
+            }
+        }
+
+        try modelContext.save()
+
+        print("")
+        print("CARD UPDATE SYNC SUCCESS")
     }
 
 }
