@@ -286,127 +286,127 @@ struct ContentView: View {
         //     }
         // }
 
-        Button("Test Edit Card") {
-            do {
+        // Button("Test Edit Card") {
+        //     do {
 
-                let cardID = UUID(
-                    uuidString: "1B9F159B-7A4C-4BAE-ACE7-09D3E3EC69BC"
-                )!
+        //         let cardID = UUID(
+        //             uuidString: "1B9F159B-7A4C-4BAE-ACE7-09D3E3EC69BC"
+        //         )!
 
-                let descriptor = FetchDescriptor<StudyFlashcardCard>(
-                    predicate: #Predicate<StudyFlashcardCard> { card in
-                        card.id == cardID
-                    }
-                )
+        //         let descriptor = FetchDescriptor<StudyFlashcardCard>(
+        //             predicate: #Predicate<StudyFlashcardCard> { card in
+        //                 card.id == cardID
+        //             }
+        //         )
 
-                guard let card = try modelContext.fetch(
-                    descriptor
-                ).first else {
+        //         guard let card = try modelContext.fetch(
+        //             descriptor
+        //         ).first else {
 
-                    print("❌ CARD NOT FOUND")
-                    return
-                }
+        //             print("❌ CARD NOT FOUND")
+        //             return
+        //         }
 
-                print("")
-                print("BEFORE EDIT:")
-                print("ID:", card.id)
-                print("FRONT:", card.front)
-                print("SYNCED:", card.isSynced)
+        //         print("")
+        //         print("BEFORE EDIT:")
+        //         print("ID:", card.id)
+        //         print("FRONT:", card.front)
+        //         print("SYNCED:", card.isSynced)
 
-                card.front = "Card A+ UPDATED OFFLINE"
-                card.back = "Answer A+  UPDATED OFFLINE"
-                card.isSynced = false
+        //         card.front = "Card A+ UPDATED OFFLINE"
+        //         card.back = "Answer A+  UPDATED OFFLINE"
+        //         card.isSynced = false
 
-                try modelContext.save()
+        //         try modelContext.save()
 
-                print("")
-                print("AFTER EDIT:")
-                print("ID:", card.id)
-                print("FRONT:", card.front)
-                print("SYNCED:", card.isSynced)
+        //         print("")
+        //         print("AFTER EDIT:")
+        //         print("ID:", card.id)
+        //         print("FRONT:", card.front)
+        //         print("SYNCED:", card.isSynced)
 
-                print("")
-                print("✅ LOCAL EDIT COMPLETE")
+        //         print("")
+        //         print("✅ LOCAL EDIT COMPLETE")
 
-            } catch {
+        //     } catch {
 
-                print(
-                    "❌ EDIT ERROR:",
-                    error
-                )
-            }
-        }
+        //         print(
+        //             "❌ EDIT ERROR:",
+        //             error
+        //         )
+        //     }
+        // }
 
-        Button("Test Upload Updated Card") {
-            Task {
-                do {
-                    let cardID = UUID(
-                        uuidString: "1B9F159B-7A4C-4BAE-ACE7-09D3E3EC69BC"
-                    )!
+        // Button("Test Upload Updated Card") {
+        //     Task {
+        //         do {
+        //             let cardID = UUID(
+        //                 uuidString: "1B9F159B-7A4C-4BAE-ACE7-09D3E3EC69BC"
+        //             )!
 
-                    let descriptor = FetchDescriptor<StudyFlashcardCard>(
-                        predicate: #Predicate<StudyFlashcardCard> { card in
-                            card.id == cardID
-                        }
-                    )
+        //             let descriptor = FetchDescriptor<StudyFlashcardCard>(
+        //                 predicate: #Predicate<StudyFlashcardCard> { card in
+        //                     card.id == cardID
+        //                 }
+        //             )
 
-                    guard let card = try modelContext.fetch(descriptor).first else {
-                        print("❌ CARD NOT FOUND")
-                        return
-                    }
+        //             guard let card = try modelContext.fetch(descriptor).first else {
+        //                 print("❌ CARD NOT FOUND")
+        //                 return
+        //             }
 
-                    print("")
-                    print("========== BEFORE UPLOAD ==========")
-                    print("ID:", card.id)
-                    print("FRONT:", card.front)
-                    print("BACK:", card.back)
-                    print("SYNCED:", card.isSynced)
+        //             print("")
+        //             print("========== BEFORE UPLOAD ==========")
+        //             print("ID:", card.id)
+        //             print("FRONT:", card.front)
+        //             print("BACK:", card.back)
+        //             print("SYNCED:", card.isSynced)
 
-                    guard card.isSynced == false else {
-                        print("⚠️ Card is already synced.")
-                        print("Run Test Edit Card first.")
-                        return
-                    }
+        //             guard card.isSynced == false else {
+        //                 print("⚠️ Card is already synced.")
+        //                 print("Run Test Edit Card first.")
+        //                 return
+        //             }
 
-                    let serverCard = try await CardAPI.shared.update(
-                        cardID: card.id,
-                        front: card.front,
-                        back: card.back,
-                        frontImageURL: nil,
-                        backImageURL: nil
-                    )
+        //             let serverCard = try await CardAPI.shared.update(
+        //                 cardID: card.id,
+        //                 front: card.front,
+        //                 back: card.back,
+        //                 frontImageURL: nil,
+        //                 backImageURL: nil
+        //             )
 
-                    print("")
-                    print("========== SERVER RESPONSE ==========")
-                    print("SERVER ID:", serverCard.id)
-                    print("SERVER FRONT:", serverCard.front)
-                    print("SERVER BACK:", serverCard.back)
+        //             print("")
+        //             print("========== SERVER RESPONSE ==========")
+        //             print("SERVER ID:", serverCard.id)
+        //             print("SERVER FRONT:", serverCard.front)
+        //             print("SERVER BACK:", serverCard.back)
 
-                    guard serverCard.id == card.id else {
-                        print("")
-                        print("❌ UUID MISMATCH")
-                        print("LOCAL :", card.id)
-                        print("SERVER:", serverCard.id)
-                        return
-                    }
+        //             guard serverCard.id == card.id else {
+        //                 print("")
+        //                 print("❌ UUID MISMATCH")
+        //                 print("LOCAL :", card.id)
+        //                 print("SERVER:", serverCard.id)
+        //                 return
+        //             }
 
-                    card.isSynced = true
+        //             card.isSynced = true
 
-                    try modelContext.save()
+        //             try modelContext.save()
 
-                    print("")
-                    print("========== FINAL RESULT ==========")
-                    print("LOCAL ID:", card.id)
-                    print("SERVER ID:", serverCard.id)
-                    print("SYNCED:", card.isSynced)
-                    print("✅ CARD UPDATE SYNC SUCCESS")
+        //             print("")
+        //             print("========== FINAL RESULT ==========")
+        //             print("LOCAL ID:", card.id)
+        //             print("SERVER ID:", serverCard.id)
+        //             print("SYNCED:", card.isSynced)
+        //             print("✅ CARD UPDATE SYNC SUCCESS")
 
-                } catch {
-                    print("")
-                    print("❌ UPDATE CARD ERROR:", error)
-                }
-            }
-        }
+        //         } catch {
+        //             print("")
+        //             print("❌ UPDATE CARD ERROR:", error)
+        //         }
+        //     }
+        // }
 
         // Button("Verify Uploaded Cards") {
         //     Task {
@@ -537,6 +537,143 @@ struct ContentView: View {
         //     }
         // }
 
+
+        // Button("Test Delete Card") {
+        //     do {
+
+        //         let cardID = UUID(
+        //             uuidString: "f3b7e58d-212f-413a-9ff8-c617284ec658"
+        //         )!
+
+        //         let descriptor = FetchDescriptor<StudyFlashcardCard>(
+        //             predicate: #Predicate<StudyFlashcardCard> { card in
+        //                 card.id == cardID
+        //             }
+        //         )
+
+        //         guard let card = try modelContext.fetch(
+        //             descriptor
+        //         ).first else {
+
+        //             print("❌ CARD NOT FOUND")
+        //             return
+        //         }
+
+        //         print("")
+        //         print("========== BEFORE DELETE ==========")
+        //         print("ID:", card.id)
+        //         print("FRONT:", card.front)
+        //         print("SYNCED:", card.isSynced)
+        //         print("DELETED:", card.isDeleted)
+
+        //         card.isDeleted = true
+        //         card.isSynced = false
+
+        //         try modelContext.save()
+
+        //         print("")
+        //         print("========== AFTER DELETE ==========")
+        //         print("ID:", card.id)
+        //         print("SYNCED:", card.isSynced)
+        //         print("DELETED:", card.isDeleted)
+
+        //         print("")
+        //         print("✅ LOCAL DELETE MARKED")
+
+        //     } catch {
+
+        //         print(
+        //             "❌ DELETE TEST ERROR:",
+        //             error
+        //         )
+        //     }
+        // }
+
+        Button("Test Delete Card") {
+            do {
+                let cardID = UUID(
+                    uuidString: "406f2896-4ff8-4b83-a4c3-03c8e3c4383e"
+                )!
+
+                let descriptor = FetchDescriptor<StudyFlashcardCard>(
+                    predicate: #Predicate<StudyFlashcardCard> { card in
+                        card.id == cardID
+                    }
+                )
+
+                guard let card = try modelContext.fetch(descriptor).first else {
+                    print("❌ CARD NOT FOUND")
+                    return
+                }
+
+                print("")
+                print("========== BEFORE ==========")
+                print("ID:", card.id)
+                print("isDeleted:", card.needsDeletion)
+                print("isSynced:", card.isSynced)
+
+                card.needsDeletion = true
+                card.isSynced = false
+
+                print("")
+                print("========== AFTER ASSIGNMENT ==========")
+                print("ID:", card.id)
+                print("isDeleted:", card.needsDeletion)
+                print("isSynced:", card.isSynced)
+
+                try modelContext.save()
+
+                print("")
+                print("========== AFTER SAVE ==========")
+                print("ID:", card.id)
+                print("isDeleted:", card.needsDeletion)
+                print("isSynced:", card.isSynced)
+
+                // Fetch it again from SwiftData
+                let verifyDescriptor = FetchDescriptor<StudyFlashcardCard>(
+                    predicate: #Predicate<StudyFlashcardCard> { card in
+                        card.id == cardID
+                    }
+                )
+
+                guard let verifiedCard = try modelContext.fetch(
+                    verifyDescriptor
+                ).first else {
+                    print("❌ CARD DISAPPEARED")
+                    return
+                }
+
+                print("")
+                print("========== RE-FETCHED FROM SWIFTDATA ==========")
+                print("ID:", verifiedCard.id)
+                print("isDeleted:", verifiedCard.needsDeletion)
+                print("isSynced:", verifiedCard.isSynced)
+
+            } catch {
+                print("❌ DELETE TEST ERROR:", error)
+            }
+        }
+
+        Button("Test Upload Deleted Cards") {
+            Task {
+                do {
+
+                    try await SyncManager.shared.uploadDeletedCards(
+                        modelContext: modelContext
+                    )
+
+                    print("")
+                    print("🎉 DELETE SYNC TEST SUCCESS")
+
+                } catch {
+
+                    print(
+                        "❌ DELETE SYNC TEST ERROR:",
+                        error
+                    )
+                }
+            }
+        }
 
     }
 }

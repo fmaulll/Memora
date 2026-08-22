@@ -71,6 +71,7 @@ final class StudyFlashcardCard {
     var deck: StudyDeck?
 
     var isSynced: Bool = false
+    var needsDeletion: Bool = false
 
     init(
         id: UUID = UUID(),
@@ -86,5 +87,8 @@ final class StudyFlashcardCard {
         self.frontImageData = frontImageData
         self.backImageData = backImageData
         self.deck = deck
+
+        // self.isSynced = false
+        // self.isDeleted = false
     }
 }

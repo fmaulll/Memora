@@ -106,11 +106,11 @@ final class CardAPI {
     // MARK: - Delete
 
     func delete(
-        id: UUID
+        cardID: UUID
     ) async throws {
 
         try await APIClient.shared.requestWithoutResponse(
-            endpoint: "/cards/\(id)",
+            endpoint: "/cards/\(cardID)",
             method: .delete
         )
     }

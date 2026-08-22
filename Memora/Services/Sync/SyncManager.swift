@@ -458,4 +458,59 @@ final class SyncManager {
         print("CARD UPDATE SYNC SUCCESS")
     }
 
+    // MARK: - Upload Deleted Cards
+
+    func uploadDeletedCards(
+        modelContext: ModelContext
+    ) async throws {
+
+        let descriptor = FetchDescriptor<StudyFlashcardCard>(
+            predicate: #Predicate<StudyFlashcardCard> { card in
+                card.needsDeletion == true
+            }
+        )
+
+        let deletedCards = try modelContext.fetch(descriptor)
+
+        print("DELETED CARDS TO UPLOAD:", deletedCards.count)
+
+        for card in deletedCards {
+
+            print("")
+            print("DELETING CARD:", card.id)
+
+            do {
+
+                try await CardAPI.shared.delete(
+                    cardID: card.id
+                )
+
+                print(
+                    "✅ SERVER DELETE SUCCESS:",
+                    card.id
+                )
+
+                // Server successfully deleted it.
+                // Now remove the local copy.
+                modelContext.delete(card)
+
+            } catch {
+
+                print(
+                    "❌ FAILED TO DELETE CARD:",
+                    card.id,
+                    error
+                )
+
+                // Keep it locally with isDeleted = true.
+                // It can be retried during the next sync.
+            }
+        }
+
+        try modelContext.save()
+
+        print("")
+        print("CARD DELETE SYNC SUCCESS")
+    }
+
 }
