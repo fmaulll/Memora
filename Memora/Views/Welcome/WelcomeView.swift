@@ -517,49 +517,49 @@ struct WelcomeView: View {
             //     }
             // }
 
-            Button("Test Download → SwiftData") {
-                Task {
-                    do {
-                        try await SyncManager.shared.downloadAll(
-                            modelContext: modelContext
-                        )
+            // Button("Test Download → SwiftData") {
+            //     Task {
+            //         do {
+            //             try await SyncManager.shared.downloadAll(
+            //                 modelContext: modelContext
+            //             )
 
-                        print("LOCAL DOWNLOAD SUCCESS")
+            //             print("LOCAL DOWNLOAD SUCCESS")
 
-                        // Fetch all local decks
-                        let descriptor = FetchDescriptor<StudyDeck>()
+            //             // Fetch all local decks
+            //             let descriptor = FetchDescriptor<StudyDeck>()
 
-                        let localDecks = try modelContext.fetch(descriptor)
+            //             let localDecks = try modelContext.fetch(descriptor)
 
-                        print("LOCAL DECKS:", localDecks.count)
+            //             print("LOCAL DECKS:", localDecks.count)
 
-                        for deck in localDecks {
+            //             for deck in localDecks {
 
-                            print("")
-                            print("DECK:")
-                            print("  ID:", deck.id)
-                            print("  TITLE:", deck.title)
-                            print("  SUBJECT:", deck.subject)
-                            print("  SYNCED:", deck.isSynced)
-                            print("  CARDS:", deck.cards.count)
+            //                 print("")
+            //                 print("DECK:")
+            //                 print("  ID:", deck.id)
+            //                 print("  TITLE:", deck.title)
+            //                 print("  SUBJECT:", deck.subject)
+            //                 print("  SYNCED:", deck.isSynced)
+            //                 print("  CARDS:", deck.cards.count)
 
-                            for card in deck.cards {
-                                print(
-                                    "    CARD:",
-                                    card.id,
-                                    "|",
-                                    card.front,
-                                    "| synced:",
-                                    card.isSynced
-                                )
-                            }
-                        }
+            //                 for card in deck.cards {
+            //                     print(
+            //                         "    CARD:",
+            //                         card.id,
+            //                         "|",
+            //                         card.front,
+            //                         "| synced:",
+            //                         card.isSynced
+            //                     )
+            //                 }
+            //             }
 
-                    } catch {
-                        print("DOWNLOAD SYNC ERROR:", error)
-                    }
-                }
-            }
+            //         } catch {
+            //             print("DOWNLOAD SYNC ERROR:", error)
+            //         }
+            //     }
+            // }
 
             // Button("Add Unsynced Card") {
             //     do {
@@ -592,29 +592,53 @@ struct WelcomeView: View {
             //     }
             // }
 
-            Button("Add Offline Deck") {
-                do {
-                    let deck = StudyDeck(
-                        title: "Offline Test",
-                        subject: "Testing",
-                        educationLevel: "Beginner"
-                    )
+            // Button("Add Offline Deck") {
+            //     do {
+            //         let deck = StudyDeck(
+            //             title: "Offline Test",
+            //             subject: "Testing",
+            //             educationLevel: "Beginner"
+            //         )
 
-                    deck.isSynced = false
+            //         deck.isSynced = false
 
-                    modelContext.insert(deck)
+            //         modelContext.insert(deck)
 
-                    try modelContext.save()
+            //         try modelContext.save()
 
-                    print("Created offline deck:")
-                    print("ID:", deck.id)
-                    print("Title:", deck.title)
-                    print("Synced:", deck.isSynced)
+            //         print("Created offline deck:")
+            //         print("ID:", deck.id)
+            //         print("Title:", deck.title)
+            //         print("Synced:", deck.isSynced)
 
-                } catch {
-                    print("OFFLINE DECK ERROR:", error)
-                }
-            }
+            //     } catch {
+            //         print("OFFLINE DECK ERROR:", error)
+            //     }
+            // }
+
+            // Button("Delete Test Data") {
+            //     do {
+            //         let decks = try modelContext.fetch(
+            //             FetchDescriptor<StudyDeck>()
+            //         )
+
+            //         for deck in decks {
+            //             if deck.title == "Full Sync Test" ||
+            //             deck.title == "Offline Test" ||
+            //             deck.title == "Reconciliation Test" {
+
+            //                 modelContext.delete(deck)
+            //             }
+            //         }
+
+            //         try modelContext.save()
+
+            //         print("TEST DATA DELETED")
+
+            //     } catch {
+            //         print("DELETE TEST DATA ERROR:", error)
+            //     }
+            // }
             
         }
     }
