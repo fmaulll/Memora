@@ -289,4 +289,100 @@ final class SyncManager {
         print("DECK UPLOAD SYNC SUCCESS")
     }
 
+    func uploadUnsyncedCards(
+        modelContext: ModelContext
+    ) async throws {
+
+        let descriptor = FetchDescriptor<StudyFlashcardCard>(
+            predicate: #Predicate<StudyFlashcardCard> { card in
+                card.isSynced == false
+            }
+        )
+
+        let unsyncedCards = try modelContext.fetch(descriptor)
+
+        print("UNSYNCED CARDS:", unsyncedCards.count)
+
+        // Group cards by deck
+        let cardsByDeck = Dictionary(
+            grouping: unsyncedCards
+        ) { card in
+            card.deck?.id
+        }
+
+        for (deckID, cards) in cardsByDeck {
+
+            guard let deckID else {
+                print("❌ CARD GROUP HAS NO DECK")
+                continue
+            }
+
+            print("")
+            print("UPLOADING CARDS FOR DECK:", deckID)
+            print("CARD COUNT:", cards.count)
+
+            let requests = cards.map { card in
+
+                CardCreateRequest(
+                    id: card.id,
+                    front: card.front,
+                    back: card.back,
+                    frontImageURL: nil,
+                    backImageURL: nil
+                )
+            }
+
+            do {
+
+                let serverCards = try await CardAPI.shared.createBulk(
+                    deckID: deckID,
+                    cards: requests
+                )
+
+                print(
+                    "SERVER RETURNED:",
+                    serverCards.count,
+                    "CARDS"
+                )
+
+                // Make sure every local card was returned
+                let serverIDs = Set(
+                    serverCards.map { $0.id }
+                )
+
+                for card in cards {
+
+                    guard serverIDs.contains(card.id) else {
+                        print(
+                            "❌ SERVER DID NOT RETURN CARD:",
+                            card.id
+                        )
+
+                        continue
+                    }
+
+                    card.isSynced = true
+
+                    print(
+                        "✅ CARD UPLOADED:",
+                        card.id
+                    )
+                }
+
+            } catch {
+
+                print(
+                    "❌ FAILED TO UPLOAD CARDS FOR DECK:",
+                    deckID,
+                    error
+                )
+            }
+        }
+
+        try modelContext.save()
+
+        print("")
+        print("CARD UPLOAD SYNC SUCCESS")
+    }
+
 }
