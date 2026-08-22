@@ -24,6 +24,12 @@ final class SyncManager {
             deck.cards,
             deckID: deck.id
         )
+
+        deck.isSynced = true
+
+        for card in deck.cards {
+            card.isSynced = true
+        }
     }
 
     // MARK: - Create Deck
@@ -135,14 +141,13 @@ final class SyncManager {
             let deck: StudyDeck
 
             if let localDeck {
-                // Existing local deck → update
                 deck = localDeck
 
                 deck.title = serverDeck.title
                 deck.subject = serverDeck.subject
                 deck.educationLevel = serverDeck.educationLevel
                 deck.isFavorite = serverDeck.isFavorite
-
+                deck.isSynced = true
             } else {
                 // New server deck → create locally
                 deck = StudyDeck(
@@ -153,6 +158,7 @@ final class SyncManager {
                 )
 
                 deck.isFavorite = serverDeck.isFavorite
+                deck.isSynced = true
 
                 modelContext.insert(deck)
             }
@@ -178,11 +184,9 @@ final class SyncManager {
                 incomingIDs.insert(serverCard.id)
 
                 if let localCard = existingByID[serverCard.id] {
-
-                    // UPDATE
                     localCard.front = serverCard.front
                     localCard.back = serverCard.back
-
+                    localCard.isSynced = true
                 } else {
 
                     // INSERT
@@ -192,13 +196,15 @@ final class SyncManager {
                         back: serverCard.back
                     )
 
+                    newCard.isSynced = true
+
                     deck.cards.append(newCard)
                 }
             }
 
             // DELETE cards removed from server
-            deck.cards.removeAll {
-                !incomingIDs.contains($0.id)
+            deck.cards.removeAll { card in
+                !incomingIDs.contains(card.id) && card.isSynced
             }
         }
 

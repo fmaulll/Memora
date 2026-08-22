@@ -23,6 +23,7 @@ final class StudyDeck {
     )
     var cards: [StudyFlashcardCard]
 
+    var isSynced: Bool = false
     
     init(
         id: UUID = UUID(),
@@ -68,6 +69,8 @@ final class StudyFlashcardCard {
     var interval: Int = 0
 
     var deck: StudyDeck?
+
+    var isSynced: Bool = false
 
     init(
         id: UUID = UUID(),
