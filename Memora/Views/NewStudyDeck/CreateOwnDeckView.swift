@@ -10,6 +10,7 @@ import SwiftData
 
 struct CreateOwnDeckView: View {
     let existingDeck: StudyDeck?
+    let onFinish: ((StudyDeck) -> Void)?
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -21,7 +22,6 @@ struct CreateOwnDeckView: View {
     @State private var educationLevel: EducationLevel
     @State private var isShowingAddFlashcards = false
     @State private var isShowingDiscardConfirmation = false
-    @State private var isShowingDeckDetails = false
 
     @FocusState private var focusedField: Field?
 
@@ -35,11 +35,18 @@ struct CreateOwnDeckView: View {
     // Hardcoded for now — will be generated from deckTitle later.
     private let subjectSuggestions = ["Biology", "Excel", "Chemistry", "Anatomy", "Genetics"]
 
-    init(existingDeck: StudyDeck? = nil) {
+    init(
+        existingDeck: StudyDeck? = nil,
+        onFinish: ((StudyDeck) -> Void)? = nil
+    ) {
         self.existingDeck = existingDeck
+        self.onFinish = onFinish
+
         _deckTitle = State(initialValue: existingDeck?.title ?? "")
         _subject = State(initialValue: existingDeck?.subject ?? "")
-        _educationLevel = State(initialValue: EducationLevel(title: existingDeck?.educationLevel) ?? .highSchool)
+        _educationLevel = State(
+            initialValue: EducationLevel(title: existingDeck?.educationLevel) ?? .highSchool
+        )
     }
 
     private var isEditMode: Bool {
@@ -170,14 +177,9 @@ struct CreateOwnDeckView: View {
                     isEditMode: false,
                     onFinish: {
                         isShowingAddFlashcards = false
-                        isShowingDeckDetails = true
+                        onFinish?(createdDeck)
                     }
                 )
-            }
-        }
-        .navigationDestination(isPresented: $isShowingDeckDetails) {
-            if let createdDeck {
-                DeckDetailsView(deck: createdDeck)
             }
         }
         .alert(

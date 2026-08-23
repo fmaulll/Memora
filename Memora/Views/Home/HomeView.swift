@@ -6,6 +6,7 @@ struct HomeView: View {
     @Query(sort: \StudyDeck.createdAt, order: .reverse) private var decks: [StudyDeck]
     @State private var selectedTab: BottomBar.Tab = .home
     @State private var isShowingNewStudyDeck = false
+    @State private var selectedDeck: StudyDeck?
     @State private var authManager = AuthManager.shared
 
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
@@ -50,7 +51,17 @@ struct HomeView: View {
         }
         .navigationBarBackButtonHidden()
         .navigationDestination(isPresented: $isShowingNewStudyDeck) {
-            NewStudyDeckView()
+            NewStudyDeckView(
+                onFinish: { deck in
+                    isShowingNewStudyDeck = false
+                    selectedTab = .library
+                    selectedDeck = deck
+                }
+            )
+        }
+
+        .navigationDestination(item: $selectedDeck) { deck in
+            DeckDetailsView(deck: deck)
         }
     }
 

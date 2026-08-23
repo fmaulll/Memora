@@ -10,6 +10,7 @@ import SwiftUI
 
 struct NewStudyDeckView: View {
     private let showsSetUpLater: Bool
+    private let onFinish: ((StudyDeck) -> Void)?
     @State private var selectedMethod: StudyDeckMethod?
     @State private var isShowingUploadMaterials = false
     @State private var isShowingCreateOwnDeck = false
@@ -19,8 +20,12 @@ struct NewStudyDeckView: View {
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
     private let methods = StudyDeckMethod.allCases
 
-    init(showsSetUpLater: Bool = false) {
+    init(
+        showsSetUpLater: Bool = false,
+        onFinish: ((StudyDeck) -> Void)? = nil
+    ) {
         self.showsSetUpLater = showsSetUpLater
+        self.onFinish = onFinish
     }
 
     var body: some View {
@@ -120,7 +125,11 @@ struct NewStudyDeckView: View {
             UploadStudyMaterialsView()
         }
         .navigationDestination(isPresented: $isShowingCreateOwnDeck) {
-            CreateOwnDeckView()
+            CreateOwnDeckView(
+                onFinish: { deck in
+                    onFinish?(deck)
+                }
+            )
         }
         .navigationDestination(isPresented: $isShowingHome) {
             HomeView()
