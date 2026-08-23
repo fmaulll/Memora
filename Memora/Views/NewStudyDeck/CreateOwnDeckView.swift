@@ -20,6 +20,9 @@ struct CreateOwnDeckView: View {
     @State private var isShowingManualSubjectField = false
     @State private var educationLevel: EducationLevel
     @State private var isShowingAddFlashcards = false
+    @State private var isShowingDiscardConfirmation = false
+    @State private var isShowingDeckDetails = false
+
     @FocusState private var focusedField: Field?
 
     private enum Field {
@@ -116,7 +119,9 @@ struct CreateOwnDeckView: View {
                     .padding(.horizontal, 20)
                 }
                 .safeAreaInset(edge: .top, spacing: 0) {
-                    BackNavigationBar {
+                    BackNavigationBar(
+                        onBack: handleBack
+                    ) {
                         EmptyView()
                     }
                 }
@@ -160,8 +165,37 @@ struct CreateOwnDeckView: View {
         }
         .navigationDestination(isPresented: $isShowingAddFlashcards) {
             if let createdDeck {
-                AddFlashcardView(deck: createdDeck)
+                AddFlashcardView(
+                    deck: createdDeck,
+                    isEditMode: false,
+                    onFinish: {
+                        isShowingAddFlashcards = false
+                        isShowingDeckDetails = true
+                    }
+                )
             }
+        }
+        .navigationDestination(isPresented: $isShowingDeckDetails) {
+            if let createdDeck {
+                DeckDetailsView(deck: createdDeck)
+            }
+        }
+        .alert(
+            "Discard Deck?",
+            isPresented: $isShowingDiscardConfirmation
+        ) {
+            Button("Discard", role: .destructive) {
+                discardCreatedDeck()
+            }
+
+            Button("Keep Editing", role: .cancel) {
+                // Do nothing.
+            }
+        } message: {
+            Text(
+                "Your deck and cards haven't been finished yet. "
+                + "If you discard it, all of your progress will be lost."
+            )
         }
     }
 
@@ -262,6 +296,60 @@ struct CreateOwnDeckView: View {
         }
     }
 
+    private func handleBack() {
+
+        // Editing an existing deck:
+        // just leave the screen normally.
+        if isEditMode {
+            dismiss()
+            return
+        }
+
+        // Creating a new deck:
+        // if the deck hasn't been created yet, leave normally.
+        guard createdDeck != nil else {
+            dismiss()
+            return
+        }
+
+        // A deck was already created locally.
+        // Ask the user whether they want to discard it.
+        isShowingDiscardConfirmation = true
+    }
+
+    private func discardCreatedDeck() {
+
+        guard let createdDeck else {
+            dismiss()
+            return
+        }
+
+        print("")
+        print("========== DISCARDING DECK ==========")
+        print("DECK:", createdDeck.id)
+        print("TITLE:", createdDeck.title)
+        print("CARDS:", createdDeck.cards.count)
+
+        // Delete all cards belonging to this unfinished deck.
+        for card in createdDeck.cards {
+            modelContext.delete(card)
+        }
+
+        // Delete the deck itself.
+        modelContext.delete(createdDeck)
+
+        do {
+            try modelContext.save()
+
+            print("✅ DECK AND CARDS DISCARDED")
+
+            dismiss()
+
+        } catch {
+            print("❌ FAILED TO DISCARD DECK:", error)
+        }
+    }
+
     private func saveDeck() {
 
         guard let existingDeck else {
@@ -293,12 +381,32 @@ struct CreateOwnDeckView: View {
 
             dismiss()
 
+            Task {
+                do {
+                    try await SyncManager.shared.sync(
+                        modelContext: modelContext
+                    )
+
+                    print("✅ DECK UPDATE SYNC SUCCESS")
+
+                } catch {
+                    print("⚠️ DECK UPDATE SYNC FAILED:", error)
+                }
+            }
+
         } catch {
             print("❌ UPDATE DECK ERROR:", error)
         }
     }
 
     private func continueToCards() {
+
+        // We already created a deck earlier in this creation flow.
+        // Reuse it instead of creating another one.
+        if createdDeck != nil {
+            isShowingAddFlashcards = true
+            return
+        }
 
         let deck = StudyDeck(
             title: deckTitle.trimmingCharacters(in: .whitespacesAndNewlines),

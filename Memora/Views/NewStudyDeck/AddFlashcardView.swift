@@ -40,6 +40,8 @@ struct AddFlashcardView: View {
 
     @FocusState private var isEditorFocused: Bool
 
+    let onFinish: (() -> Void)?
+
     private let accent = Color(
         red: 0.39,
         green: 0.40,
@@ -54,10 +56,12 @@ struct AddFlashcardView: View {
 
     init(
         deck: StudyDeck,
-        isEditMode: Bool = false
+        isEditMode: Bool = false,
+        onFinish: (() -> Void)? = nil
     ) {
         self.deck = deck
         self.isEditMode = isEditMode
+        self.onFinish = onFinish
     }
 
     var body: some View {
@@ -617,9 +621,18 @@ struct AddFlashcardView: View {
             print("")
             print("========== FINISH DECK ==========")
             print("DECK:", deck.id)
-            print("CARDS:", deck.cards.count)
+            print(
+                "ACTIVE CARDS:",
+                deck.cards.filter { !$0.needsDeletion }.count
+            )
 
-            dismiss()
+            if isEditMode {
+                print("✅ EDIT SAVED LOCALLY")
+                dismiss()
+            } else {
+                print("✅ NEW DECK SAVED LOCALLY")
+                onFinish?()
+            }
 
         } catch {
             print("❌ FINISH DECK ERROR:", error)

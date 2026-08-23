@@ -10,16 +10,25 @@ import SwiftUI
 struct BackNavigationBar<Content: View>: View {
     @Environment(\.dismiss) private var dismiss
 
+    let onBack: (() -> Void)?
     @ViewBuilder let content: () -> Content
 
-    init(@ViewBuilder content: @escaping () -> Content) {
+    init(
+        onBack: (() -> Void)? = nil,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.onBack = onBack
         self.content = content
     }
 
     var body: some View {
         HStack {
             Button {
-                dismiss()
+                if let onBack {
+                    onBack()
+                } else {
+                    dismiss()
+                }
             } label: {
                 Image(systemName: "arrow.left")
                     .font(.system(size: 16, weight: .medium))
