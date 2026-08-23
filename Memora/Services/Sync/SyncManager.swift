@@ -4,9 +4,17 @@ import SwiftData
 @MainActor
 final class SyncManager {
 
+
     static let shared = SyncManager()
 
     private init() {}
+
+    enum CardSyncState {
+        static let synced = 0
+        static let created = 1
+        static let updated = 2
+        static let deleted = 3
+    }
 
     // MARK: - Sync Deck
 
@@ -28,7 +36,23 @@ final class SyncManager {
         deck.isSynced = true
 
         for card in deck.cards {
+            if card.syncState == CardSyncState.created {
+                // Let uploadUnsyncedCards() handle newly created cards
+                continue
+            }
+
+            if card.syncState == CardSyncState.updated {
+                // Let uploadUpdatedCards() handle updates
+                continue
+            }
+
+            if card.syncState == CardSyncState.deleted {
+                // Let uploadDeletedCards() handle deletions
+                continue
+            }
+
             card.isSynced = true
+            card.syncState = CardSyncState.synced
         }
     }
 
@@ -188,7 +212,10 @@ final class SyncManager {
                 if let localCard = existingByID[serverCard.id] {
                     localCard.front = serverCard.front
                     localCard.back = serverCard.back
+
                     localCard.isSynced = true
+                    localCard.syncState = SyncManager.CardSyncState.synced
+                    localCard.needsDeletion = false
                 } else {
 
                     // INSERT
@@ -199,6 +226,8 @@ final class SyncManager {
                     )
 
                     newCard.isSynced = true
+                    newCard.syncState = SyncManager.CardSyncState.synced
+                    newCard.needsDeletion = false
 
                     deck.cards.append(newCard)
                 }
@@ -297,7 +326,7 @@ final class SyncManager {
 
         let descriptor = FetchDescriptor<StudyFlashcardCard>(
             predicate: #Predicate<StudyFlashcardCard> { card in
-                card.isSynced == false
+                card.syncState == 1
             }
         )
 
@@ -364,6 +393,7 @@ final class SyncManager {
                     }
 
                     card.isSynced = true
+                    card.syncState = SyncManager.CardSyncState.synced
 
                     print(
                         "✅ CARD UPLOADED:",
@@ -395,7 +425,7 @@ final class SyncManager {
 
         let descriptor = FetchDescriptor<StudyFlashcardCard>(
             predicate: #Predicate<StudyFlashcardCard> { card in
-                card.isSynced == false
+                card.syncState == 2
             }
         )
 
@@ -436,6 +466,7 @@ final class SyncManager {
                 }
 
                 card.isSynced = true
+                card.syncState = SyncManager.CardSyncState.synced
 
                 print(
                     "✅ CARD UPDATED:",
@@ -466,6 +497,7 @@ final class SyncManager {
 
         let descriptor = FetchDescriptor<StudyFlashcardCard>(
             predicate: #Predicate<StudyFlashcardCard> { card in
+                card.syncState == 3 &&
                 card.needsDeletion == true
             }
         )
@@ -511,6 +543,59 @@ final class SyncManager {
 
         print("")
         print("CARD DELETE SYNC SUCCESS")
+    }
+
+    // MARK: - Full Sync
+
+    func sync(
+        modelContext: ModelContext
+    ) async throws {
+
+        print("")
+        print("========== SYNC START ==========")
+
+        // 1. Upload newly created decks
+        print("")
+        print("STEP 1: UPLOAD DECKS")
+
+        try await uploadUnsyncedDecks(
+            modelContext: modelContext
+        )
+
+        // 2. Upload newly created cards
+        print("")
+        print("STEP 2: UPLOAD NEW CARDS")
+
+        try await uploadUnsyncedCards(
+            modelContext: modelContext
+        )
+
+        // 3. Upload updated cards
+        print("")
+        print("STEP 3: UPLOAD UPDATED CARDS")
+
+        try await uploadUpdatedCards(
+            modelContext: modelContext
+        )
+
+        // 4. Upload deleted cards
+        print("")
+        print("STEP 4: UPLOAD DELETED CARDS")
+
+        try await uploadDeletedCards(
+            modelContext: modelContext
+        )
+
+        // 5. Download server state
+        print("")
+        print("STEP 5: DOWNLOAD")
+
+        try await downloadAll(
+            modelContext: modelContext
+        )
+
+        print("")
+        print("========== SYNC SUCCESS ==========")
     }
 
 }

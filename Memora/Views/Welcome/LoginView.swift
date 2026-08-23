@@ -30,11 +30,6 @@ struct LoginView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
 
-                        HStack {
-                            BackButton()
-                            Spacer()
-                        }
-
                         Text("Good to see\nyou again.")
                             .font(.custom("PlusJakartaSans-ExtraBold", size: 40))
                             .foregroundStyle(.white)
@@ -144,6 +139,13 @@ struct LoginView: View {
                             .frame(height: 40)
                     }
                     .padding(.horizontal, 20)
+                }
+                
+                
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    BackNavigationBar {
+                        EmptyView()
+                    }
                 }
             }
         }

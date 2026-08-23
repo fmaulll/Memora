@@ -30,11 +30,6 @@ struct NewStudyDeckView: View {
                 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
-                        HStack {
-                            BackButton()
-                            
-                            Spacer()
-                        }
                         
                         Text("NEW STUDY DECK")
                             .font(.custom("PlusJakartaSans-Bold", size: 14))
@@ -87,6 +82,12 @@ struct NewStudyDeckView: View {
                 .frame(height: 34)
                 .background(.white.opacity(0.07), in: Capsule())
                 .padding(.trailing, 20)
+            }
+        }
+        
+        .safeAreaInset(edge: .top, spacing: 0) {
+            BackNavigationBar {
+                EmptyView()
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {

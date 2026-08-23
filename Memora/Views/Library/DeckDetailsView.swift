@@ -4,26 +4,33 @@ struct DeckDetailsView: View {
     let deck: StudyDeck
 
     @State private var isShowingEditDeck = false
+    @State private var isShowingEditCards = false
 
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
     private let cardFill = Color.white.opacity(0.18)
 
     private var totalCards: Int {
-        deck.cards.count
+        deck.cards.filter { !$0.needsDeletion }.count
     }
 
     private var masteredCards: Int {
-        deck.cards.filter { $0.correctCount > 0 }.count
+        deck.cards.filter {
+            !$0.needsDeletion &&
+            $0.correctCount > 0
+        }.count
     }
 
     private var learningCards: Int {
         deck.cards.filter {
-            $0.reviewCount > 0 && $0.correctCount == 0
+            !$0.needsDeletion &&
+            $0.reviewCount > 0 &&
+            $0.correctCount == 0
         }.count
     }
 
     private var newCards: Int {
         deck.cards.filter {
+            !$0.needsDeletion &&
             $0.reviewCount == 0
         }.count
     }
@@ -38,11 +45,6 @@ struct DeckDetailsView: View {
         AppBackground {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
-                    HStack {
-                        BackButton()
-                        Spacer()
-                    }
-                    .padding(.top, 8)
 
                     header
                         .padding(.top, 24)
@@ -60,9 +62,21 @@ struct DeckDetailsView: View {
 
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
                         actionCard(title: "Take Exam", subtitle: "Test yourself", icon: "doc.text.fill", color: .orange) { }
-                        actionCard(title: "Generate More", subtitle: "Add AI cards", icon: "sparkles", color: .purple) { }
+                        actionCard(
+                            title: "Edit Cards",
+                            subtitle: "Add, edit or delete cards",
+                            icon: "rectangle.stack.fill",
+                            color: accent
+                        ) {
+                            isShowingEditCards = true
+                        }
                         actionCard(title: "View Analytics", subtitle: "Track progress", icon: "chart.bar.fill", color: .indigo) { }
-                        actionCard(title: "Edit Deck", subtitle: "Modify cards", icon: "pencil", color: .white.opacity(0.6)) {
+                        actionCard(
+                            title: "Edit Deck",
+                            subtitle: "Modify title & details",
+                            icon: "pencil",
+                            color: .white.opacity(0.6)
+                        ) {
                             isShowingEditDeck = true
                         }
                     }
@@ -79,23 +93,32 @@ struct DeckDetailsView: View {
                 }
                 .padding(.horizontal, 20)
             }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                BackNavigationBar {
+                    EmptyView()
+                }
+            }
         }
         .preferredColorScheme(.dark)
         .navigationBarBackButtonHidden()
         .navigationDestination(isPresented: $isShowingEditDeck) {
             CreateOwnDeckView(existingDeck: deck)
         }
+        .navigationDestination(isPresented: $isShowingEditCards) {
+            AddFlashcardView(
+                deck: deck,
+                isEditMode: true
+            )
+        }
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                Text(deck.subject.uppercased())
-                    .font(.custom("PlusJakartaSans-Bold", size: 12))
+
+                Text(deck.title)
+                    .font(.custom("PlusJakartaSans-ExtraBold", size: 28))
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(accent, in: Capsule())
 
                 if deck.isFavorite {
                     Image(systemName: "heart.fill")
@@ -104,13 +127,19 @@ struct DeckDetailsView: View {
                 }
             }
 
-            Text(deck.title)
-                .font(.custom("PlusJakartaSans-ExtraBold", size: 28))
-                .foregroundStyle(.white)
+            HStack(spacing: 8) {
+                
+                Text(deck.subject.uppercased())
+                    .font(.custom("PlusJakartaSans-Bold", size: 12))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(accent, in: Capsule())
 
-            Text("\(deck.educationLevel) · \(deck.cards.count) card\(deck.cards.count == 1 ? "" : "s")")
-                .font(.custom("PlusJakartaSans-Regular", size: 15))
-                .foregroundStyle(.white.opacity(0.5))
+                Text("\(deck.educationLevel) · \(deck.cards.count) card\(deck.cards.count == 1 ? "" : "s")")
+                    .font(.custom("PlusJakartaSans-Regular", size: 12))
+                    .foregroundStyle(.white.opacity(0.5))
+            }
         }
     }
 
@@ -326,7 +355,11 @@ struct DeckDetailsView: View {
         VStack(spacing: 12) {
 
             ForEach(
-                Array(deck.cards.enumerated()),
+                Array(
+                    deck.cards
+                        .filter { !$0.needsDeletion }
+                        .enumerated()
+                ),
                 id: \.element.persistentModelID
             ) { index, card in
 

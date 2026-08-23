@@ -102,7 +102,7 @@ struct StudyFlashcardsView: View {
                             .foregroundStyle(.white.opacity(0.78))
                             .frame(width: 40, height: 40)
                             .background(
-                                .white.opacity(0.10),
+                                .white.opacity(0.18),
                                 in: Circle()
                             )
                     }
@@ -115,7 +115,7 @@ struct StudyFlashcardsView: View {
                         .foregroundStyle(.white.opacity(0.55))
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, 8)
+                // .padding(.top, 8)
 
                 // MARK: Progress
 

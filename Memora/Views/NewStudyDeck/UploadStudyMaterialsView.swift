@@ -33,11 +33,6 @@ struct UploadStudyMaterialsView: View {
                 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
-                        HStack {
-                            BackButton()
-                            
-                            Spacer()
-                        }
                         
                         Text("NEW STUDY DECK")
                             .font(.custom("PlusJakartaSans-Bold", size: 14))
@@ -102,6 +97,12 @@ struct UploadStudyMaterialsView: View {
                             .frame(height: 110)
                     }
                     .padding(.horizontal, 20)
+                }
+                
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    BackNavigationBar {
+                        EmptyView()
+                    }
                 }
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     VStack(spacing: 0) {

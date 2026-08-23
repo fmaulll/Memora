@@ -19,8 +19,8 @@ struct AppBackground<Content: View>: View {
     var body: some View {
         ZStack {
             background.ignoresSafeArea()
-            DecorativeBackground()
-                .ignoresSafeArea()
+            // DecorativeBackground()
+            //     .ignoresSafeArea()
 
             content
         }

@@ -6,11 +6,15 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct CreateOwnDeckView: View {
     let existingDeck: StudyDeck?
 
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+
+    @State private var createdDeck: StudyDeck?
     @State private var deckTitle: String
     @State private var subject: String
     @State private var isShowingManualSubjectField = false
@@ -35,6 +39,10 @@ struct CreateOwnDeckView: View {
         _educationLevel = State(initialValue: EducationLevel(title: existingDeck?.educationLevel) ?? .highSchool)
     }
 
+    private var isEditMode: Bool {
+        existingDeck != nil
+    }
+
     private var canContinue: Bool {
         !deckTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         !subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -45,17 +53,13 @@ struct CreateOwnDeckView: View {
             AppBackground {
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
-                        HStack {
-                            BackButton()
-                            Spacer()
-                        }
 
-                        Text("NEW STUDY DECK")
+                        Text(isEditMode ? "EDIT STUDY DECK" : "NEW STUDY DECK")
                             .font(.custom("PlusJakartaSans-Bold", size: 14))
                             .foregroundStyle(.white.opacity(0.62))
                             .padding(.top, 16)
 
-                        Text("What do you want\nto learn?")
+                        Text(isEditMode ? "Edit your deck" : "What do you want\nto learn?")
                             .font(.custom("PlusJakartaSans-ExtraBold", size: 40))
                             .foregroundStyle(.white)
                             .tracking(-1)
@@ -111,6 +115,11 @@ struct CreateOwnDeckView: View {
                     }
                     .padding(.horizontal, 20)
                 }
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    BackNavigationBar {
+                        EmptyView()
+                    }
+                }
             }
         }
         .preferredColorScheme(.dark)
@@ -118,17 +127,27 @@ struct CreateOwnDeckView: View {
         .dismissKeyboardOnTap()
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
-                WorkflowIndicator(numberOfSteps: 3, currentStep: 1, accent: accent)
+                if !isEditMode {
+                    WorkflowIndicator(
+                        numberOfSteps: 3,
+                        currentStep: 1,
+                        accent: accent
+                    )
                     .padding(.horizontal, 20)
                     .padding(.bottom, 12)
+                }
 
                 HStack {
                     AppButton(
-                        title: "Continue",
+                        title: isEditMode ? "Save Deck" : "Continue",
                         foreground: canContinue ? .white : .white.opacity(0.45),
                         background: AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing))
                     ) {
-                        isShowingAddFlashcards = true
+                        if isEditMode {
+                            saveDeck()
+                        } else {
+                            continueToCards()
+                        }
                     }
                     .disabled(!canContinue)
                     .padding(.horizontal, 20)
@@ -140,7 +159,9 @@ struct CreateOwnDeckView: View {
             .background(.black.opacity(0.92))
         }
         .navigationDestination(isPresented: $isShowingAddFlashcards) {
-            AddFlashcardView(deckTitle: deckTitle, subject: subject, educationLevel: educationLevel.title, existingDeck: existingDeck)
+            if let createdDeck {
+                AddFlashcardView(deck: createdDeck)
+            }
         }
     }
 
@@ -240,6 +261,73 @@ struct CreateOwnDeckView: View {
                 }
         }
     }
+
+    private func saveDeck() {
+
+        guard let existingDeck else {
+            return
+        }
+
+        existingDeck.title = deckTitle.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+
+        existingDeck.subject = subject.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+
+        existingDeck.educationLevel = educationLevel.title
+
+        existingDeck.isSynced = false
+
+        do {
+            try modelContext.save()
+
+            print("")
+            print("========== DECK UPDATED LOCALLY ==========")
+            print("ID:", existingDeck.id)
+            print("TITLE:", existingDeck.title)
+            print("SUBJECT:", existingDeck.subject)
+            print("EDUCATION:", existingDeck.educationLevel)
+            print("SYNCED:", existingDeck.isSynced)
+
+            dismiss()
+
+        } catch {
+            print("❌ UPDATE DECK ERROR:", error)
+        }
+    }
+
+    private func continueToCards() {
+
+        let deck = StudyDeck(
+            title: deckTitle.trimmingCharacters(in: .whitespacesAndNewlines),
+            subject: subject.trimmingCharacters(in: .whitespacesAndNewlines),
+            educationLevel: educationLevel.title
+        )
+
+        deck.isSynced = false
+
+        modelContext.insert(deck)
+
+        do {
+            try modelContext.save()
+
+            print("")
+            print("========== DECK CREATED LOCALLY ==========")
+            print("ID:", deck.id)
+            print("TITLE:", deck.title)
+            print("SUBJECT:", deck.subject)
+            print("SYNCED:", deck.isSynced)
+
+            createdDeck = deck
+            isShowingAddFlashcards = true
+
+        } catch {
+            print("❌ CREATE DECK ERROR:", error)
+        }
+    }
+
 }
 
 private struct FlowLayout: Layout {
@@ -282,6 +370,10 @@ private struct FlowLayout: Layout {
             rowHeight = max(rowHeight, size.height)
         }
     }
+
+    // MARK: - Deck Creation
+
+    
 }
 
 private enum EducationLevel: String, CaseIterable, Identifiable {

@@ -72,6 +72,7 @@ final class StudyFlashcardCard {
 
     var isSynced: Bool = false
     var needsDeletion: Bool = false
+    var syncState: Int = 0
 
     init(
         id: UUID = UUID(),

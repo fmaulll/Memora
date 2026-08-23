@@ -8,76 +8,56 @@
 import SwiftUI
 import PhotosUI
 
-private struct Flashcard: Identifiable {
-    let id: UUID
-    var front: String
-    var back: String
-    var frontImageData: Data?
-    var backImageData: Data?
-
-    init(
-        id: UUID = UUID(),
-        front: String,
-        back: String,
-        frontImageData: Data?,
-        backImageData: Data?
-    ) {
-        self.id = id
-        self.front = front
-        self.back = back
-        self.frontImageData = frontImageData
-        self.backImageData = backImageData
-    }
-}
-
 private enum CardSide {
     case front
     case back
 }
 
 struct AddFlashcardView: View {
-    let deckTitle: String
-    let subject: String
-    let educationLevel: String
-    let existingDeck: StudyDeck?
+
+    let deck: StudyDeck
+    let isEditMode: Bool
 
     @Environment(\.modelContext) private var modelContext
-    @State private var cards: [Flashcard] = []
+    @Environment(\.dismiss) private var dismiss
+
     @State private var frontText = ""
     @State private var backText = ""
+
     @State private var selectedSide: CardSide = .front
-    @State private var editingCardID: Flashcard.ID?
+
+    @State private var editingCardID: UUID?
+
     @State private var frontImageData: Data?
     @State private var backImageData: Data?
+
     @State private var frontImageItem: PhotosPickerItem?
     @State private var backImageItem: PhotosPickerItem?
+
     @State private var measuredEditorHeight: CGFloat = 0
-    @State private var savedDeck: StudyDeck?
-    @State private var isShowingDeckReady = false
+
+    @State private var isShowingCardList = false
 
     @FocusState private var isEditorFocused: Bool
 
-    private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
-    private let minEditorHeight: CGFloat = 44
+    private let accent = Color(
+        red: 0.39,
+        green: 0.40,
+        blue: 0.95
+    )
 
-    init(deckTitle: String, subject: String, educationLevel: String, existingDeck: StudyDeck? = nil) {
-        self.deckTitle = deckTitle
-        self.subject = subject
-        self.educationLevel = educationLevel
-        self.existingDeck = existingDeck
-        _cards = State(initialValue: existingDeck?.cards.map {
-            Flashcard(
-                id: $0.id,
-                front: $0.front,
-                back: $0.back,
-                frontImageData: $0.frontImageData,
-                backImageData: $0.backImageData
-            )
-        } ?? [])
-    }
+    private let minEditorHeight: CGFloat = 44
 
     private var editorHeight: CGFloat {
         max(minEditorHeight, measuredEditorHeight)
+    }
+
+    init(
+        deck: StudyDeck,
+        isEditMode: Bool = false
+    ) {
+        self.deck = deck
+        self.isEditMode = isEditMode
     }
 
     var body: some View {
@@ -85,32 +65,46 @@ struct AddFlashcardView: View {
             AppBackground {
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
+
                         HStack {
-                            BackButton()
+                            Text(deck.subject.uppercased())
+                                .font(.custom("PlusJakartaSans-Bold", size: 11))
+                                .tracking(0.5)
+                                .foregroundStyle(accent)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(
+                                    accent.opacity(0.12),
+                                    in: Capsule()
+                                )
+
                             Spacer()
-                        }
 
-                        HStack(alignment: .top) {
-                            Text("NEW STUDY DECK")
-                                .font(.custom("PlusJakartaSans-Bold", size: 14))
-                                .foregroundStyle(.white.opacity(0.62))
+                            Button {
+                                isShowingCardList = true
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "square.stack.3d.up.fill")
+                                        .font(.system(size: 13))
 
-                            Spacer()
-
-                            HStack(spacing: 6) {
-                                Image(systemName: "square.stack.3d.up.fill")
-                                    .font(.system(size: 13))
-                                Text("\(cards.count)")
-                                    .font(.custom("PlusJakartaSans-Bold", size: 14))
+                                    Text("\(deck.cards.filter { !$0.needsDeletion }.count)")
+                                        .font(.custom("PlusJakartaSans-Bold", size: 14))
+                                }
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(
+                                    .white.opacity(0.12),
+                                    in: Capsule()
+                                )
+                                .overlay {
+                                    Capsule()
+                                        .stroke(accent.opacity(0.5), lineWidth: 1.03)
+                                }
                             }
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(.white.opacity(0.12), in: Capsule())
-                            .overlay {
-                                Capsule()
-                                    .stroke(accent.opacity(0.5), lineWidth: 1.03)
-                            }
+                            .buttonStyle(.plain)
+                            .disabled(deck.cards.isEmpty)
+                            .opacity(deck.cards.isEmpty ? 0.5 : 1)
                         }
                         .padding(.top, 16)
 
@@ -132,17 +126,21 @@ struct AddFlashcardView: View {
                         cardEditor
                             .padding(.top, 12)
 
-                        addCardButton
-                            .padding(.top, 24)
-
-                        if !cards.isEmpty {
+                        if !deck.cards.isEmpty {
                             Text("Tap a card below to edit it")
                                 .font(.custom("PlusJakartaSans-Regular", size: 13))
                                 .foregroundStyle(.white.opacity(0.45))
                                 .padding(.top, 24)
 
                             VStack(spacing: 12) {
-                                ForEach(Array(cards.enumerated()), id: \.element.id) { index, card in
+                                ForEach(
+                                    Array(
+                                        deck.cards
+                                            .filter { !$0.needsDeletion }
+                                            .enumerated()
+                                    ),
+                                    id: \.element.id
+                                ) { index, card in
                                     flashcardRow(index: index, card: card)
                                 }
                             }
@@ -154,6 +152,11 @@ struct AddFlashcardView: View {
                     }
                     .padding(.horizontal, 20)
                 }
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    BackNavigationBar {
+                        finishDeckButton
+                    }
+                }
             }
         }
         .preferredColorScheme(.dark)
@@ -161,32 +164,23 @@ struct AddFlashcardView: View {
         .dismissKeyboardOnTap()
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            VStack(spacing: 0) {
-                WorkflowIndicator(numberOfSteps: 3, currentStep: 2, accent: accent)
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 12)
 
-                HStack {
-                    AppButton(
-                        title: "Finish Deck · \(cards.count) card\(cards.count == 1 ? "" : "s")",
-                        foreground: cards.isEmpty ? .white.opacity(0.45) : .white,
-                        background: AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing))
-                    ) {
-                        finishDeck()
-                    }
-                    .disabled(cards.isEmpty)
+            VStack(spacing: 12) {
+
+                if !isEditMode {
+                    WorkflowIndicator(
+                        numberOfSteps: 3,
+                        currentStep: 2,
+                        accent: accent
+                    )
                     .padding(.horizontal, 20)
-                    .ignoresSafeArea(.keyboard, edges: .bottom)
                 }
+
+                cardActionButtons
             }
             .padding(.top, 12)
             .padding(.bottom, 12)
             .background(.black.opacity(0.92))
-        }
-        .navigationDestination(isPresented: $isShowingDeckReady) {
-            if let savedDeck {
-                DeckReadyView(deck: savedDeck)
-            }
         }
     }
 
@@ -322,25 +316,343 @@ struct AddFlashcardView: View {
         }
     }
 
-    private var addCardButton: some View {
-        Button(action: saveCard) {
-            Label(editingCardID == nil ? "Add Card" : "Save Card", systemImage: "plus")
-                .font(.custom("PlusJakartaSans-SemiBold", size: 16))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 56)
-                .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(.white.opacity(0.28), lineWidth: 1.5)
-                }
+    private var cardActionButtons: some View {
+
+        let hasContent =
+            !frontText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            !backText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+
+        return Group {
+
+            if editingCardID != nil {
+
+                HStack(spacing: 12) {
+
+                    AppButton(
+                        title: "Edit Card",
+                        icon: .sf("checkmark"),
+                        background: LinearGradient(
+                            colors: [
+                                accent,
+                                Color(red: 0.55, green: 0.36, blue: 0.96)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    ) {
+                        updateCard()
+                    }
+
+                    Button {
+                        deleteEditingCard()
+                    } label: {
+                        Image(systemName: "trash")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(.red)
+                            .frame(width: 58, height: 56)
+                            .background(
+                                .red.opacity(0.12),
+                                in: RoundedRectangle(cornerRadius: 16)
+                            )
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(
+                                        .red.opacity(0.25),
+                                        lineWidth: 1
+                                    )
+                            }
+                    }
+                    .buttonStyle(.plain)
+                }.padding(.horizontal, 20)
+
+            } else {
+                HStack {
+                    Button {
+                        addCard()
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "plus")
+
+                            Text("Add Card")
+                                .font(
+                                    .custom(
+                                        "PlusJakartaSans-SemiBold",
+                                        size: 16
+                                    )
+                                )
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(
+                            LinearGradient(
+                                colors: [
+                                    accent,
+                                    Color(red: 0.55, green: 0.36, blue: 0.96)
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            ),
+                            in: RoundedRectangle(cornerRadius: 16)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!hasContent)
+                    .opacity(hasContent ? 1 : 0.45)
+                }.padding(.horizontal, 20)
+            }
         }
-        .buttonStyle(.plain)
-        .disabled(frontText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || backText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        .opacity(frontText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || backText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1)
     }
 
-    private func flashcardRow(index: Int, card: Flashcard) -> some View {
+    private var activeText: String {
+        selectedSide == .front ? frontText : backText
+    }
+
+    private var activeTextBinding: Binding<String> {
+        selectedSide == .front ? $frontText : $backText
+    }
+
+    private var activeImageData: Data? {
+        selectedSide == .front ? frontImageData : backImageData
+    }
+
+    private var activeImageItemBinding: Binding<PhotosPickerItem?> {
+        selectedSide == .front ? $frontImageItem : $backImageItem
+    }
+
+    private func removeAttachedImage() {
+        switch selectedSide {
+        case .front:
+            frontImageData = nil
+            frontImageItem = nil
+        case .back:
+            backImageData = nil
+            backImageItem = nil
+        }
+    }
+
+    private func loadImage(from item: PhotosPickerItem?, completion: @escaping (Data?) -> Void) {
+        guard let item else { return }
+        Task {
+            let data = try? await item.loadTransferable(type: Data.self)
+            await MainActor.run {
+                completion(data)
+            }
+        }
+    }
+
+    private func addCard() {
+
+        let card = StudyFlashcardCard(
+            front: frontText.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            ),
+            back: backText.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            ),
+            frontImageData: frontImageData,
+            backImageData: backImageData
+        )
+
+        card.isSynced = false
+        card.syncState = SyncManager.CardSyncState.created
+
+        deck.cards.append(card)
+
+        do {
+            try modelContext.save()
+
+            print("")
+            print("========== CARD CREATED LOCALLY ==========")
+            print("DECK:", deck.id)
+            print("CARD:", card.id)
+            print("FRONT:", card.front)
+            print("SYNC STATE:", card.syncState)
+            print("SYNCED:", card.isSynced)
+
+            resetEditor()
+
+        } catch {
+            print("❌ CREATE CARD ERROR:", error)
+        }
+    }
+
+    private func updateCard() {
+
+        guard let editingCardID,
+            let card = deck.cards.first(
+                where: { $0.id == editingCardID }
+            )
+        else {
+            return
+        }
+
+        card.front = frontText.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+
+        card.back = backText.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+
+        card.frontImageData = frontImageData
+        card.backImageData = backImageData
+
+        card.isSynced = false
+        card.syncState = SyncManager.CardSyncState.updated
+
+        do {
+            try modelContext.save()
+
+            print("")
+            print("========== CARD UPDATED LOCALLY ==========")
+            print("ID:", card.id)
+            print("FRONT:", card.front)
+            print("BACK:", card.back)
+            print("SYNC STATE:", card.syncState)
+            print("SYNCED:", card.isSynced)
+
+            resetEditor()
+
+        } catch {
+            print("❌ UPDATE CARD ERROR:", error)
+        }
+    }
+
+    private func resetEditor() {
+
+        frontText = ""
+        backText = ""
+
+        frontImageData = nil
+        backImageData = nil
+
+        frontImageItem = nil
+        backImageItem = nil
+
+        editingCardID = nil
+        selectedSide = .front
+
+        measuredEditorHeight = 0
+
+        isEditorFocused = false
+    }
+
+    private func editCard(_ card: StudyFlashcardCard) {
+
+        editingCardID = card.id
+
+        frontText = card.front
+        backText = card.back
+
+        frontImageData = card.frontImageData
+        backImageData = card.backImageData
+
+        selectedSide = .front
+    }
+
+    private func deleteCard(_ card: StudyFlashcardCard) {
+
+        card.needsDeletion = true
+        card.isSynced = false
+        card.syncState = SyncManager.CardSyncState.deleted
+
+        do {
+            try modelContext.save()
+
+            print("")
+            print("========== CARD MARKED FOR DELETION ==========")
+            print("ID:", card.id)
+            print("FRONT:", card.front)
+            print("NEEDS DELETION:", card.needsDeletion)
+            print("SYNC STATE:", card.syncState)
+            print("SYNCED:", card.isSynced)
+
+            if editingCardID == card.id {
+                resetEditor()
+            }
+
+        } catch {
+            print("❌ DELETE CARD ERROR:", error)
+        }
+    }
+
+    private func deleteEditingCard() {
+
+        guard let editingCardID,
+            let card = deck.cards.first(
+                where: { $0.id == editingCardID }
+            )
+        else {
+            return
+        }
+
+        card.needsDeletion = true
+        card.isSynced = false
+        card.syncState = SyncManager.CardSyncState.deleted
+
+        do {
+            try modelContext.save()
+
+            print("")
+            print("========== CARD MARKED FOR DELETION ==========")
+            print("ID:", card.id)
+            print("FRONT:", card.front)
+            print("NEEDS DELETION:", card.needsDeletion)
+            print("SYNC STATE:", card.syncState)
+            print("SYNCED:", card.isSynced)
+
+            resetEditor()
+
+        } catch {
+            print("❌ DELETE CARD ERROR:", error)
+        }
+    }
+
+    private func finishDeck() {
+
+        do {
+            try modelContext.save()
+
+            print("")
+            print("========== FINISH DECK ==========")
+            print("DECK:", deck.id)
+            print("CARDS:", deck.cards.count)
+
+            dismiss()
+
+        } catch {
+            print("❌ FINISH DECK ERROR:", error)
+        }
+    }
+
+    private var finishDeckButton: some View {
+
+        Button {
+            finishDeck()
+        } label: {
+            Image(systemName: "checkmark")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(.white.opacity(0.78))
+                .frame(width: 40, height: 40)
+                .background(
+                LinearGradient(
+                    colors: [
+                        accent,
+                        Color(red: 0.55, green: 0.36, blue: 0.96)
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                ), in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Done adding flashcards")
+        .disabled(deck.cards.isEmpty)
+        .opacity(deck.cards.isEmpty ? 0.45 : 1)
+
+    }
+
+    private func flashcardRow(index: Int, card: StudyFlashcardCard) -> some View {
         ZStack(alignment: .topTrailing) {
             Button {
                 editCard(card)
@@ -391,231 +703,6 @@ struct AddFlashcardView: View {
             .padding(12)
         }
     }
-
-    private var activeText: String {
-        selectedSide == .front ? frontText : backText
-    }
-
-    private var activeTextBinding: Binding<String> {
-        selectedSide == .front ? $frontText : $backText
-    }
-
-    private var activeImageData: Data? {
-        selectedSide == .front ? frontImageData : backImageData
-    }
-
-    private var activeImageItemBinding: Binding<PhotosPickerItem?> {
-        selectedSide == .front ? $frontImageItem : $backImageItem
-    }
-
-    private func removeAttachedImage() {
-        switch selectedSide {
-        case .front:
-            frontImageData = nil
-            frontImageItem = nil
-        case .back:
-            backImageData = nil
-            backImageItem = nil
-        }
-    }
-
-    private func loadImage(from item: PhotosPickerItem?, completion: @escaping (Data?) -> Void) {
-        guard let item else { return }
-        Task {
-            let data = try? await item.loadTransferable(type: Data.self)
-            await MainActor.run {
-                completion(data)
-            }
-        }
-    }
-
-    private func saveCard() {
-        if let editingCardID,
-        let index = cards.firstIndex(where: { $0.id == editingCardID }) {
-
-            cards[index] = Flashcard(
-                id: editingCardID,
-                front: frontText,
-                back: backText,
-                frontImageData: frontImageData,
-                backImageData: backImageData
-            )
-
-        } else {
-            cards.append(
-                Flashcard(
-                    front: frontText,
-                    back: backText,
-                    frontImageData: frontImageData,
-                    backImageData: backImageData
-                )
-            )
-        }
-
-        frontText = ""
-        backText = ""
-        frontImageData = nil
-        backImageData = nil
-        frontImageItem = nil
-        backImageItem = nil
-        editingCardID = nil
-        selectedSide = .front
-    }
-
-    private func editCard(_ card: Flashcard) {
-        editingCardID = card.id
-        frontText = card.front
-        backText = card.back
-        frontImageData = card.frontImageData
-        backImageData = card.backImageData
-        selectedSide = .front
-    }
-
-    private func deleteCard(_ card: Flashcard) {
-        cards.removeAll { $0.id == card.id }
-        if editingCardID == card.id {
-            editingCardID = nil
-            frontText = ""
-            backText = ""
-            frontImageData = nil
-            backImageData = nil
-        }
-    }
-
-    private func finishDeck() {
-        // MARK: - Creating a NEW deck
-        if existingDeck == nil {
-            let deck = StudyDeck(
-                title: deckTitle,
-                subject: subject,
-                educationLevel: educationLevel
-            )
-
-            // Insert the deck first
-            modelContext.insert(deck)
-
-            // Add every flashcard created in the editor
-            for card in cards {
-                let newCard = StudyFlashcardCard(
-                    id: card.id,
-                    front: card.front,
-                    back: card.back,
-                    frontImageData: card.frontImageData,
-                    backImageData: card.backImageData
-                )
-
-                deck.cards.append(newCard)
-            }
-
-            do {
-                try modelContext.save()
-
-                // Save locally first
-                savedDeck = deck
-                isShowingDeckReady = true
-
-                // Then sync with backend
-                Task {
-                    do {
-                        try await SyncManager.shared.syncDeck(deck)
-                        print("Deck synced successfully:", deck.id)
-                    } catch {
-                        print("Deck sync failed:", error)
-                    }
-                }
-
-            } catch {
-                print("Failed to create deck: \(error)")
-            }
-
-            return
-        }
-
-        // MARK: - Editing an EXISTING deck
-
-        guard let deck = existingDeck else {
-            return
-        }
-
-        deck.title = deckTitle
-        deck.subject = subject
-        deck.educationLevel = educationLevel
-
-        let originalCardIDs = Set(deck.cards.map(\.id))
-        let currentCardIDs = Set(cards.map(\.id))
-
-        // Update existing cards / add new cards
-        for card in cards {
-            if let existingCard = deck.cards.first(where: { $0.id == card.id }) {
-
-                // Existing card
-                existingCard.front = card.front
-                existingCard.back = card.back
-                existingCard.frontImageData = card.frontImageData
-                existingCard.backImageData = card.backImageData
-
-            } else {
-
-                // New card added while editing
-                let newCard = StudyFlashcardCard(
-                    id: card.id,
-                    front: card.front,
-                    back: card.back,
-                    frontImageData: card.frontImageData,
-                    backImageData: card.backImageData
-                )
-
-                deck.cards.append(newCard)
-            }
-        }
-
-        // Remove cards deleted from the editor
-        deck.cards.removeAll { card in
-            originalCardIDs.contains(card.id) &&
-            !currentCardIDs.contains(card.id)
-        }
-
-        // Remove deleted cards from any saved study queues
-        deck.studyQueueIDs.removeAll { !currentCardIDs.contains($0) }
-        deck.learningQueueIDs.removeAll { !currentCardIDs.contains($0) }
-
-        // Add newly created cards to the study queue
-        if deck.isStudySessionActive {
-
-            let queuedIDs = Set(
-                deck.studyQueueIDs + deck.learningQueueIDs
-            )
-
-            for card in deck.cards {
-                let wasExistingCard = originalCardIDs.contains(card.id)
-
-                if !wasExistingCard && !queuedIDs.contains(card.id) {
-                    deck.studyQueueIDs.append(card.id)
-                }
-            }
-        }
-
-        do {
-            try modelContext.save()
-
-            // Save local changes first
-            savedDeck = deck
-            isShowingDeckReady = true
-
-            // Then sync updated deck + cards
-            Task {
-                do {
-                    try await SyncManager.shared.syncDeck(deck)
-                    print("Edited deck synced successfully:", deck.id)
-                } catch {
-                    print("Edited deck sync failed:", error)
-                }
-            }
-
-        } catch {
-            print("Failed to save edited deck: \(error)")
-        }
-    }
 }
 
 private struct EditorHeightPreferenceKey: PreferenceKey {
@@ -626,5 +713,5 @@ private struct EditorHeightPreferenceKey: PreferenceKey {
 }
 
 #Preview {
-    AddFlashcardView(deckTitle: "Methaphetamine Formula", subject: "Chemistry", educationLevel: "High School", existingDeck: nil)
+    Text("AddFlashcardView Preview")
 }

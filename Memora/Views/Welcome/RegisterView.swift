@@ -38,10 +38,6 @@ struct RegisterView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
 
-                        HStack {
-                            BackButton()
-                            Spacer()
-                        }
 
                         Text("Create your\nMemora account.")
                             .font(.custom("PlusJakartaSans-ExtraBold", size: 40))
@@ -119,6 +115,12 @@ struct RegisterView: View {
 
                     }
                     .padding(.horizontal, 20)
+                }
+                
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    BackNavigationBar {
+                        EmptyView()
+                    }
                 }
             }
         }
