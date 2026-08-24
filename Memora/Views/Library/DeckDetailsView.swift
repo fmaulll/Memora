@@ -6,6 +6,9 @@ struct DeckDetailsView: View {
     @State private var isShowingEditDeck = false
     @State private var isShowingEditCards = false
 
+    @State private var isAnswerRevealed = false
+    @State private var currentCardIndex = 0
+
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
     private let cardFill = Color.white.opacity(0.18)
 
@@ -41,61 +44,123 @@ struct DeckDetailsView: View {
         return Double(masteredCards) / Double(totalCards)
     }
 
+    private var availableCards: [StudyFlashcardCard] {
+        deck.cards.filter { !$0.needsDeletion }
+    }
+
     var body: some View {
         AppBackground {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
 
-                    header
-                        .padding(.top, 24)
 
-                    masteryCard
-                        .padding(.top, 28)
+                    VStack(spacing: 12) {
 
-                    Text("Quick Actions")
-                        .font(.custom("PlusJakartaSans-Bold", size: 20))
-                        .foregroundStyle(.white)
-                        .padding(.top, 32)
+                        TabView(selection: $currentCardIndex) {
+                            ForEach(
+                                Array(availableCards.enumerated()),
+                                id: \.element.persistentModelID
+                            ) { index, card in
 
-                    studyButton
-                        .padding(.top, 16)
-
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                        actionCard(title: "Take Exam", subtitle: "Test yourself", icon: "doc.text.fill", color: .orange) { }
-                        actionCard(
-                            title: "Edit Cards",
-                            subtitle: "Add, edit or delete cards",
-                            icon: "rectangle.stack.fill",
-                            color: accent
-                        ) {
-                            isShowingEditCards = true
+                                FlashcardView(
+                                    card: card,
+                                    isAnswerRevealed: isAnswerRevealed
+                                )
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    revealAnswer()
+                                }
+                                .tag(index)
+                            }
                         }
-                        actionCard(title: "View Analytics", subtitle: "Track progress", icon: "chart.bar.fill", color: .indigo) { }
-                        actionCard(
-                            title: "Edit Deck",
-                            subtitle: "Modify title & details",
-                            icon: "pencil",
-                            color: .white.opacity(0.6)
-                        ) {
-                            isShowingEditDeck = true
+                        .tabViewStyle(.page(indexDisplayMode: .never))
+                        .frame(height: 315)
+
+                        // Custom dots BELOW the flashcard
+                        HStack(spacing: 6) {
+                            ForEach(
+                                0..<availableCards.count,
+                                id: \.self
+                            ) { index in
+
+                                Capsule()
+                                    .fill(
+                                        index == currentCardIndex
+                                            ? accent
+                                            : .white.opacity(0.20)
+                                    )
+                                    .frame(
+                                        width: index == currentCardIndex ? 18 : 6,
+                                        height: 6
+                                    )
+                                    .animation(
+                                        .easeInOut(duration: 0.2),
+                                        value: currentCardIndex
+                                    )
+                            }
                         }
+                        .frame(maxWidth: .infinity)
                     }
-                    .padding(.top, 16)
-                    // .padding(.bottom, 40)
+                    .padding(.top, 20)
+                    .onChange(of: currentCardIndex) {
+                        isAnswerRevealed = false
+                    }
 
-                    Text("Flashcards")
-                        .font(.custom("PlusJakartaSans-Bold", size: 20))
-                        .foregroundStyle(.white)
-                        .padding(.top, 32)
+                    VStack(alignment: .leading, spacing: 0) {
 
-                    flashcardList
+
+                        header
+                            .padding(.top, 24)
+
+                        masteryCard
+                            .padding(.top, 28)
+
+                        Text("Quick Actions")
+                            .font(.custom("PlusJakartaSans-Bold", size: 20))
+                            .foregroundStyle(.white)
+                            .padding(.top, 32)
+
+                        studyButton
+                            .padding(.top, 16)
+
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+                            actionCard(title: "Take Exam", subtitle: "Test yourself", icon: "doc.text.fill", color: .orange) { }
+                            actionCard(
+                                title: "Edit Cards",
+                                subtitle: "Add, edit or delete cards",
+                                icon: "rectangle.stack.fill",
+                                color: accent
+                            ) {
+                                isShowingEditCards = true
+                            }
+                            actionCard(title: "View Analytics", subtitle: "Track progress", icon: "chart.bar.fill", color: .indigo) { }
+                            actionCard(
+                                title: "Edit Deck",
+                                subtitle: "Modify title & details",
+                                icon: "pencil",
+                                color: .white.opacity(0.6)
+                            ) {
+                                isShowingEditDeck = true
+                            }
+                        }
                         .padding(.top, 16)
+                        // .padding(.bottom, 40)
+
+                        Text("Flashcards")
+                            .font(.custom("PlusJakartaSans-Bold", size: 20))
+                            .foregroundStyle(.white)
+                            .padding(.top, 32)
+
+                        flashcardList
+                            .padding(.top, 16)
+                    }
+                    .padding(.horizontal, 20)
+
                 }
-                .padding(.horizontal, 20)
             }
             .safeAreaInset(edge: .top, spacing: 0) {
                 BackNavigationBar {
-                    EmptyView()
+                    deckMoreOptionButton
                 }
             }
         }
@@ -139,6 +204,127 @@ struct DeckDetailsView: View {
                 Text("\(deck.educationLevel) · \(deck.cards.count) card\(deck.cards.count == 1 ? "" : "s")")
                     .font(.custom("PlusJakartaSans-Regular", size: 12))
                     .foregroundStyle(.white.opacity(0.5))
+            }
+        }
+    }
+
+    private var deckMoreOptionButton: some View {
+
+        Button {
+            showDeckMoreOptions()
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(.white.opacity(0.78))
+                .frame(width: 40, height: 40)
+                .background(.white.opacity(0.18), in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("More options for deck \(deck.title)")
+        .disabled(deck.cards.isEmpty)
+        .opacity(deck.cards.isEmpty ? 0.45 : 1)
+
+    }
+
+    private func showDeckMoreOptions() {
+        let actionSheet = UIAlertController(title: "Deck Options", message: nil, preferredStyle: .actionSheet)
+
+        actionSheet.addAction(UIAlertAction(title: "Edit Deck", style: .default) { _ in
+            isShowingEditDeck = true
+        })
+
+        actionSheet.addAction(UIAlertAction(title: "Edit Cards", style: .default) { _ in
+            isShowingEditCards = true
+        })
+
+        actionSheet.addAction(UIAlertAction(title: "Reset Progress", style: .destructive) { _ in
+            // discardCreatedDeck()
+        })
+
+        actionSheet.addAction(UIAlertAction(title: "Delete Deck", style: .destructive) { _ in
+            // discardCreatedDeck()
+        })
+
+        actionSheet.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootViewController = windowScene.windows.first?.rootViewController {
+            rootViewController.present(actionSheet, animated: true)
+        }
+    }
+
+    // MARK: Reveal
+
+    private func revealAnswer() {
+        guard !isAnswerRevealed else {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                isAnswerRevealed = false
+            }
+            return
+        }
+
+        withAnimation(.easeInOut(duration: 0.25)) {
+            isAnswerRevealed = true
+        }
+    }
+    
+    private struct FlashcardView: View {
+        let card: StudyFlashcardCard
+        let isAnswerRevealed: Bool
+
+        var body: some View {
+            VStack(spacing: 0) {
+
+                Text(card.front)
+                    .font(.custom("PlusJakartaSans-SemiBold", size: 22))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+
+
+                if isAnswerRevealed {
+                    Divider()
+                        .overlay(.white.opacity(0.10))
+                        .padding(.horizontal, 40)
+                        .padding(.vertical, 28)
+
+                    Text(card.back)
+                        .font(.custom("PlusJakartaSans-Regular", size: 17))
+                        .foregroundStyle(.white.opacity(0.78))
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .transition(
+                            .opacity
+                            .combined(with: .move(edge: .bottom))
+                        )
+                }
+
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 265)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 24)
+            .background(
+                Color.white.opacity(0.055),
+                in: RoundedRectangle(cornerRadius: 24)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 24)
+                    .stroke(
+                        .white.opacity(0.16),
+                        lineWidth: 1
+                    )
+            }
+            .overlay(alignment: .bottomTrailing) {
+                Button {
+                    
+                } label: {
+                    Image(systemName: "viewfinder")
+                        .font(.system(size: 24, weight: .medium))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("View card \(card.front) in deck")
+                .padding(20)
             }
         }
     }

@@ -413,22 +413,6 @@ private struct FlashcardView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-
-            // Subject
-
-            Text(subject.uppercased())
-                .font(.custom("PlusJakartaSans-Bold", size: 11))
-                .tracking(0.5)
-                .foregroundStyle(subjectColor)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(
-                    subjectColor.opacity(0.12),
-                    in: Capsule()
-                )
-
-            Spacer(minLength: 28)
-
             // Question
 
             Text(card.front)
