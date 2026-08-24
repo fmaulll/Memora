@@ -5,6 +5,7 @@ struct DeckDetailsView: View {
 
     @State private var isShowingEditDeck = false
     @State private var isShowingEditCards = false
+    @State private var isShowingMoreOptions = false
 
     @State private var isAnswerRevealed = false
     @State private var currentCardIndex = 0
@@ -53,6 +54,7 @@ struct DeckDetailsView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
 
+                    // MARK: Flashcard Carousel
 
                     VStack(spacing: 12) {
 
@@ -71,12 +73,13 @@ struct DeckDetailsView: View {
                                     revealAnswer()
                                 }
                                 .tag(index)
+                                .padding(.horizontal, 20)
                             }
                         }
                         .tabViewStyle(.page(indexDisplayMode: .never))
                         .frame(height: 315)
 
-                        // Custom dots BELOW the flashcard
+                        // Page indicator
                         HStack(spacing: 6) {
                             ForEach(
                                 0..<availableCards.count,
@@ -87,7 +90,7 @@ struct DeckDetailsView: View {
                                     .fill(
                                         index == currentCardIndex
                                             ? accent
-                                            : .white.opacity(0.20)
+                                            : .white.opacity(0.12)
                                     )
                                     .frame(
                                         width: index == currentCardIndex ? 18 : 6,
@@ -106,56 +109,23 @@ struct DeckDetailsView: View {
                         isAnswerRevealed = false
                     }
 
+                    // MARK: Deck Information
+
                     VStack(alignment: .leading, spacing: 0) {
 
-
                         header
-                            .padding(.top, 24)
-
-                        masteryCard
                             .padding(.top, 28)
 
-                        Text("Quick Actions")
-                            .font(.custom("PlusJakartaSans-Bold", size: 20))
-                            .foregroundStyle(.white)
-                            .padding(.top, 32)
+                        progressSummary
+                            .padding(.top, 28)
 
                         studyButton
-                            .padding(.top, 16)
+                            .padding(.top, 24)
 
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                            actionCard(title: "Take Exam", subtitle: "Test yourself", icon: "doc.text.fill", color: .orange) { }
-                            actionCard(
-                                title: "Edit Cards",
-                                subtitle: "Add, edit or delete cards",
-                                icon: "rectangle.stack.fill",
-                                color: accent
-                            ) {
-                                isShowingEditCards = true
-                            }
-                            actionCard(title: "View Analytics", subtitle: "Track progress", icon: "chart.bar.fill", color: .indigo) { }
-                            actionCard(
-                                title: "Edit Deck",
-                                subtitle: "Modify title & details",
-                                icon: "pencil",
-                                color: .white.opacity(0.6)
-                            ) {
-                                isShowingEditDeck = true
-                            }
-                        }
-                        .padding(.top, 16)
-                        // .padding(.bottom, 40)
-
-                        Text("Flashcards")
-                            .font(.custom("PlusJakartaSans-Bold", size: 20))
-                            .foregroundStyle(.white)
-                            .padding(.top, 32)
-
-                        flashcardList
-                            .padding(.top, 16)
+                        cardsSection
+                            .padding(.top, 28)
                     }
                     .padding(.horizontal, 20)
-
                 }
             }
             .safeAreaInset(edge: .top, spacing: 0) {
@@ -166,9 +136,41 @@ struct DeckDetailsView: View {
         }
         .preferredColorScheme(.dark)
         .navigationBarBackButtonHidden()
+
+        // MARK: More Options
+
+        .confirmationDialog(
+            "Deck Options",
+            isPresented: $isShowingMoreOptions,
+            titleVisibility: .visible
+        ) {
+            Button {
+                isShowingEditDeck = true
+            } label: {
+                Label("Edit Deck", systemImage: "pencil")
+            }
+
+            Button("Manage Cards") {
+                isShowingEditCards = true
+            }
+
+            Button("Reset Progress", role: .destructive) {
+                // resetProgress()
+            }
+
+            Button("Delete Deck", role: .destructive) {
+                // deleteDeck()
+            }
+
+            Button("Cancel", role: .cancel) { }
+        }
+
+        // MARK: Navigation
+
         .navigationDestination(isPresented: $isShowingEditDeck) {
             CreateOwnDeckView(existingDeck: deck)
         }
+
         .navigationDestination(isPresented: $isShowingEditCards) {
             AddFlashcardView(
                 deck: deck,
@@ -179,31 +181,44 @@ struct DeckDetailsView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
 
-                Text(deck.title)
-                    .font(.custom("PlusJakartaSans-ExtraBold", size: 28))
-                    .foregroundStyle(.white)
-
-                if deck.isFavorite {
-                    Image(systemName: "heart.fill")
-                        .foregroundStyle(.red)
-                        .font(.system(size: 14))
-                }
-            }
+            Text(deck.title)
+                .font(
+                    .custom(
+                        "PlusJakartaSans-ExtraBold",
+                        size: 28
+                    )
+                )
+                .foregroundStyle(.white)
+                .lineLimit(2)
 
             HStack(spacing: 8) {
-                
+
                 Text(deck.subject.uppercased())
-                    .font(.custom("PlusJakartaSans-Bold", size: 12))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(accent, in: Capsule())
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-Bold",
+                            size: 11
+                        )
+                    )
+                    .foregroundStyle(accent)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(
+                        accent.opacity(0.10),
+                        in: RoundedRectangle(cornerRadius: 6)
+                    )
 
-                Text("\(deck.educationLevel) · \(deck.cards.count) card\(deck.cards.count == 1 ? "" : "s")")
-                    .font(.custom("PlusJakartaSans-Regular", size: 12))
-                    .foregroundStyle(.white.opacity(0.5))
+                Text(
+                    "\(deck.educationLevel) • \(totalCards) card\(totalCards == 1 ? "" : "s")"
+                )
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Regular",
+                        size: 13
+                    )
+                )
+                .foregroundStyle(.white.opacity(0.55))
             }
         }
     }
@@ -211,7 +226,7 @@ struct DeckDetailsView: View {
     private var deckMoreOptionButton: some View {
 
         Button {
-            showDeckMoreOptions()
+            isShowingMoreOptions = true
         } label: {
             Image(systemName: "ellipsis")
                 .font(.system(size: 16, weight: .medium))
@@ -224,33 +239,6 @@ struct DeckDetailsView: View {
         .disabled(deck.cards.isEmpty)
         .opacity(deck.cards.isEmpty ? 0.45 : 1)
 
-    }
-
-    private func showDeckMoreOptions() {
-        let actionSheet = UIAlertController(title: "Deck Options", message: nil, preferredStyle: .actionSheet)
-
-        actionSheet.addAction(UIAlertAction(title: "Edit Deck", style: .default) { _ in
-            isShowingEditDeck = true
-        })
-
-        actionSheet.addAction(UIAlertAction(title: "Edit Cards", style: .default) { _ in
-            isShowingEditCards = true
-        })
-
-        actionSheet.addAction(UIAlertAction(title: "Reset Progress", style: .destructive) { _ in
-            // discardCreatedDeck()
-        })
-
-        actionSheet.addAction(UIAlertAction(title: "Delete Deck", style: .destructive) { _ in
-            // discardCreatedDeck()
-        })
-
-        actionSheet.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootViewController = windowScene.windows.first?.rootViewController {
-            rootViewController.present(actionSheet, animated: true)
-        }
     }
 
     // MARK: Reveal
@@ -329,150 +317,108 @@ struct DeckDetailsView: View {
         }
     }
 
-    private var masteryCard: some View {
-        VStack(spacing: 20) {
+    private var progressSummary: some View {
+        VStack(alignment: .leading, spacing: 12) {
 
-            HStack(spacing: 24) {
+            HStack {
 
-                ZStack {
-
-                    Circle()
-                        .stroke(
-                            .white.opacity(0.12),
-                            lineWidth: 10
+                Text("Mastery completed")
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-Regular",
+                            size: 13
                         )
+                    )
+                    .foregroundStyle(.white.opacity(0.55))
 
-                    Circle()
-                        .trim(
-                            from: 0,
-                            to: masteryProgress
+                Spacer()
+
+                Text("\(masteredCards) / \(totalCards) Mastered")
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-Bold",
+                            size: 13
                         )
-                        .stroke(
-                            accent,
-                            style: StrokeStyle(
-                                lineWidth: 10,
-                                lineCap: .round
-                            )
-                        )
-                        .rotationEffect(.degrees(-90))
-
-                    VStack(spacing: 2) {
-                        Text("\(Int(masteryProgress * 100))%")
-                            .font(
-                                .custom(
-                                    "PlusJakartaSans-Bold",
-                                    size: 22
-                                )
-                            )
-                            .foregroundStyle(.white)
-
-                        Text("MASTERY")
-                            .font(
-                                .custom(
-                                    "PlusJakartaSans-Regular",
-                                    size: 10
-                                )
-                            )
-                            .foregroundStyle(
-                                .white.opacity(0.5)
-                            )
-                    }
-                }
-                .frame(width: 96, height: 96)
-
-                VStack(alignment: .leading, spacing: 14) {
-
-                    statRow(
-                        label: "Total Cards",
-                        value: "\(totalCards)"
                     )
-
-                    statRow(
-                        label: "Mastered",
-                        value: "\(masteredCards)"
-                    )
-
-                    statRow(
-                        label: "Learning",
-                        value: "\(learningCards)"
-                    )
-
-                    statRow(
-                        label: "New",
-                        value: "\(newCards)"
-                    )
-                }
+                    .foregroundStyle(accent)
             }
 
-            // Overall progress
-            VStack(alignment: .leading, spacing: 8) {
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
 
-                HStack {
-                    Text("Progress")
-                        .font(
-                            .custom(
-                                "PlusJakartaSans-Bold",
-                                size: 14
-                            )
-                        )
-                        .foregroundStyle(
-                            .white.opacity(0.55)
-                        )
+                    Capsule()
+                        .fill(.white.opacity(0.08))
 
-                    Spacer()
-
-                    Text("\(masteredCards) / \(totalCards)")
-                        .font(
-                            .custom(
-                                "PlusJakartaSans-Bold",
-                                size: 14
-                            )
+                    Capsule()
+                        .fill(accent)
+                        .frame(
+                            width: geometry.size.width * masteryProgress
                         )
-                        .foregroundStyle(accent)
                 }
-
-                GeometryReader { geometry in
-                    ZStack(alignment: .leading) {
-
-                        Capsule()
-                            .fill(.white.opacity(0.08))
-
-                        Capsule()
-                            .fill(accent)
-                            .frame(
-                                width: geometry.size.width
-                                    * masteryProgress
-                            )
-                    }
-                }
-                .frame(height: 6)
             }
-        }
-        .padding(20)
-        .frame(maxWidth: .infinity)
-        .background(
-            cardFill,
-            in: RoundedRectangle(cornerRadius: 20)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(
-                    .white.opacity(0.28),
-                    lineWidth: 1.5
+            .frame(height: 6)
+
+            HStack(spacing: 8) {
+
+                progressPill(
+                    title: "Mastered",
+                    count: masteredCards,
+                    color: .green
                 )
+
+                progressPill(
+                    title: "Learning",
+                    count: learningCards,
+                    color: .orange
+                )
+
+                progressPill(
+                    title: "New",
+                    count: newCards,
+                    color: .white.opacity(0.35)
+                )
+
+                Spacer()
+            }
         }
     }
 
-    private func statRow(label: String, value: String) -> some View {
-        HStack {
-            Text(label)
-                .font(.custom("PlusJakartaSans-Regular", size: 13))
-                .foregroundStyle(.white.opacity(0.5))
-            Spacer()
-            Text(value)
-                .font(.custom("PlusJakartaSans-SemiBold", size: 14))
+    private func progressPill(
+        title: String,
+        count: Int,
+        color: Color
+    ) -> some View {
+
+        HStack(spacing: 6) {
+
+            Circle()
+                .fill(color)
+                .frame(width: 6, height: 6)
+
+            Text(title)
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Regular",
+                        size: 12
+                    )
+                )
+                .foregroundStyle(.white.opacity(0.6))
+
+            Text("\(count)")
+                .font(
+                    .custom(
+                        "PlusJakartaSans-SemiBold",
+                        size: 12
+                    )
+                )
                 .foregroundStyle(.white)
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(
+            .white.opacity(0.045),
+            in: Capsule()
+        )
     }
 
     private var studyButton: some View {
@@ -480,10 +426,10 @@ struct DeckDetailsView: View {
             StudyFlashcardsView(deck: deck)
         } label: {
             Label("Study Flashcards", systemImage: "play.fill")
-                .font(.custom("PlusJakartaSans-SemiBold", size: 17))
+                .font(.custom("PlusJakartaSans-SemiBold", size: 15))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
-                .frame(height: 58)
+                .frame(height: 54)
                 .background(
                     LinearGradient(
                         colors: [
@@ -493,7 +439,7 @@ struct DeckDetailsView: View {
                         startPoint: .leading,
                         endPoint: .trailing
                     ),
-                    in: RoundedRectangle(cornerRadius: 18)
+                    in: RoundedRectangle(cornerRadius: 12)
                 )
         }
         .buttonStyle(.plain)
@@ -535,6 +481,42 @@ struct DeckDetailsView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d"
         return formatter.string(from: date)
+    }
+
+    private var cardsSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+
+            HStack {
+
+                Text("Cards")
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-Bold",
+                            size: 17
+                        )
+                    )
+                    .foregroundStyle(.white)
+
+                Spacer()
+
+                Button {
+                    isShowingEditCards = true
+                } label: {
+                    Text("Manage List")
+                        .font(
+                            .custom(
+                                "PlusJakartaSans-SemiBold",
+                                size: 13
+                            )
+                        )
+                        .foregroundStyle(accent)
+                }
+                .buttonStyle(.plain)
+            }
+
+            flashcardList
+                .padding(.top, 12)
+        }
     }
 
     private var flashcardList: some View {
@@ -605,13 +587,14 @@ struct DeckDetailsView: View {
         .padding(16)
         .frame(maxWidth: .infinity)
         .background(
-            cardFill,
+            
+            Color.white.opacity(0.055),
             in: RoundedRectangle(cornerRadius: 16)
         )
         .overlay {
             RoundedRectangle(cornerRadius: 16)
                 .stroke(
-                    .white.opacity(0.15),
+                    .white.opacity(0.16),
                     lineWidth: 1
                 )
         }
