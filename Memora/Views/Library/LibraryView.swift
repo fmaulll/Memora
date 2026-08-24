@@ -138,33 +138,28 @@ struct LibraryView: View {
     }
 
     private func deckSection(for deck: StudyDeck) -> some View {
-        VStack(spacing: 10) {
+        
+        VStack(spacing: 0) {
+            let sortedChildren = deck.childDecks.sorted { $0.createdAt < $1.createdAt }
 
             deckCard(for: deck)
 
             if expandedDeckIDs.contains(deck.id) {
-                ForEach(
-                    deck.childDecks.sorted {
-                        $0.createdAt < $1.createdAt
-                    }
-                ) { childDeck in
-
+                ForEach(Array(sortedChildren.enumerated()), id: \.element.id) { index, childDeck in
                     deckCard(
                         for: childDeck,
-                        isChild: true
+                        isChild: true,
+                        isLast: index == sortedChildren.count - 1
                     )
                 }
             }
         }
-        .background(
-            .white.opacity(0.055),
-            in: RoundedRectangle(cornerRadius: 18)
-        )
     }
 
     private func deckCard(
         for deck: StudyDeck,
-        isChild: Bool = false
+        isChild: Bool = false,
+        isLast: Bool = false
     ) -> some View {
 
         HStack(spacing: 14) {
@@ -244,14 +239,21 @@ struct LibraryView: View {
         .frame(maxWidth: .infinity)
         .background(
             .white.opacity(isChild ? 0.035 : 0.055),
-            in: RoundedRectangle(cornerRadius: 18)
+            in: UnevenRoundedRectangle(
+                topLeadingRadius: isChild ? 0 : 20,
+                bottomLeadingRadius: isLast || expandedDeckIDs.contains(deck.id) ? 20 : !isChild && !expandedDeckIDs.contains(deck.id) ? 20 : 0,
+                bottomTrailingRadius: isLast ? 20 : !isChild && !expandedDeckIDs.contains(deck.id) ? 20 : 0,
+                topTrailingRadius: isChild ? 0 : 20
+            )
         )
         .overlay {
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(
-                    .white.opacity(isChild ? 0.08 : 0.12),
-                    lineWidth: 1
-                )
+            UnevenRoundedRectangle(
+                topLeadingRadius: isChild ? 0 : 20,
+                bottomLeadingRadius: isLast || expandedDeckIDs.contains(deck.id) ? 20 : !isChild && !expandedDeckIDs.contains(deck.id) ? 20 : 0,
+                bottomTrailingRadius: isLast ? 20 : !isChild && !expandedDeckIDs.contains(deck.id) ? 20 : 0,
+                topTrailingRadius: isChild ? 0 : 20
+            )
+            .stroke(.white.opacity(isChild ? 0.08 : 0.12), lineWidth: 1)
         }
         .padding(.leading, isChild ? 24 : 0)
         .contentShape(Rectangle())

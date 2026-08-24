@@ -17,6 +17,16 @@ final class StudyDeck {
     var studyCompletedCount: Int = 0
     var isStudySessionActive: Bool = false
 
+    // MARK: - Study All Session
+
+    var studyAllQueueIDs: [UUID] = []
+
+    var studyAllLearningQueueIDs: [UUID] = []
+
+    var studyAllCompletedCount: Int = 0
+
+    var isStudyAllSessionActive: Bool = false
+
     // MARK: - Deck Hierarchy
 
     @Relationship(
@@ -33,7 +43,7 @@ final class StudyDeck {
         inverse: \StudyFlashcardCard.deck
     )
     var cards: [StudyFlashcardCard]
-    
+
     var totalCardCount: Int {
         cards.count + childDecks.reduce(0) {
             $0 + $1.cards.count

@@ -1,7 +1,66 @@
 import SwiftUI
 
+//  StudyFlashcardsView.swift
+//  Memora
+//  Created by fuckdazeshit on 14/08/26.
+
+// StudyFlashcardsView is the main view for studying flashcards in a deck. It manages the study session state, including the current card, progress, and user ratings. It also handles the transition between the initial queue of cards and the learning queue for spaced repetition.
+
+private struct StudySessionSource {
+    enum Kind {
+        case single
+        case combined
+    }
+
+    let kind: Kind
+    let title: String
+    let subject: String
+    let cards: [StudyFlashcardCard]
+    let decks: [StudyDeck]
+
+    init(deck: StudyDeck) {
+        self.kind = .single
+        self.title = deck.title
+        self.subject = deck.subject
+        self.cards = deck.cards.filter {
+            !$0.needsDeletion
+        }
+        self.decks = [deck]
+    }
+
+    init(decks: [StudyDeck]) {
+        self.kind = .combined
+
+        self.title = decks.first?.parentDeck?.title
+            ?? decks.first?.title
+            ?? "Study Session"
+
+        self.subject = decks.first?.subject ?? ""
+
+        self.cards = decks
+            .flatMap(\.cards)
+            .filter {
+                !$0.needsDeletion
+            }
+
+        self.decks = decks
+    }
+
+    var isCombined: Bool {
+        kind == .combined
+    }
+}
+
 struct StudyFlashcardsView: View {
-    let deck: StudyDeck
+    private let source: StudySessionSource
+
+    private var deck: StudyDeck? {
+        source.decks.count == 1 ? source.decks.first : nil
+    }
+
+    private var isCombinedSession: Bool {
+        source.kind == .combined
+    }
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -35,13 +94,19 @@ struct StudyFlashcardsView: View {
     private static let hardRequeueDelay = 2
 
     init(deck: StudyDeck) {
-        self.deck = deck
+
+        let source = StudySessionSource(deck: deck)
+
+        self.source = source
 
         let cardsByID = Dictionary(
-            uniqueKeysWithValues: deck.cards.map { ($0.id, $0) }
-        )
+                uniqueKeysWithValues: source.cards.map {
+                    ($0.id, $0)
+                }
+            )
 
         if deck.isStudySessionActive {
+
             _sessionCards = State(
                 initialValue: deck.studyQueueIDs.compactMap {
                     cardsByID[$0]
@@ -57,9 +122,70 @@ struct StudyFlashcardsView: View {
             _completedCardCount = State(
                 initialValue: deck.studyCompletedCount
             )
+
         } else {
+
             _sessionCards = State(
-                initialValue: deck.cards
+                initialValue: source.cards
+            )
+
+            _learningCards = State(
+                initialValue: []
+            )
+
+            _completedCardCount = State(
+                initialValue: 0
+            )
+        }
+    }
+    init(decks: [StudyDeck]) {
+
+        let source = StudySessionSource(decks: decks)
+
+        self.source = source
+
+        let cardsByID = Dictionary(
+            uniqueKeysWithValues: source.cards.map {
+                ($0.id, $0)
+            }
+        )
+
+        let hasActiveStudyAllSession = decks.contains {
+            $0.isStudyAllSessionActive
+        }
+
+        if hasActiveStudyAllSession {
+
+            let queue = decks.flatMap { deck in
+                deck.studyAllQueueIDs.compactMap {
+                    cardsByID[$0]
+                }
+            }
+
+            let learning = decks.flatMap { deck in
+                deck.studyAllLearningQueueIDs.compactMap {
+                    cardsByID[$0]
+                }
+            }
+
+            _sessionCards = State(
+                initialValue: queue
+            )
+
+            _learningCards = State(
+                initialValue: learning
+            )
+
+            _completedCardCount = State(
+                initialValue: decks.reduce(0) {
+                    $0 + $1.studyAllCompletedCount
+                }
+            )
+
+        } else {
+
+            _sessionCards = State(
+                initialValue: source.cards
             )
 
             _learningCards = State(
@@ -79,11 +205,11 @@ struct StudyFlashcardsView: View {
     }
 
     private var progress: Double {
-        guard !deck.cards.isEmpty else {
+        guard !source.cards.isEmpty else {
             return 0
         }
 
-        return Double(completedCardCount) / Double(deck.cards.count)
+        return Double(completedCardCount) / Double(source.cards.count)
     }
 
     var body: some View {
@@ -110,7 +236,7 @@ struct StudyFlashcardsView: View {
 
                     Spacer()
 
-                    Text("\(deck.cards.count - completedCardCount) remaining")
+                    Text("\(source.cards.count - completedCardCount) remaining")
                         .font(.custom("PlusJakartaSans-SemiBold", size: 14))
                         .foregroundStyle(.white.opacity(0.55))
                 }
@@ -126,7 +252,7 @@ struct StudyFlashcardsView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
 
-                if deck.cards.isEmpty {
+                if source.cards.isEmpty {
                     emptyState
                 } else if isSessionComplete {
                     sessionCompleteView
@@ -155,7 +281,7 @@ struct StudyFlashcardsView: View {
             } label: {
                 FlashcardView(
                     card: card,
-                    subject: deck.subject,
+                    subject: source.subject,
                     isAnswerRevealed: isAnswerRevealed,
                     subjectColor: subjectColor
                 )
@@ -295,6 +421,15 @@ struct StudyFlashcardsView: View {
     }
 
     private func saveStudySession() {
+        if isCombinedSession {
+            saveCombinedStudySession()
+            return
+        }
+
+        guard let deck else {
+            return
+        }
+
         deck.studyQueueIDs = sessionCards.map(\.id)
         deck.learningQueueIDs = learningCards.map(\.id)
         deck.studyCompletedCount = completedCardCount
@@ -303,7 +438,56 @@ struct StudyFlashcardsView: View {
         do {
             try modelContext.save()
         } catch {
-            print("Failed to save study session: \(error)")
+            print("❌ Failed to save study session:", error)
+        }
+    }
+
+    private func saveCombinedStudySession() {
+
+        for childDeck in source.decks {
+
+            let childCards = childDeck.cards.filter {
+                !$0.needsDeletion
+            }
+
+            let childCardIDs = Set(
+                childCards.map(\.id)
+            )
+
+            let childSessionCards = sessionCards.filter {
+                childCardIDs.contains($0.id)
+            }
+
+            let childLearningCards = learningCards.filter {
+                childCardIDs.contains($0.id)
+            }
+
+            let completedCount =
+                childCards.count
+                - childSessionCards.count
+                - childLearningCards.count
+
+            childDeck.studyAllQueueIDs =
+                childSessionCards.map(\.id)
+
+            childDeck.studyAllLearningQueueIDs =
+                childLearningCards.map(\.id)
+
+            childDeck.studyAllCompletedCount =
+                max(completedCount, 0)
+
+            childDeck.isStudyAllSessionActive =
+                !childSessionCards.isEmpty ||
+                !childLearningCards.isEmpty
+        }
+
+        do {
+            try modelContext.save()
+        } catch {
+            print(
+                "❌ Failed to save Study All session:",
+                error
+            )
         }
     }
 
@@ -316,6 +500,16 @@ struct StudyFlashcardsView: View {
     }
 
     private func finishStudySession() {
+
+        if isCombinedSession {
+            finishCombinedStudySession()
+            return
+        }
+
+        guard let deck else {
+            return
+        }
+
         deck.studyQueueIDs = []
         deck.learningQueueIDs = []
         deck.studyCompletedCount = 0
@@ -324,7 +518,33 @@ struct StudyFlashcardsView: View {
         do {
             try modelContext.save()
         } catch {
-            print("Failed to finish study session: \(error)")
+            print(
+                "❌ Failed to finish study session:",
+                error
+            )
+        }
+    }
+
+    private func finishCombinedStudySession() {
+
+        for deck in source.decks {
+
+            deck.studyAllQueueIDs = []
+
+            deck.studyAllLearningQueueIDs = []
+
+            deck.studyAllCompletedCount = 0
+
+            deck.isStudyAllSessionActive = false
+        }
+
+        do {
+            try modelContext.save()
+        } catch {
+            print(
+                "❌ Failed to finish Study All session:",
+                error
+            )
         }
     }
 
@@ -377,7 +597,9 @@ struct StudyFlashcardsView: View {
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
 
-            Text("You reviewed \(deck.cards.count) card\(deck.cards.count == 1 ? "" : "s").")
+            Text(
+                "You reviewed \(source.cards.count) card\(source.cards.count == 1 ? "" : "s")."
+            )
                 .font(.custom("PlusJakartaSans-Regular", size: 16))
                 .foregroundStyle(.white.opacity(0.55))
 

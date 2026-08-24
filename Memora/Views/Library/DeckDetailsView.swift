@@ -55,6 +55,12 @@ struct DeckDetailsView: View {
         }
     }
 
+    private var allChildCards: [StudyFlashcardCard] {
+        childDecks
+            .flatMap(\.cards)
+            .filter { !$0.needsDeletion }
+    }
+
     private var isParentDeck: Bool {
         !childDecks.isEmpty
     }
@@ -92,6 +98,49 @@ struct DeckDetailsView: View {
                     // MARK: Deck Information
 
                     VStack(alignment: .leading, spacing: 0) {
+
+                        // MARK: Study All Button
+
+                        if isParentDeck && !allChildCards.isEmpty {
+                            NavigationLink {
+                                StudyFlashcardsView(decks: childDecks)
+                            } label: {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "play.fill")
+                                        .font(.system(size: 15, weight: .bold))
+
+                                    Text("Study All")
+                                        .font(.custom("PlusJakartaSans-SemiBold", size: 15))
+                                        .foregroundStyle(.white)
+
+                                    Spacer()
+
+                                    Text("\(allChildCards.count) cards")
+                                        .font(
+                                            .custom(
+                                                "PlusJakartaSans-Regular",
+                                                size: 12
+                                            )
+                                        )
+                                        .foregroundStyle(.white.opacity(0.5))
+                                }.padding(.horizontal, 16)
+                            }
+                            .buttonStyle(.plain)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 54)
+                            .background(
+                                LinearGradient(
+                                    colors: [
+                                        accent,
+                                        Color(red: 0.55, green: 0.36, blue: 0.96)
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                ),
+                                in: RoundedRectangle(cornerRadius: 12)
+                            )
+                            .padding(.top, 28)
+                        }
 
                         header
                             .padding(.top, 28)
@@ -196,7 +245,7 @@ struct DeckDetailsView: View {
                     )
 
                 Text(
-                    "\(deck.educationLevel) • \(totalCards) card\(totalCards == 1 ? "" : "s")"
+                    "\(deck.educationLevel) • \(totalStudyCards) card\(totalStudyCards == 1 ? "" : "s")"
                 )
                 .font(
                     .custom(
