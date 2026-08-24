@@ -124,12 +124,21 @@ struct LibraryView: View {
         } label: {
             VStack(alignment: .leading, spacing: 16) {
                 HStack {
+                    
                     Text(deck.subject.uppercased())
-                        .font(.custom("PlusJakartaSans-Bold", size: 12))
-                        .foregroundStyle(color)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(color.opacity(0.18), in: Capsule())
+                        .font(
+                            .custom(
+                                "PlusJakartaSans-Bold",
+                                size: 11
+                            )
+                        )
+                        .foregroundStyle(accent)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(
+                            accent.opacity(0.10),
+                            in: RoundedRectangle(cornerRadius: 6)
+                        )
 
                     Spacer()
 
@@ -161,7 +170,14 @@ struct LibraryView: View {
                     }
 
                     ProgressView(value: 0, total: 100)
-                        .tint(color)
+                        .tint(LinearGradient(
+                            colors: [
+                                Color(red: 0.39, green: 0.40, blue: 0.95),
+                                Color(red: 0.55, green: 0.36, blue: 0.96)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        ))
                 }
 
                 HStack(spacing: 6) {
@@ -180,10 +196,13 @@ struct LibraryView: View {
                 .foregroundStyle(.white.opacity(0.5))
             }
             .padding(20)
-            .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 20))
+            .background(.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 20))
             .overlay {
                 RoundedRectangle(cornerRadius: 20)
-                    .stroke(color.opacity(0.7), lineWidth: 1.5)
+                    .stroke(
+                        .white.opacity(0.16),
+                        lineWidth: 1
+                    )
             }
         }
         .buttonStyle(.plain)
