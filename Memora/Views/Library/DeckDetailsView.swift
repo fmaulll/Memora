@@ -49,6 +49,28 @@ struct DeckDetailsView: View {
         deck.cards.filter { !$0.needsDeletion }
     }
 
+    private var childDecks: [StudyDeck] {
+        deck.childDecks.sorted {
+            $0.createdAt < $1.createdAt
+        }
+    }
+
+    private var isParentDeck: Bool {
+        !childDecks.isEmpty
+    }
+
+    private var hasCards: Bool {
+        !availableCards.isEmpty
+    }
+
+    private var totalStudyCards: Int {
+        if isParentDeck {
+            return deck.totalCardCount
+        }
+
+        return totalCards
+    }
+
     var body: some View {
         AppBackground {
             ScrollView(showsIndicators: false) {
@@ -56,57 +78,15 @@ struct DeckDetailsView: View {
 
                     // MARK: Flashcard Carousel
 
-                    VStack(spacing: 12) {
+                    // MARK: Main Content
 
-                        TabView(selection: $currentCardIndex) {
-                            ForEach(
-                                Array(availableCards.enumerated()),
-                                id: \.element.persistentModelID
-                            ) { index, card in
-
-                                FlashcardView(
-                                    card: card,
-                                    isAnswerRevealed: isAnswerRevealed
-                                )
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    revealAnswer()
-                                }
-                                .tag(index)
-                                .padding(.horizontal, 20)
-                            }
-                        }
-                        .tabViewStyle(.page(indexDisplayMode: .never))
-                        .frame(height: 315)
-
-                        // Page indicator
-                        HStack(spacing: 6) {
-                            ForEach(
-                                0..<availableCards.count,
-                                id: \.self
-                            ) { index in
-
-                                Capsule()
-                                    .fill(
-                                        index == currentCardIndex
-                                            ? accent
-                                            : .white.opacity(0.12)
-                                    )
-                                    .frame(
-                                        width: index == currentCardIndex ? 18 : 6,
-                                        height: 6
-                                    )
-                                    .animation(
-                                        .easeInOut(duration: 0.2),
-                                        value: currentCardIndex
-                                    )
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    .padding(.top, 20)
-                    .onChange(of: currentCardIndex) {
-                        isAnswerRevealed = false
+                    if isParentDeck {
+                        childDeckSection
+                            .padding(.top, 20)
+                            .padding(.horizontal, 20)
+                    } else {
+                        flashcardCarousel
+                            .padding(.top, 20)
                     }
 
                     // MARK: Deck Information
@@ -116,14 +96,20 @@ struct DeckDetailsView: View {
                         header
                             .padding(.top, 28)
 
-                        progressSummary
-                            .padding(.top, 28)
+                        if !isParentDeck {
+                            progressSummary
+                                .padding(.top, 28)
+                        }
 
-                        studyButton
-                            .padding(.top, 24)
+                        if !isParentDeck {
+                            studyButton
+                                .padding(.top, 24)
+                        }
 
-                        cardsSection
-                            .padding(.top, 28)
+                        if !isParentDeck {
+                            cardsSection
+                                .padding(.top, 28)
+                        }
                     }
                     .padding(.horizontal, 20)
                 }
@@ -236,8 +222,6 @@ struct DeckDetailsView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("More options for deck \(deck.title)")
-        .disabled(deck.cards.isEmpty)
-        .opacity(deck.cards.isEmpty ? 0.45 : 1)
 
     }
 
@@ -253,6 +237,233 @@ struct DeckDetailsView: View {
 
         withAnimation(.easeInOut(duration: 0.25)) {
             isAnswerRevealed = true
+        }
+    }
+
+    private var flashcardCarousel: some View {
+        VStack(spacing: 12) {
+
+            if hasCards {
+
+                TabView(selection: $currentCardIndex) {
+                    ForEach(
+                        Array(availableCards.enumerated()),
+                        id: \.element.persistentModelID
+                    ) { index, card in
+
+                        FlashcardView(
+                            card: card,
+                            isAnswerRevealed: isAnswerRevealed
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            revealAnswer()
+                        }
+                        .tag(index)
+                        .padding(.horizontal, 20)
+                    }
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .frame(height: 315)
+                .onChange(of: availableCards.count) {
+                    if availableCards.isEmpty {
+                        currentCardIndex = 0
+                        isAnswerRevealed = false
+                    } else if currentCardIndex >= availableCards.count {
+                        currentCardIndex = max(
+                            availableCards.count - 1,
+                            0
+                        )
+                    }
+                }
+
+                HStack(spacing: 6) {
+                    ForEach(
+                        0..<availableCards.count,
+                        id: \.self
+                    ) { index in
+
+                        Capsule()
+                            .fill(
+                                index == currentCardIndex
+                                    ? accent
+                                    : .white.opacity(0.12)
+                            )
+                            .frame(
+                                width: index == currentCardIndex ? 18 : 6,
+                                height: 6
+                            )
+                            .animation(
+                                .easeInOut(duration: 0.2),
+                                value: currentCardIndex
+                            )
+                    }
+                }
+                .frame(maxWidth: .infinity)
+
+            } else {
+                emptyFlashcardState
+            }
+        }
+        .onChange(of: currentCardIndex) {
+            isAnswerRevealed = false
+        }
+    }
+
+    private var emptyFlashcardState: some View {
+        VStack(spacing: 14) {
+
+            Image(systemName: "rectangle.on.rectangle.slash")
+                .font(.system(size: 30, weight: .medium))
+                .foregroundStyle(accent)
+
+            Text("No flashcards yet")
+                .font(
+                    .custom(
+                        "PlusJakartaSans-SemiBold",
+                        size: 17
+                    )
+                )
+                .foregroundStyle(.white)
+
+            Text("Add some flashcards to start studying this deck.")
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Regular",
+                        size: 13
+                    )
+                )
+                .foregroundStyle(.white.opacity(0.5))
+                .multilineTextAlignment(.center)
+
+            Button {
+                isShowingEditCards = true
+            } label: {
+                Text("Add Flashcards")
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-SemiBold",
+                            size: 13
+                        )
+                    )
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 10)
+                    .background(
+                        accent,
+                        in: Capsule()
+                    )
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 265)
+        .padding(.horizontal, 24)
+        .background(
+            Color.white.opacity(0.055),
+            in: RoundedRectangle(cornerRadius: 24)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 24)
+                .stroke(
+                    .white.opacity(0.16),
+                    lineWidth: 1
+                )
+        }
+        .padding(.horizontal, 20)
+    }
+
+    private var childDeckSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+
+            HStack {
+                Text("Study Decks")
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-Bold",
+                            size: 17
+                        )
+                    )
+                    .foregroundStyle(.white)
+
+                Spacer()
+
+                Text("\(childDecks.count)")
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-SemiBold",
+                            size: 13
+                        )
+                    )
+                    .foregroundStyle(accent)
+            }
+
+            ForEach(childDecks) { childDeck in
+
+                NavigationLink {
+                    DeckDetailsView(deck: childDeck)
+                } label: {
+                    HStack(spacing: 14) {
+
+                        VStack(
+                            alignment: .leading,
+                            spacing: 5
+                        ) {
+                            Text(childDeck.title)
+                                .font(
+                                    .custom(
+                                        "PlusJakartaSans-SemiBold",
+                                        size: 15
+                                    )
+                                )
+                                .foregroundStyle(.white)
+
+                            Text(
+                                "\(childDeck.totalCardCount) cards"
+                            )
+                            .font(
+                                .custom(
+                                    "PlusJakartaSans-Regular",
+                                    size: 12
+                                )
+                            )
+                            .foregroundStyle(
+                                .white.opacity(0.5)
+                            )
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(
+                                .system(
+                                    size: 12,
+                                    weight: .semibold
+                                )
+                            )
+                            .foregroundStyle(
+                                .white.opacity(0.3)
+                            )
+                    }
+                    .padding(16)
+                    .background(
+                        Color.white.opacity(0.055),
+                        in: RoundedRectangle(
+                            cornerRadius: 16
+                        )
+                    )
+                    .overlay {
+                        RoundedRectangle(
+                            cornerRadius: 16
+                        )
+                        .stroke(
+                            .white.opacity(0.12),
+                            lineWidth: 1
+                        )
+                    }
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
     
