@@ -17,11 +17,28 @@ final class StudyDeck {
     var studyCompletedCount: Int = 0
     var isStudySessionActive: Bool = false
 
+    // MARK: - Deck Hierarchy
+
+    @Relationship(
+        inverse: \StudyDeck.parentDeck
+    )
+    var childDecks: [StudyDeck] = []
+
+    var parentDeck: StudyDeck?
+
+    // MARK: - Cards
+
     @Relationship(
         deleteRule: .cascade,
         inverse: \StudyFlashcardCard.deck
     )
     var cards: [StudyFlashcardCard]
+    
+    var totalCardCount: Int {
+        cards.count + childDecks.reduce(0) {
+            $0 + $1.cards.count
+        }
+    }
 
     var isSynced: Bool = false
     
@@ -31,7 +48,8 @@ final class StudyDeck {
         subject: String,
         educationLevel: String,
         createdAt: Date = .now,
-        cards: [StudyFlashcardCard] = []
+        cards: [StudyFlashcardCard] = [],
+        parentDeck: StudyDeck? = nil
     ) {
         self.id = id
         self.title = title
@@ -40,6 +58,7 @@ final class StudyDeck {
         self.createdAt = createdAt
 
         self.cards = cards
+        self.parentDeck = parentDeck
 
         for card in cards {
             card.deck = self

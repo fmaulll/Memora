@@ -8,10 +8,15 @@ struct LibraryView: View {
     @State private var searchText = ""
     @State private var selectedFilter: LibraryFilter = .all
     @State private var selectedDeck: StudyDeck?
+    @State private var expandedDeckIDs: Set<UUID> = []
 
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
     private let recentLimit = 5
     private let cardColors: [Color] = [.green, .blue, .orange, .purple]
+
+    private var rootDecks: [StudyDeck] {
+        decks.filter { $0.parentDeck == nil }
+    }
 
     private var favoriteDecks: [StudyDeck] {
         decks.filter(\.isFavorite)
@@ -23,14 +28,28 @@ struct LibraryView: View {
 
     private var filteredDecks: [StudyDeck] {
         let base: [StudyDeck]
+
         switch selectedFilter {
-        case .all: base = decks
-        case .favorites: base = favoriteDecks
-        case .recent: base = recentDecks
+        case .all:
+            base = rootDecks
+
+        case .favorites:
+            base = rootDecks.filter(\.isFavorite)
+
+        case .recent:
+            base = Array(
+                rootDecks
+                    .sorted { $0.createdAt > $1.createdAt }
+                    .prefix(recentLimit)
+            )
         }
 
-        let trimmedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedSearch.isEmpty else { return base }
+        let trimmedSearch = searchText
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedSearch.isEmpty else {
+            return base
+        }
 
         return base.filter {
             $0.title.localizedCaseInsensitiveContains(trimmedSearch) ||
@@ -53,7 +72,7 @@ struct LibraryView: View {
                 } else {
                     VStack(spacing: 16) {
                         ForEach(filteredDecks) { deck in
-                            deckCard(for: deck, color: color(for: deck))
+                            deckSection(for: deck)
                         }
                     }
                     .padding(.top, 24)
@@ -118,94 +137,135 @@ struct LibraryView: View {
         .buttonStyle(.plain)
     }
 
-    private func deckCard(for deck: StudyDeck, color: Color) -> some View {
-        Button {
-            selectedDeck = deck
-        } label: {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    
-                    Text(deck.subject.uppercased())
-                        .font(
-                            .custom(
-                                "PlusJakartaSans-Bold",
-                                size: 11
-                            )
-                        )
-                        .foregroundStyle(accent)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(
-                            accent.opacity(0.10),
-                            in: RoundedRectangle(cornerRadius: 6)
-                        )
+    private func deckSection(for deck: StudyDeck) -> some View {
+        VStack(spacing: 10) {
 
-                    Spacer()
+            deckCard(for: deck)
 
+            if expandedDeckIDs.contains(deck.id) {
+                ForEach(
+                    deck.childDecks.sorted {
+                        $0.createdAt < $1.createdAt
+                    }
+                ) { childDeck in
+
+                    deckCard(
+                        for: childDeck,
+                        isChild: true
+                    )
+                }
+            }
+        }
+        .background(
+            .white.opacity(0.055),
+            in: RoundedRectangle(cornerRadius: 18)
+        )
+    }
+
+    private func deckCard(
+        for deck: StudyDeck,
+        isChild: Bool = false
+    ) -> some View {
+
+        HStack(spacing: 14) {
+
+
+            VStack(alignment: .leading, spacing: 6) {
+
+                Text(deck.title)
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-Bold",
+                            size: isChild ? 16 : 17
+                        )
+                    )
+                    .foregroundStyle(.white)
+
+
+                HStack(spacing: 4) {
                     Button {
                         toggleFavorite(deck)
                     } label: {
-                        Image(systemName: deck.isFavorite ? "heart.fill" : "heart")
-                            .foregroundStyle(deck.isFavorite ? .red : .white.opacity(0.4))
-                            .font(.system(size: 18))
+                        Image(
+                            systemName: deck.isFavorite
+                                ? "heart.fill"
+                                : "heart"
+                        )
+                        .foregroundStyle(
+                            deck.isFavorite
+                                ? .red
+                                : .white.opacity(0.4)
+                        )
+                        .font(.system(size: 16))
+                        .frame(width: 36, height: 36)
                     }
                     .buttonStyle(.plain)
-                }
 
-                Text(deck.title)
-                    .font(.custom("PlusJakartaSans-Bold", size: 20))
-                    .foregroundStyle(.white)
-
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("MASTERY")
-                            .font(.custom("PlusJakartaSans-Regular", size: 12))
-                            .foregroundStyle(.white.opacity(0.5))
-
-                        Spacer()
-
-                        Text("0%")
-                            .font(.custom("PlusJakartaSans-Bold", size: 14))
-                            .foregroundStyle(.white.opacity(0.5))
-                    }
-
-                    ProgressView(value: 0, total: 100)
-                        .tint(LinearGradient(
-                            colors: [
-                                Color(red: 0.39, green: 0.40, blue: 0.95),
-                                Color(red: 0.55, green: 0.36, blue: 0.96)
-                            ],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        ))
-                }
-
-                HStack(spacing: 6) {
-                    Image(systemName: "square.stack.3d.up.fill")
-                        .font(.system(size: 12))
-                    Text("\(deck.cards.count) card\(deck.cards.count == 1 ? "" : "s")")
-                        .font(.custom("PlusJakartaSans-Regular", size: 13))
-
-                    Text("·")
-
-                    Image(systemName: "calendar")
-                        .font(.system(size: 12))
-                    Text(dateLabel(for: deck.createdAt))
-                        .font(.custom("PlusJakartaSans-Regular", size: 13))
-                }
-                .foregroundStyle(.white.opacity(0.5))
-            }
-            .padding(20)
-            .background(.white.opacity(0.055), in: RoundedRectangle(cornerRadius: 20))
-            .overlay {
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(
-                        .white.opacity(0.16),
-                        lineWidth: 1
+                    Text(
+                        "\(deck.totalCardCount) card\(deck.totalCardCount == 1 ? "" : "s")"
                     )
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-Regular",
+                            size: 13
+                        )
+                    )
+                    .foregroundStyle(.white.opacity(0.5))
+                }
+            }
+
+            Spacer()
+
+            if !deck.childDecks.isEmpty {
+                Button {
+                    toggleExpanded(deck)
+                } label: {
+                    Image(
+                        systemName:
+                            expandedDeckIDs.contains(deck.id)
+                            ? "chevron.up"
+                            : "chevron.down"
+                    )
+                    .font(
+                        .system(
+                            size: 20,
+                            weight: .semibold
+                        )
+                    )
+                    .foregroundStyle(.white.opacity(0.78))
+                    .frame(width: 40, height: 40)
+                    // .background(.white.opacity(0.18), in: Circle())
+                }
+                .buttonStyle(.plain)
             }
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 15)
+        .frame(maxWidth: .infinity)
+        .background(
+            .white.opacity(isChild ? 0.035 : 0.055),
+            in: RoundedRectangle(cornerRadius: 18)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(
+                    .white.opacity(isChild ? 0.08 : 0.12),
+                    lineWidth: 1
+                )
+        }
+        .padding(.leading, isChild ? 24 : 0)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            selectedDeck = deck
+        }
+    }
+
+    private func toggleExpanded(_ deck: StudyDeck) {
+        if expandedDeckIDs.contains(deck.id) {
+            expandedDeckIDs.remove(deck.id)
+        } else {
+            expandedDeckIDs.insert(deck.id)
+        }
     }
 
     private var emptyState: some View {

@@ -67,7 +67,8 @@ final class SyncManager {
             title: deck.title,
             subject: deck.subject,
             educationLevel: deck.educationLevel,
-            isFavorite: deck.isFavorite
+            isFavorite: deck.isFavorite,
+            parentDeckId: deck.parentDeck?.id
         )
 
         print("Created deck:", response.id)
@@ -151,9 +152,14 @@ final class SyncManager {
             serverDecks.map { $0.id }
         )
 
+        // =====================================================
+        // PASS 1: CREATE / UPDATE ALL DECKS
+        // =====================================================
+
+        var localDecksByID: [UUID: StudyDeck] = [:]
+
         for serverDeck in serverDecks {
 
-            // Find existing local deck
             let serverDeckID = serverDeck.id
 
             let descriptor = FetchDescriptor<StudyDeck>(
@@ -167,6 +173,7 @@ final class SyncManager {
             let deck: StudyDeck
 
             if let localDeck {
+
                 deck = localDeck
 
                 deck.title = serverDeck.title
@@ -174,8 +181,9 @@ final class SyncManager {
                 deck.educationLevel = serverDeck.educationLevel
                 deck.isFavorite = serverDeck.isFavorite
                 deck.isSynced = true
+
             } else {
-                // New server deck → create locally
+
                 deck = StudyDeck(
                     id: serverDeck.id,
                     title: serverDeck.title,
@@ -189,12 +197,58 @@ final class SyncManager {
                 modelContext.insert(deck)
             }
 
-            // Download cards
+            localDecksByID[serverDeck.id] = deck
+        }
+
+        // =====================================================
+        // PASS 2: CONNECT PARENT / CHILD DECKS
+        // =====================================================
+
+        for serverDeck in serverDecks {
+
+            guard let deck = localDecksByID[serverDeck.id] else {
+                continue
+            }
+
+            guard let parentID = serverDeck.parentDeckId else {
+
+                // This is a root deck.
+                deck.parentDeck = nil
+
+                continue
+            }
+
+            guard let parentDeck = localDecksByID[parentID] else {
+
+                print(
+                    "⚠️ PARENT DECK NOT FOUND:",
+                    parentID,
+                    "FOR DECK:",
+                    deck.id
+                )
+
+                deck.parentDeck = nil
+
+                continue
+            }
+
+            deck.parentDeck = parentDeck
+        }
+
+        // =====================================================
+        // PASS 3: DOWNLOAD CARDS
+        // =====================================================
+
+        for serverDeck in serverDecks {
+
+            guard let deck = localDecksByID[serverDeck.id] else {
+                continue
+            }
+
             let serverCards = try await CardAPI.shared.getAll(
                 deckID: serverDeck.id
             )
 
-            // Existing local cards
             let existingCards = deck.cards
 
             let existingByID = Dictionary(
@@ -210,15 +264,16 @@ final class SyncManager {
                 incomingIDs.insert(serverCard.id)
 
                 if let localCard = existingByID[serverCard.id] {
+
                     localCard.front = serverCard.front
                     localCard.back = serverCard.back
 
                     localCard.isSynced = true
                     localCard.syncState = SyncManager.CardSyncState.synced
                     localCard.needsDeletion = false
+
                 } else {
 
-                    // INSERT
                     let newCard = StudyFlashcardCard(
                         id: serverCard.id,
                         front: serverCard.front,
@@ -233,20 +288,24 @@ final class SyncManager {
                 }
             }
 
-            // DELETE cards removed from server
+            // Remove cards that no longer exist on server.
             deck.cards.removeAll { card in
                 !incomingIDs.contains(card.id) && card.isSynced
             }
         }
 
-        // Delete locally synced decks that no longer exist on server
+        // =====================================================
+        // DELETE LOCALLY SYNCED DECKS THAT NO LONGER EXIST
+        // =====================================================
+
         let localDecks = try modelContext.fetch(
             FetchDescriptor<StudyDeck>()
         )
 
         for localDeck in localDecks {
+
             if localDeck.isSynced &&
-            !serverDeckIDs.contains(localDeck.id) {
+                !serverDeckIDs.contains(localDeck.id) {
 
                 modelContext.delete(localDeck)
             }
@@ -273,49 +332,98 @@ final class SyncManager {
 
         print("UNSYNCED DECKS:", unsyncedDecks.count)
 
-        for deck in unsyncedDecks {
+        // =====================================================
+        // PASS 1: UPLOAD ROOT DECKS
+        // =====================================================
 
-            print("UPLOADING DECK:", deck.id, deck.title)
+        let rootDecks = unsyncedDecks.filter {
+            $0.parentDeck == nil
+        }
 
-            do {
+        print("ROOT DECKS:", rootDecks.count)
 
-                let serverDeck = try await DeckAPI.shared.create(
-                    id: deck.id,
-                    title: deck.title,
-                    subject: deck.subject,
-                    educationLevel: deck.educationLevel,
-                    isFavorite: deck.isFavorite
-                )
+        for deck in rootDecks {
 
-                // Verify the server kept the same UUID
-                guard serverDeck.id == deck.id else {
-                    print("❌ UUID MISMATCH")
-                    print("LOCAL:", deck.id)
-                    print("SERVER:", serverDeck.id)
+            await uploadDeck(deck)
+        }
 
-                    continue
-                }
+        // =====================================================
+        // PASS 2: UPLOAD SUB-DECKS
+        // =====================================================
 
-                deck.isSynced = true
+        let childDecks = unsyncedDecks.filter {
+            $0.parentDeck != nil
+        }
 
-                print("✅ DECK UPLOADED:", deck.id)
+        print("SUB-DECKS:", childDecks.count)
 
-            } catch {
+        for deck in childDecks {
 
-                print(
-                    "❌ FAILED TO UPLOAD DECK:",
-                    deck.id,
-                    error
-                )
-
-                // Don't mark it synced.
-                // It will be retried next time.
+            // Parent must already exist on the server.
+            guard let parentDeck = deck.parentDeck else {
+                continue
             }
+
+            guard parentDeck.isSynced else {
+                print(
+                    "⚠️ PARENT NOT SYNCED:",
+                    parentDeck.id,
+                    "FOR DECK:",
+                    deck.id
+                )
+
+                continue
+            }
+
+            await uploadDeck(deck)
         }
 
         try modelContext.save()
 
         print("DECK UPLOAD SYNC SUCCESS")
+    }
+
+    // MARK: - Upload Deck Helper
+
+    private func uploadDeck(
+        _ deck: StudyDeck
+    ) async {
+
+        print("")
+        print("UPLOADING DECK:", deck.id, deck.title)
+
+        do {
+
+            let serverDeck = try await DeckAPI.shared.create(
+                id: deck.id,
+                title: deck.title,
+                subject: deck.subject,
+                educationLevel: deck.educationLevel,
+                isFavorite: deck.isFavorite,
+                parentDeckId: deck.parentDeck?.id
+            )
+
+            guard serverDeck.id == deck.id else {
+
+                print("❌ UUID MISMATCH")
+                print("LOCAL:", deck.id)
+                print("SERVER:", serverDeck.id)
+
+                return
+            }
+
+            deck.isSynced = true
+
+            print("✅ DECK UPLOADED:", deck.id)
+
+        } catch {
+
+            print(
+                "❌ FAILED TO UPLOAD DECK:",
+                deck.id,
+                error
+            )
+        }
     }
 
     // MARK: - Upload Unsynced Cards

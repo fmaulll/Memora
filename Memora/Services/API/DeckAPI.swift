@@ -13,7 +13,8 @@ final class DeckAPI {
         title: String,
         subject: String,
         educationLevel: String,
-        isFavorite: Bool = false
+        isFavorite: Bool = false,
+        parentDeckId: UUID? = nil
     ) async throws -> DeckResponse {
 
         let request = DeckCreateRequest(
@@ -21,7 +22,8 @@ final class DeckAPI {
             title: title,
             subject: subject,
             educationLevel: educationLevel,
-            isFavorite: isFavorite
+            isFavorite: isFavorite,
+            parentDeckId: parentDeckId
         )
 
         return try await APIClient.shared.request(
@@ -60,14 +62,16 @@ final class DeckAPI {
         title: String? = nil,
         subject: String? = nil,
         educationLevel: String? = nil,
-        isFavorite: Bool? = nil
+        isFavorite: Bool? = nil,
+        parentDeckId: UUID? = nil
     ) async throws -> DeckResponse {
 
         let request = DeckUpdateRequest(
             title: title,
             subject: subject,
             educationLevel: educationLevel,
-            isFavorite: isFavorite
+            isFavorite: isFavorite,
+            parentDeckId: parentDeckId
         )
 
         return try await APIClient.shared.request(
