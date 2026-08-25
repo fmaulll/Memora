@@ -620,7 +620,6 @@ final class SyncManager {
             print("DELETING CARD:", card.id)
 
             do {
-
                 try await CardAPI.shared.delete(
                     cardID: card.id
                 )
@@ -630,20 +629,35 @@ final class SyncManager {
                     card.id
                 )
 
-                // Server successfully deleted it.
-                // Now remove the local copy.
                 modelContext.delete(card)
 
-            } catch {
+            } catch APIError.httpError(let statusCode, _) {
 
+                if statusCode == 404 {
+                    // Card is already gone from the server.
+                    // Treat this as a successful deletion.
+                    print(
+                        "ℹ️ CARD ALREADY DELETED ON SERVER:",
+                        card.id
+                    )
+
+                    modelContext.delete(card)
+
+                } else {
+                    print(
+                        "❌ FAILED TO DELETE CARD:",
+                        card.id,
+                        "STATUS:",
+                        statusCode
+                    )
+                }
+
+            } catch {
                 print(
                     "❌ FAILED TO DELETE CARD:",
                     card.id,
                     error
                 )
-
-                // Keep it locally with isDeleted = true.
-                // It can be retried during the next sync.
             }
         }
 

@@ -71,7 +71,7 @@ struct DeckDetailsView: View {
 
     private var totalStudyCards: Int {
         if isParentDeck {
-            return deck.totalCardCount
+            return allChildCards.count
         }
 
         return totalCards
@@ -106,39 +106,56 @@ struct DeckDetailsView: View {
                                 StudyFlashcardsView(decks: childDecks)
                             } label: {
                                 HStack(spacing: 10) {
+
                                     Image(systemName: "play.fill")
                                         .font(.system(size: 15, weight: .bold))
 
-                                    Text("Study All")
-                                        .font(.custom("PlusJakartaSans-SemiBold", size: 15))
-                                        .foregroundStyle(.white)
+                                    Text(
+                                        hasStudyAllProgress
+                                            ? "Continue Study"
+                                            : "Study All"
+                                    )
+                                    .font(
+                                        .custom(
+                                            "PlusJakartaSans-SemiBold",
+                                            size: 15
+                                        )
+                                    )
+                                    .foregroundStyle(.white)
 
                                     Spacer()
 
-                                    Text("\(allChildCards.count) cards")
-                                        .font(
-                                            .custom(
-                                                "PlusJakartaSans-Regular",
-                                                size: 12
-                                            )
+                                    Text(
+                                        hasStudyAllProgress
+                                            ? "\(studyAllCompletedCards) / \(allChildCards.count)"
+                                            : "\(allChildCards.count) cards"
+                                    )
+                                    .font(
+                                        .custom(
+                                            "PlusJakartaSans-Regular",
+                                            size: 12
                                         )
-                                        .foregroundStyle(.white.opacity(0.5))
-                                }.padding(.horizontal, 16)
+                                    )
+                                    .foregroundStyle(.white.opacity(0.5))
+                                }
+                                .padding(.horizontal, 16)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 54)
+                                .contentShape(Rectangle())
+                                .background(
+                                    LinearGradient(
+                                        colors: [
+                                            accent,
+                                            Color(red: 0.55, green: 0.36, blue: 0.96)
+                                        ],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    ),
+                                    in: RoundedRectangle(cornerRadius: 12)
+                                )
                             }
                             .buttonStyle(.plain)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 54)
-                            .background(
-                                LinearGradient(
-                                    colors: [
-                                        accent,
-                                        Color(red: 0.55, green: 0.36, blue: 0.96)
-                                    ],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                ),
-                                in: RoundedRectangle(cornerRadius: 12)
-                            )
                             .padding(.top, 28)
                         }
 
@@ -245,7 +262,9 @@ struct DeckDetailsView: View {
                     )
 
                 Text(
-                    "\(deck.educationLevel) • \(totalStudyCards) card\(totalStudyCards == 1 ? "" : "s")"
+                    isParentDeck
+                        ? "\(deck.educationLevel) • \(childDecks.count) decks • \(totalStudyCards) cards"
+                        : "\(deck.educationLevel) • \(totalStudyCards) card\(totalStudyCards == 1 ? "" : "s")"
                 )
                 .font(
                     .custom(
@@ -422,6 +441,13 @@ struct DeckDetailsView: View {
         .padding(.horizontal, 20)
     }
 
+    private func masteredCount(for deck: StudyDeck) -> Int {
+        deck.cards.filter {
+            !$0.needsDeletion &&
+            $0.correctCount > 0
+        }.count
+    }
+
     private var childDeckSection: some View {
         VStack(alignment: .leading, spacing: 14) {
 
@@ -469,6 +495,9 @@ struct DeckDetailsView: View {
 
                             Text(
                                 "\(childDeck.totalCardCount) cards"
+                                + (masteredCount(for: childDeck) > 0
+                                    ? " · \(masteredCount(for: childDeck)) mastered"
+                                    : "")
                             )
                             .font(
                                 .custom(
@@ -679,6 +708,18 @@ struct DeckDetailsView: View {
             .white.opacity(0.045),
             in: Capsule()
         )
+    }
+
+    private var studyAllCompletedCards: Int {
+        childDecks.reduce(0) {
+            $0 + $1.studyAllCompletedCount
+        }
+    }
+
+    private var hasStudyAllProgress: Bool {
+        childDecks.contains {
+            $0.isStudyAllSessionActive
+        }
     }
 
     private var studyButton: some View {
