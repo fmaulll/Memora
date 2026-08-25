@@ -51,6 +51,7 @@ final class StudyDeck {
     }
 
     var isSynced: Bool = false
+    var needsDeletion: Bool = false
     
     init(
         id: UUID = UUID(),

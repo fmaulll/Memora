@@ -1,11 +1,16 @@
 import SwiftUI
 
 struct DeckDetailsView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+
     let deck: StudyDeck
 
     @State private var isShowingEditDeck = false
     @State private var isShowingEditCards = false
     @State private var isShowingMoreOptions = false
+    @State private var isShowingResetConfirmation = false
+    @State private var isShowingDeleteConfirmation = false
 
     @State private var isAnswerRevealed = false
     @State private var currentCardIndex = 0
@@ -50,9 +55,11 @@ struct DeckDetailsView: View {
     }
 
     private var childDecks: [StudyDeck] {
-        deck.childDecks.sorted {
-            $0.createdAt < $1.createdAt
-        }
+        deck.childDecks
+            .filter { !$0.needsDeletion }
+            .sorted {
+                $0.createdAt < $1.createdAt
+            }
     }
 
     private var allChildCards: [StudyFlashcardCard] {
@@ -207,14 +214,56 @@ struct DeckDetailsView: View {
             }
 
             Button("Reset Progress", role: .destructive) {
-                // resetProgress()
+                isShowingResetConfirmation = true
             }
 
             Button("Delete Deck", role: .destructive) {
-                // deleteDeck()
+                isShowingDeleteConfirmation = true
             }
 
             Button("Cancel", role: .cancel) { }
+        }
+
+        .alert(
+            "Reset Progress?",
+            isPresented: $isShowingResetConfirmation
+        ) {
+            Button("Cancel", role: .cancel) { }
+
+            Button("Reset", role: .destructive) {
+                resetProgress()
+            }
+        } message: {
+            if isParentDeck {
+                Text(
+                    "This will reset the learning progress of all \(childDecks.count) sub-decks and their cards. Your cards will not be deleted."
+                )
+            } else {
+                Text(
+                    "This will reset all learning progress for this deck. Your cards will not be deleted."
+                )
+            }
+        }
+
+        .alert(
+            "Delete Deck?",
+            isPresented: $isShowingDeleteConfirmation
+        ) {
+            Button("Cancel", role: .cancel) { }
+
+            Button("Delete", role: .destructive) {
+                deleteDeck()
+            }
+        } message: {
+            if isParentDeck {
+                Text(
+                    "\"\(deck.title)\" contains \(childDecks.count) sub-decks and \(allChildCards.count) flashcards. All of them will be deleted."
+                )
+            } else {
+                Text(
+                    "\"\(deck.title)\" and its \(totalCards) flashcards will be deleted."
+                )
+            }
         }
 
         // MARK: Navigation
@@ -291,6 +340,95 @@ struct DeckDetailsView: View {
         .buttonStyle(.plain)
         .accessibilityLabel("More options for deck \(deck.title)")
 
+    }
+
+    private func deleteDeck() {
+        let decksToDelete: [StudyDeck]
+
+        if isParentDeck {
+            decksToDelete = [deck] + childDecks
+        } else {
+            decksToDelete = [deck]
+        }
+
+        // Mark every card for deletion first
+        for targetDeck in decksToDelete {
+            for card in targetDeck.cards {
+                card.needsDeletion = true
+                card.syncState = SyncManager.CardSyncState.deleted
+            }
+
+            // Mark the deck for deletion
+            targetDeck.needsDeletion = true
+        }
+
+        do {
+            try modelContext.save()
+
+            print("========== DECK MARKED FOR DELETION ==========")
+            print("DECKS:", decksToDelete.count)
+
+            for targetDeck in decksToDelete {
+                print(
+                    "🗑️",
+                    targetDeck.title,
+                    "-",
+                    targetDeck.cards.count,
+                    "cards"
+                )
+            }
+
+            dismiss()
+
+        } catch {
+            print("❌ FAILED TO MARK DECK FOR DELETION:", error)
+        }
+    }
+
+    private func resetProgress() {
+        let decksToReset: [StudyDeck]
+
+        if isParentDeck {
+            decksToReset = childDecks
+        } else {
+            decksToReset = [deck]
+        }
+
+        for targetDeck in decksToReset {
+
+            // Reset every card's spaced-repetition progress
+            for card in targetDeck.cards where !card.needsDeletion {
+                card.reviewCount = 0
+                card.correctCount = 0
+                card.lastReviewedAt = nil
+                card.nextReviewAt = nil
+                card.difficulty = 0.0
+                card.interval = 0
+            }
+
+            // Reset normal study session
+            targetDeck.studyQueueIDs = []
+            targetDeck.learningQueueIDs = []
+            targetDeck.studyCompletedCount = 0
+            targetDeck.isStudySessionActive = false
+
+            // Reset Study All session
+            targetDeck.studyAllQueueIDs = []
+            targetDeck.studyAllLearningQueueIDs = []
+            targetDeck.studyAllCompletedCount = 0
+            targetDeck.isStudyAllSessionActive = false
+        }
+
+        do {
+            try modelContext.save()
+
+            print("========== PROGRESS RESET ==========")
+            print("DECK:", deck.title)
+            print("RESET DECKS:", decksToReset.count)
+
+        } catch {
+            print("❌ RESET PROGRESS ERROR:", error)
+        }
     }
 
     // MARK: Reveal

@@ -2,7 +2,11 @@ import SwiftUI
 import SwiftData
 
 struct LibraryView: View {
-    @Query(sort: \StudyDeck.createdAt, order: .reverse) private var decks: [StudyDeck]
+    @Query(
+    filter: #Predicate<StudyDeck> { deck in
+        !deck.needsDeletion
+    },
+    sort: \StudyDeck.createdAt, order: .reverse) private var decks: [StudyDeck]
     @Environment(\.modelContext) private var modelContext
 
     @State private var searchText = ""
@@ -140,7 +144,11 @@ struct LibraryView: View {
     private func deckSection(for deck: StudyDeck) -> some View {
         
         VStack(spacing: 0) {
-            let sortedChildren = deck.childDecks.sorted { $0.createdAt < $1.createdAt }
+            let sortedChildren = deck.childDecks
+                .filter { !$0.needsDeletion }
+                .sorted {
+                    $0.createdAt < $1.createdAt
+                }
 
             deckCard(for: deck)
 

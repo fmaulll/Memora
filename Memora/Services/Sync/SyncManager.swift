@@ -597,6 +597,76 @@ final class SyncManager {
         print("CARD UPDATE SYNC SUCCESS")
     }
 
+    // MARK: - Upload Deleted Decks
+
+    func uploadDeletedDecks(
+        modelContext: ModelContext
+    ) async throws {
+
+        let descriptor = FetchDescriptor<StudyDeck>(
+            predicate: #Predicate<StudyDeck> { deck in
+                deck.needsDeletion == true
+            }
+        )
+
+        let deletedDecks = try modelContext.fetch(descriptor)
+
+        print("DELETED DECKS TO UPLOAD:", deletedDecks.count)
+
+        for deck in deletedDecks {
+
+            print("")
+            print("DELETING DECK:", deck.id)
+            print("TITLE:", deck.title)
+
+            do {
+                try await DeckAPI.shared.delete(
+                    id: deck.id
+                )
+
+                print(
+                    "✅ SERVER DELETE SUCCESS:",
+                    deck.id
+                )
+
+                modelContext.delete(deck)
+
+            } catch APIError.httpError(let statusCode, _) {
+
+                if statusCode == 404 {
+                    // Already gone from server.
+                    // Treat deletion as successful.
+                    print(
+                        "ℹ️ DECK ALREADY DELETED ON SERVER:",
+                        deck.id
+                    )
+
+                    modelContext.delete(deck)
+
+                } else {
+                    print(
+                        "❌ FAILED TO DELETE DECK:",
+                        deck.id,
+                        "STATUS:",
+                        statusCode
+                    )
+                }
+
+            } catch {
+                print(
+                    "❌ FAILED TO DELETE DECK:",
+                    deck.id,
+                    error
+                )
+            }
+        }
+
+        try modelContext.save()
+
+        print("")
+        print("DECK DELETE SYNC SUCCESS")
+    }
+
     // MARK: - Upload Deleted Cards
 
     func uploadDeletedCards(
@@ -700,17 +770,25 @@ final class SyncManager {
             modelContext: modelContext
         )
 
-        // 4. Upload deleted cards
+        // 4. Upload deleted decks
         print("")
-        print("STEP 4: UPLOAD DELETED CARDS")
+        print("STEP 4: UPLOAD DELETED DECKS")
+
+        try await uploadDeletedDecks(
+            modelContext: modelContext
+        )
+
+        // 5. Upload deleted cards
+        print("")
+        print("STEP 5: UPLOAD DELETED CARDS")
 
         try await uploadDeletedCards(
             modelContext: modelContext
         )
 
-        // 5. Download server state
+        // 6. Download
         print("")
-        print("STEP 5: DOWNLOAD")
+        print("STEP 6: DOWNLOAD")
 
         try await downloadAll(
             modelContext: modelContext
