@@ -216,50 +216,38 @@ struct DeckDetailsView: View {
 
         // MARK: More Options
 
-        .confirmationDialog(
-            "Deck Options",
-            isPresented: $isShowingMoreOptions,
-            titleVisibility: .visible
-        ) {
-            Button {
-                isShowingEditDeck = true
-            } label: {
-                Label("Edit Deck", systemImage: "pencil")
-            }
-
-            if deck.parentDeck == nil {
-                Button {
+        .sheet(isPresented: $isShowingMoreOptions) {
+            DeckOptionsSheet(
+                deck: deck,
+                isParentDeck: isParentDeck,
+                onEditDeck: {
+                    isShowingMoreOptions = false
+                    isShowingEditDeck = true
+                },
+                onCreateSubDeck: {
+                    isShowingMoreOptions = false
                     isShowingCreateSubDeck = true
-                } label: {
-                    Label(
-                        "Create Sub-deck",
-                        systemImage: "folder.badge.plus"
-                    )
+                },
+                onMoveDeck: {
+                    isShowingMoreOptions = false
+                    isShowingMoveDeck = true
+                },
+                onManageCards: {
+                    isShowingMoreOptions = false
+                    isShowingEditCards = true
+                },
+                onResetProgress: {
+                    isShowingMoreOptions = false
+                    isShowingResetConfirmation = true
+                },
+                onDeleteDeck: {
+                    isShowingMoreOptions = false
+                    isShowingDeleteConfirmation = true
                 }
-            }
-
-            Button {
-                isShowingMoveDeck = true
-            } label: {
-                Label(
-                    "Move Deck",
-                    systemImage: "folder"
-                )
-            }
-
-            Button("Manage Cards") {
-                isShowingEditCards = true
-            }
-
-            Button("Reset Progress", role: .destructive) {
-                isShowingResetConfirmation = true
-            }
-
-            Button("Delete Deck", role: .destructive) {
-                isShowingDeleteConfirmation = true
-            }
-
-            Button("Cancel", role: .cancel) { }
+            )
+            .presentationDetents([.fraction(0.67)])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(.clear)
         }
 
         .alert(
