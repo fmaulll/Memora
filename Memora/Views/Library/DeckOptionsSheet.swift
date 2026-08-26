@@ -7,10 +7,12 @@ struct DeckOptionsSheet: View {
 
     let onEditDeck: () -> Void
     let onCreateSubDeck: () -> Void
+    let onCreateWithAI: () -> Void
     let onMoveDeck: () -> Void
     let onManageCards: () -> Void
     let onResetProgress: () -> Void
     let onDeleteDeck: () -> Void
+    
 
     private let accent = Color(
         red: 0.40,
@@ -38,6 +40,13 @@ struct DeckOptionsSheet: View {
                             action: onCreateSubDeck
                         )
                     }
+                    if canCreateSubDeck {
+                        optionButton(
+                            title: "Create with AI",
+                            icon: "sparkles",
+                            action: onCreateWithAI
+                        )
+                    }
 
                     optionButton(
                         title: "Move Deck",
@@ -45,7 +54,7 @@ struct DeckOptionsSheet: View {
                         action: onMoveDeck
                     )
 
-                    if canCreateSubDeck {
+                    if !isParentDeck {
                         optionButton(
                             title: "Manage Cards",
                             icon: "rectangle.stack",

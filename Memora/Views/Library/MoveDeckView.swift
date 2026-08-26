@@ -23,6 +23,9 @@ struct MoveDeckView: View {
         green: 0.40,
         blue: 0.95
     )
+    private var canMoveUnderParent: Bool {
+        deck.childDecks.isEmpty
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -137,7 +140,11 @@ struct MoveDeckView: View {
     }
 
     private var availableParentDecks: [StudyDeck] {
-        allDecks.filter { candidate in
+        guard canMoveUnderParent else {
+            return []
+        }
+
+        return allDecks.filter { candidate in
             candidate.id != deck.id
             && candidate.parentDeck == nil
             && candidate.cards.filter { !$0.needsDeletion }.isEmpty

@@ -13,6 +13,7 @@ struct DeckDetailsView: View {
     @State private var isShowingMoreOptions = false
     @State private var isShowingResetConfirmation = false
     @State private var isShowingDeleteConfirmation = false
+    @State private var isShowingCreateWithAI = false
 
     @State private var isAnswerRevealed = false
     @State private var currentCardIndex = 0
@@ -79,7 +80,7 @@ struct DeckDetailsView: View {
     }
 
     private var canCreateSubDeck: Bool {
-        !hasCards
+        deck.parentDeck == nil && !hasCards
     }
 
     private var totalStudyCards: Int {
@@ -233,6 +234,10 @@ struct DeckDetailsView: View {
                     isShowingMoreOptions = false
                     isShowingCreateSubDeck = true
                 },
+                onCreateWithAI: {
+                    isShowingMoreOptions = false
+                    isShowingCreateWithAI = true
+                },
                 onMoveDeck: {
                     isShowingMoreOptions = false
                     isShowingMoveDeck = true
@@ -307,6 +312,19 @@ struct DeckDetailsView: View {
             AddFlashcardView(
                 deck: deck,
                 isEditMode: true
+            )
+        }
+        .navigationDestination(isPresented: $isShowingCreateWithAI) {
+            AIDeckSetupView(
+                onDeckCreated: { createdDeck in
+                    isShowingCreateWithAI = false
+
+                    print(
+                        "✅ AI SUB-DECK CREATED:",
+                        createdDeck.title
+                    )
+                },
+                parentDeck: deck
             )
         }
     }
