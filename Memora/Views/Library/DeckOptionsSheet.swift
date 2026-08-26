@@ -31,7 +31,7 @@ struct DeckOptionsSheet: View {
                     )
                     .padding(.top, 20)
 
-                    if isParentDeck {
+                    if canCreateSubDeck {
                         optionButton(
                             title: "Create Sub-deck",
                             icon: "folder.badge.plus",

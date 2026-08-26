@@ -128,10 +128,11 @@ struct NewStudyDeckView: View {
         }
         .navigationDestination(isPresented: $isShowingCreateWithAi) {
             AIDeckSetupView(
-                parentDeck: parentDeck
-            ) { createdDeck in
-                onFinish?(createdDeck)
-            }
+                onDeckCreated: { createdDeck in
+                    onFinish?(createdDeck)
+                },
+                parentDeck: nil
+            )
         }
         .navigationDestination(isPresented: $isShowingCreateOwnDeck) {
             CreateOwnDeckView(

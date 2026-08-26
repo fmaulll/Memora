@@ -69,8 +69,8 @@ struct AIDeckSetupView: View {
             if let generatedPlan {
                 AIPlanPreviewView(
                     plan: generatedPlan,
-                    parentDeck: parentDeck,
-                    onDeckCreated: onDeckCreated
+                    onDeckCreated: onDeckCreated,
+                    parentDeck: parentDeck
                 )
             }
         }
