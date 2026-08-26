@@ -3,6 +3,7 @@ import SwiftUI
 struct DeckOptionsSheet: View {
     let deck: StudyDeck
     let isParentDeck: Bool
+    let canCreateSubDeck: Bool
 
     let onEditDeck: () -> Void
     let onCreateSubDeck: () -> Void
@@ -44,7 +45,7 @@ struct DeckOptionsSheet: View {
                         action: onMoveDeck
                     )
 
-                    if !isParentDeck {
+                    if canCreateSubDeck {
                         optionButton(
                             title: "Manage Cards",
                             icon: "rectangle.stack",

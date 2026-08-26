@@ -78,6 +78,10 @@ struct DeckDetailsView: View {
         !availableCards.isEmpty
     }
 
+    private var canCreateSubDeck: Bool {
+        !hasCards
+    }
+
     private var totalStudyCards: Int {
         if isParentDeck {
             return allChildCards.count
@@ -220,6 +224,7 @@ struct DeckDetailsView: View {
             DeckOptionsSheet(
                 deck: deck,
                 isParentDeck: isParentDeck,
+                canCreateSubDeck: canCreateSubDeck,
                 onEditDeck: {
                     isShowingMoreOptions = false
                     isShowingEditDeck = true
