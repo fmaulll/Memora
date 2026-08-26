@@ -7,6 +7,7 @@ struct AIDeckPreviewView: View {
 
     let deck: GeneratedDeckResponse
     let onDeckCreated: (StudyDeck) -> Void
+    let parentDeck: StudyDeck?
 
     @State private var isCreating = false
 
@@ -306,7 +307,8 @@ struct AIDeckPreviewView: View {
         let rootDeck = StudyDeck(
             title: deck.title,
             subject: deck.subject,
-            educationLevel: deck.educationLevel
+            educationLevel: deck.educationLevel,
+            parentDeck: parentDeck
         )
 
         modelContext.insert(rootDeck)

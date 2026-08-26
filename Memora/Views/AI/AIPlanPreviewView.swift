@@ -6,6 +6,7 @@ struct AIPlanPreviewView: View {
 
     let plan: DeckPlanResponse
     let onDeckCreated: (StudyDeck) -> Void
+    let parentDeck: StudyDeck?
 
     @State private var isGenerating = false
     @State private var generatedDeck: GeneratedDeckResponse?
@@ -85,6 +86,7 @@ struct AIPlanPreviewView: View {
             if let generatedDeck {
                 AIDeckPreviewView(
                     deck: generatedDeck,
+                    parentDeck: parentDeck,
                     onDeckCreated: onDeckCreated
                 )
             }

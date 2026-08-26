@@ -5,6 +5,7 @@ struct AIDeckSetupView: View {
     @Environment(\.dismiss) private var dismiss
 
     let onDeckCreated: (StudyDeck) -> Void
+    let parentDeck: StudyDeck?
 
     @State private var topic = ""
     @State private var educationLevel = "University"
@@ -68,6 +69,7 @@ struct AIDeckSetupView: View {
             if let generatedPlan {
                 AIPlanPreviewView(
                     plan: generatedPlan,
+                    parentDeck: parentDeck,
                     onDeckCreated: onDeckCreated
                 )
             }

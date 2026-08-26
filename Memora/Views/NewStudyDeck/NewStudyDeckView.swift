@@ -127,12 +127,9 @@ struct NewStudyDeckView: View {
             UploadStudyMaterialsView()
         }
         .navigationDestination(isPresented: $isShowingCreateWithAi) {
-            AIDeckSetupView { createdDeck in
-                print(
-                    "✅ AI WORKFLOW COMPLETE:",
-                    createdDeck.title
-                )
-
+            AIDeckSetupView(
+                parentDeck: parentDeck
+            ) { createdDeck in
                 onFinish?(createdDeck)
             }
         }
