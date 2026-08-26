@@ -131,7 +131,7 @@ struct NewStudyDeckView: View {
                 onDeckCreated: { createdDeck in
                     onFinish?(createdDeck)
                 },
-                parentDeck: nil
+                existingDeck: nil
             )
         }
         .navigationDestination(isPresented: $isShowingCreateOwnDeck) {

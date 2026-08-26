@@ -7,7 +7,7 @@ struct AIDeckPreviewView: View {
 
     let deck: GeneratedDeckResponse
     let onDeckCreated: (StudyDeck) -> Void
-    let parentDeck: StudyDeck?
+    let existingDeck: StudyDeck?
 
     @State private var isCreating = false
 
@@ -304,14 +304,32 @@ struct AIDeckPreviewView: View {
     // MARK: - Create
 
     private func createDeck() -> StudyDeck? {
-        let rootDeck = StudyDeck(
-            title: deck.title,
-            subject: deck.subject,
-            educationLevel: deck.educationLevel,
-            parentDeck: parentDeck
-        )
+        let rootDeck: StudyDeck
 
-        modelContext.insert(rootDeck)
+        if let existingDeck {
+            guard existingDeck.parentDeck == nil else {
+                print("❌ AI DECK MUST BE ROOT")
+                return nil
+            }
+
+            guard existingDeck.cards.isEmpty else {
+                print("❌ AI DECK MUST BE EMPTY")
+                return nil
+            }
+
+            rootDeck = existingDeck
+            rootDeck.isSynced = false
+
+        } else {
+            rootDeck = StudyDeck(
+                title: deck.title,
+                subject: deck.subject,
+                educationLevel: deck.educationLevel
+            )
+
+            rootDeck.isSynced = false
+            modelContext.insert(rootDeck)
+        }
 
         for chapter in deck.chapters {
             let chapterDeck = StudyDeck(

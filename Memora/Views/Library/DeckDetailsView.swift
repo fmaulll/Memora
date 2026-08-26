@@ -324,7 +324,7 @@ struct DeckDetailsView: View {
                         createdDeck.title
                     )
                 },
-                parentDeck: deck
+                existingDeck: deck
             )
         }
     }
