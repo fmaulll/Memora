@@ -72,7 +72,7 @@ struct AITestView: View {
                     topic: "Python programming from scratch",
                     educationLevel: "University",
                     studyGoal: "Learn Python fundamentals",
-                    cardCount: 20
+                    learningDepth: "Comprehensive"
                 )
 
                 print("========== AI PLAN ==========")

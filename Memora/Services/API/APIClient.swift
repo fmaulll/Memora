@@ -17,7 +17,7 @@ final class APIClient {
     private let session: URLSession = {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 30
-        configuration.timeoutIntervalForResource = 60
+        configuration.timeoutIntervalForResource = 300
 
         return URLSession(configuration: configuration)
     }()
@@ -72,15 +72,22 @@ final class APIClient {
         endpoint: String,
         method: HTTPMethod = .get,
         body: (any Encodable)? = nil,
-        authenticated: Bool = true
+        authenticated: Bool = true,
+        timeout: TimeInterval? = nil
     ) async throws -> Response {
 
-        let request = try buildRequest(
+        let builtRequest = try buildRequest(
             endpoint: endpoint,
             method: method,
             body: body,
             authenticated: authenticated
         )
+
+        var request = builtRequest
+
+        if let timeout {
+            request.timeoutInterval = timeout
+        }
 
         let data: Data
 

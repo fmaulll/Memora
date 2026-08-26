@@ -12,20 +12,21 @@ final class AIService {
         topic: String,
         educationLevel: String,
         studyGoal: String,
-        cardCount: Int
+        learningDepth: String
     ) async throws -> DeckPlanResponse {
 
         let request = DeckPlanRequest(
             topic: topic,
             educationLevel: educationLevel,
             studyGoal: studyGoal,
-            cardCount: cardCount
+            learningDepth: learningDepth
         )
 
         return try await APIClient.shared.request(
             endpoint: "/ai/decks/plan",
             method: .post,
-            body: request
+            body: request,
+            timeout: 300
         )
     }
 
@@ -38,7 +39,8 @@ final class AIService {
         return try await APIClient.shared.request(
             endpoint: "/ai/decks/generate",
             method: .post,
-            body: plan
+            body: plan,
+            timeout: 300
         )
     }
 }

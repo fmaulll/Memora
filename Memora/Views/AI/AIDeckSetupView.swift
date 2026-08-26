@@ -10,12 +10,19 @@ struct AIDeckSetupView: View {
     @State private var topic = ""
     @State private var educationLevel = "University"
     @State private var studyGoal = ""
-    @State private var cardCount = 20
+    @State private var learningDepth = "Comprehensive"
+    // @State private var cardCount = 20
 
     @State private var isGenerating = false
     @State private var generatedPlan: DeckPlanResponse?
     @State private var isShowingPlanPreview = false
     @State private var errorMessage: String?
+
+    private let learningDepthOptions = [
+        "Quick Review",
+        "Balanced",
+        "Comprehensive",
+    ]
 
     private let accent = Color(
         red: 0.40,
@@ -45,7 +52,9 @@ struct AIDeckSetupView: View {
 
                     goalSection
 
-                    cardCountSection
+                    learningDepthSection
+
+                    // cardCountSection
 
                     if let errorMessage {
                         Text(errorMessage)
@@ -171,30 +180,44 @@ struct AIDeckSetupView: View {
         VStack(alignment: .leading, spacing: 10) {
             sectionTitle("EDUCATION LEVEL")
 
-            Picker(
-                "Education Level",
-                selection: $educationLevel
-            ) {
+            Menu {
                 ForEach(educationLevels, id: \.self) { level in
-                    Text(level)
-                        .tag(level)
+                    Button {
+                        educationLevel = level
+                    } label: {
+                        Text(level)
+                    }
                 }
-            }
-            .pickerStyle(.menu)
-            .tint(.white)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(height: 56)
-            .padding(.horizontal, 16)
-            .background(
-                .white.opacity(0.06),
-                in: RoundedRectangle(cornerRadius: 14)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(
-                        .white.opacity(0.10),
-                        lineWidth: 1
-                    )
+            } label: {
+                HStack {
+                    Text(educationLevel)
+                        .font(
+                            .custom(
+                                "PlusJakartaSans-Regular",
+                                size: 14
+                            )
+                        )
+                        .foregroundStyle(.white)
+
+                    Spacer()
+
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.45))
+                }
+                .padding(.horizontal, 16)
+                .frame(height: 56)
+                .background(
+                    .white.opacity(0.06),
+                    in: RoundedRectangle(cornerRadius: 14)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(
+                            .white.opacity(0.10),
+                            lineWidth: 1
+                        )
+                }
             }
         }
     }
@@ -227,53 +250,145 @@ struct AIDeckSetupView: View {
         }
     }
 
-    // MARK: - Card Count
+    // MARK: - Learning Depth
 
-    private var cardCountSection: some View {
+    private var learningDepthSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                sectionTitle("NUMBER OF CARDS")
+            sectionTitle("LEARNING DEPTH")
 
-                Spacer()
-
-                Text("\(cardCount)")
-                    .font(
-                        .custom(
-                            "PlusJakartaSans-Bold",
-                            size: 16
-                        )
-                    )
-                    .foregroundStyle(accent)
-            }
-
-            Slider(
-                value: Binding(
-                    get: {
-                        Double(cardCount)
-                    },
-                    set: {
-                        cardCount = Int($0)
-                    }
-                ),
-                in: 10...50,
-                step: 5
-            )
-            .tint(accent)
-
-            HStack {
-                Text("10")
-                Spacer()
-                Text("50")
-            }
-            .font(
-                .custom(
-                    "PlusJakartaSans-Regular",
-                    size: 11
+            VStack(spacing: 10) {
+                learningDepthOption(
+                    title: "Quick Review",
+                    description: "Essential concepts only"
                 )
-            )
-            .foregroundStyle(.white.opacity(0.35))
+
+                learningDepthOption(
+                    title: "Standard",
+                    description: "Solid coverage for normal learning"
+                )
+
+                learningDepthOption(
+                    title: "Comprehensive",
+                    description: "Thorough coverage of important concepts"
+                )
+            }
         }
     }
+
+    private func learningDepthOption(
+        title: String,
+        description: String
+    ) -> some View {
+        Button {
+            learningDepth = title
+        } label: {
+            HStack(spacing: 14) {
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(
+                            .custom(
+                                "PlusJakartaSans-Bold",
+                                size: 14
+                            )
+                        )
+                        .foregroundStyle(.white)
+
+                    Text(description)
+                        .font(
+                            .custom(
+                                "PlusJakartaSans-Regular",
+                                size: 12
+                            )
+                        )
+                        .foregroundStyle(
+                            .white.opacity(0.45)
+                        )
+                }
+
+                Spacer()
+
+                Image(
+                    systemName:
+                        learningDepth == title
+                        ? "checkmark.circle.fill"
+                        : "circle"
+                )
+                .font(.system(size: 20))
+                .foregroundStyle(
+                    learningDepth == title
+                    ? accent
+                    : .white.opacity(0.25)
+                )
+            }
+            .padding(.horizontal, 16)
+            .frame(minHeight: 64)
+            .background(
+                learningDepth == title
+                ? accent.opacity(0.12)
+                : .white.opacity(0.06),
+                in: RoundedRectangle(cornerRadius: 14)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(
+                        learningDepth == title
+                        ? accent.opacity(0.5)
+                        : .white.opacity(0.10),
+                        lineWidth: 1
+                    )
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Card Count
+
+    // private var cardCountSection: some View {
+    //     VStack(alignment: .leading, spacing: 12) {
+    //         HStack {
+    //             sectionTitle("NUMBER OF CARDS")
+
+    //             Spacer()
+
+    //             Text("\(cardCount)")
+    //                 .font(
+    //                     .custom(
+    //                         "PlusJakartaSans-Bold",
+    //                         size: 16
+    //                     )
+    //                 )
+    //                 .foregroundStyle(accent)
+    //         }
+
+    //         Slider(
+    //             value: Binding(
+    //                 get: {
+    //                     Double(cardCount)
+    //                 },
+    //                 set: {
+    //                     cardCount = Int($0)
+    //                 }
+    //             ),
+    //             in: 10...50,
+    //             step: 5
+    //         )
+    //         .tint(accent)
+
+    //         HStack {
+    //             Text("10")
+    //             Spacer()
+    //             Text("50")
+    //         }
+    //         .font(
+    //             .custom(
+    //                 "PlusJakartaSans-Regular",
+    //                 size: 11
+    //             )
+    //         )
+    //         .foregroundStyle(.white.opacity(0.35))
+    //     }
+    // }
 
     // MARK: - Generate
 
@@ -339,7 +454,7 @@ struct AIDeckSetupView: View {
                     studyGoal: studyGoal.trimmingCharacters(
                         in: .whitespacesAndNewlines
                     ),
-                    cardCount: cardCount
+                    learningDepth: learningDepth
                 )
 
                 await MainActor.run {
