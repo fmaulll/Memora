@@ -2,9 +2,13 @@ import SwiftUI
 
 struct AIDeckPreviewView: View {
 
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
     let deck: GeneratedDeckResponse
+    let onDeckCreated: (StudyDeck) -> Void
+
+    @State private var isCreating = false
 
     private let accent = Color(
         red: 0.40,
@@ -262,9 +266,10 @@ struct AIDeckPreviewView: View {
     // MARK: - Create Button
 
     private var createButton: some View {
-
         AppButton(
-            title: "Create Deck",
+            title: isCreating
+                ? "Creating..."
+                : "Create Deck",
             foreground: .white,
             background: AnyShapeStyle(
                 LinearGradient(
@@ -281,14 +286,80 @@ struct AIDeckPreviewView: View {
                 )
             )
         ) {
-            createDeck()
+            guard !isCreating else { return }
+
+            isCreating = true
+
+            if let createdDeck = createDeck() {
+                onDeckCreated(createdDeck)
+            } else {
+                isCreating = false
+            }
         }
+        .disabled(isCreating)
         .padding(.horizontal, 20)
     }
 
     // MARK: - Create
 
-    private func createDeck() {
-        // We'll implement this next.
+    private func createDeck() -> StudyDeck? {
+        let rootDeck = StudyDeck(
+            title: deck.title,
+            subject: deck.subject,
+            educationLevel: deck.educationLevel
+        )
+
+        modelContext.insert(rootDeck)
+
+        for chapter in deck.chapters {
+            let chapterDeck = StudyDeck(
+                title: chapter.title,
+                subject: deck.subject,
+                educationLevel: deck.educationLevel,
+                parentDeck: rootDeck
+            )
+
+            modelContext.insert(chapterDeck)
+
+            for generatedCard in chapter.cards {
+                let card = StudyFlashcardCard(
+                    front: generatedCard.front,
+                    back: generatedCard.back,
+                    deck: chapterDeck
+                )
+
+                card.isSynced = false
+                card.syncState = 1
+
+                modelContext.insert(card)
+            }
+        }
+
+        do {
+            try modelContext.save()
+
+            print("========== AI DECK CREATED LOCALLY ==========")
+            print("ROOT DECK:", rootDeck.title)
+            print("CHAPTERS:", rootDeck.childDecks.count)
+
+            for chapter in rootDeck.childDecks {
+                print(
+                    "CHAPTER:",
+                    chapter.title,
+                    "| CARDS:",
+                    chapter.cards.count
+                )
+            }
+
+            return rootDeck
+
+        } catch {
+            print(
+                "❌ FAILED TO CREATE AI DECK:",
+                error
+            )
+
+            return nil
+        }
     }
 }

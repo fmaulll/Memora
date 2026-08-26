@@ -628,9 +628,13 @@ final class SyncManager {
 
         let deletedDecks = try modelContext.fetch(descriptor)
 
+        let sortedDecks = deletedDecks.sorted { deck1, deck2 in
+            deckDepth(deck1) > deckDepth(deck2)
+        }
+
         print("DELETED DECKS TO UPLOAD:", deletedDecks.count)
 
-        for deck in deletedDecks {
+        for deck in sortedDecks {
 
             print("")
             print("DELETING DECK:", deck.id)
@@ -682,6 +686,18 @@ final class SyncManager {
 
         print("")
         print("DECK DELETE SYNC SUCCESS")
+    }
+
+    private func deckDepth(_ deck: StudyDeck) -> Int {
+        var depth = 0
+        var current = deck.parentDeck
+
+        while let parent = current {
+            depth += 1
+            current = parent.parentDeck
+        }
+
+        return depth
     }
 
     // MARK: - Upload Deleted Cards

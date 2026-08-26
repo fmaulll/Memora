@@ -5,6 +5,7 @@ struct AIPlanPreviewView: View {
     @Environment(\.dismiss) private var dismiss
 
     let plan: DeckPlanResponse
+    let onDeckCreated: (StudyDeck) -> Void
 
     @State private var isGenerating = false
     @State private var generatedDeck: GeneratedDeckResponse?
@@ -83,7 +84,8 @@ struct AIPlanPreviewView: View {
         ) {
             if let generatedDeck {
                 AIDeckPreviewView(
-                    deck: generatedDeck
+                    deck: generatedDeck,
+                    onDeckCreated: onDeckCreated
                 )
             }
         }

@@ -4,6 +4,8 @@ struct AIDeckSetupView: View {
 
     @Environment(\.dismiss) private var dismiss
 
+    let onDeckCreated: (StudyDeck) -> Void
+
     @State private var topic = ""
     @State private var educationLevel = "University"
     @State private var studyGoal = ""
@@ -64,7 +66,10 @@ struct AIDeckSetupView: View {
             isPresented: $isShowingPlanPreview
         ) {
             if let generatedPlan {
-                AIPlanPreviewView(plan: generatedPlan)
+                AIPlanPreviewView(
+                    plan: generatedPlan,
+                    onDeckCreated: onDeckCreated
+                )
             }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
