@@ -68,6 +68,9 @@ struct HomeView: View {
     private var homeContent: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
+                NavigationLink("AI Test") {
+                    AITestView()
+                }
                 HStack(spacing: 16) {
                     summaryCard(title: "STREAK", value: "14", icon: "flame.fill", color: .orange)
                     summaryCard(title: "GOAL", value: "82", icon: "target", color: accent)
