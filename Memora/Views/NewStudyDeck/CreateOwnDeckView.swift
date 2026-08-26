@@ -25,8 +25,7 @@ struct CreateOwnDeckView: View {
     @State private var createdDeck: StudyDeck?
     @State private var deckTitle: String
     @State private var subject: String
-    @State private var isShowingManualSubjectField = false
-    @State private var educationLevel: EducationLevel
+    @State private var educationLevel: String
     @State private var isShowingAddFlashcards = false
     @State private var isShowingDiscardConfirmation = false
 
@@ -35,12 +34,10 @@ struct CreateOwnDeckView: View {
     private enum Field {
         case deckTitle
         case subject
+        case educationLevel
     }
 
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
-    private let levels = EducationLevel.allCases
-    // Hardcoded for now — will be generated from deckTitle later.
-    private let subjectSuggestions = ["Biology", "Excel", "Chemistry", "Anatomy", "Genetics"]
 
     init(
         existingDeck: StudyDeck? = nil,
@@ -56,7 +53,7 @@ struct CreateOwnDeckView: View {
         _deckTitle = State(initialValue: existingDeck?.title ?? "")
         _subject = State(initialValue: existingDeck?.subject ?? "")
         _educationLevel = State(
-            initialValue: EducationLevel(title: existingDeck?.educationLevel) ?? .highSchool
+            initialValue: existingDeck?.educationLevel ?? ""
         )
     }
 
@@ -68,6 +65,22 @@ struct CreateOwnDeckView: View {
         !deckTitle
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .isEmpty
+        &&
+        (
+            mode == .empty
+            ||
+            !subject
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .isEmpty
+        )
+        &&
+        (
+            mode == .empty
+            ||
+            !educationLevel
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .isEmpty
+        )
     }
 
     var body: some View {
@@ -101,70 +114,28 @@ struct CreateOwnDeckView: View {
                         formField(
                             label: "DECK TITLE",
                             placeholder: "e.g. Spanish Vocabulary — Beginner",
-                            text: $deckTitle
+                            text: $deckTitle,
+                            field: .deckTitle
                         )
                         .padding(.top, parentDeck != nil ? 24 : 30)
 
                         if mode == .withCards && parentDeck == nil {
-                            subjectField
-                                .padding(.top, 24)
 
-                            Text("EDUCATION LEVEL")
-                                .font(.custom("PlusJakartaSans-Regular", size: 14))
-                                .foregroundStyle(.white.opacity(0.62))
-                                .padding(.top, 24)
+                            formField(
+                                label: "SUBJECT",
+                                placeholder: "e.g. Biology, Physics, History",
+                                text: $subject,
+                                field: .subject
+                            )
+                            .padding(.top, 24)
 
-                            LazyVGrid(
-                                columns: [
-                                    GridItem(.flexible()),
-                                    GridItem(.flexible())
-                                ],
-                                spacing: 8
-                            ) {
-                                ForEach(levels) { level in
-                                    Button {
-                                        educationLevel = level
-                                    } label: {
-                                        Text(level.title)
-                                            .font(.custom("PlusJakartaSans-SemiBold", size: 16))
-                                            .foregroundStyle(
-                                                educationLevel == level
-                                                    ? .white
-                                                    : .white.opacity(0.62)
-                                            )
-                                            .frame(maxWidth: .infinity)
-                                            .frame(height: 64)
-                                            .background(
-                                                educationLevel == level
-                                                    ? AnyShapeStyle(
-                                                        LinearGradient(
-                                                            colors: [
-                                                                accent,
-                                                                Color(
-                                                                    red: 0.55,
-                                                                    green: 0.36,
-                                                                    blue: 0.96
-                                                                )
-                                                            ],
-                                                            startPoint: .leading,
-                                                            endPoint: .trailing
-                                                        )
-                                                    )
-                                                    : AnyShapeStyle(.white.opacity(0.18)),
-                                                in: RoundedRectangle(cornerRadius: 20)
-                                            )
-                                            .overlay {
-                                                RoundedRectangle(cornerRadius: 20)
-                                                    .stroke(
-                                                        .white.opacity(0.28),
-                                                        lineWidth: 1.5
-                                                    )
-                                            }
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                            .padding(.top, 18)
+                            formField(
+                                label: "EDUCATION LEVEL",
+                                placeholder: "e.g. University, High School, Self-Study",
+                                text: $educationLevel,
+                                field: .educationLevel
+                            )
+                            .padding(.top, 24)
                         }
                     }
                     .padding(.horizontal, 20)
@@ -333,100 +304,58 @@ struct CreateOwnDeckView: View {
         }
     }
 
-    private var subjectField: some View {
+    private func formField(
+        label: String,
+        placeholder: String,
+        text: Binding<String>,
+        field: Field
+    ) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("SUBJECT")
-                .font(.custom("PlusJakartaSans-Regular", size: 14))
-                .foregroundStyle(.white.opacity(0.62))
 
-            if isShowingManualSubjectField {
-                TextField("e.g. Biology, Physics, History", text: $subject)
-                    .font(.custom("PlusJakartaSans-Regular", size: 16))
-                    .foregroundStyle(.white)
-                    .tint(accent)
-                    .focused($focusedField, equals: .subject)
-                    .padding(.horizontal, 15)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .contentShape(Rectangle())
-                    .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 12))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(.white.opacity(0.28), lineWidth: 1.03)
-                    }
-                    .onTapGesture {
-                        focusedField = .subject
-                    }
-
-                Button {
-                    isShowingManualSubjectField = false
-                } label: {
-                    Text("Back to suggestions")
-                        .font(.custom("PlusJakartaSans-Regular", size: 14))
-                        .foregroundStyle(accent)
-                }
-                .buttonStyle(.plain)
-                .padding(.top, 4)
-            } else {
-                FlowLayout(spacing: 10) {
-                    ForEach(subjectSuggestions, id: \.self) { suggestion in
-                        Button {
-                            subject = suggestion
-                        } label: {
-                            Text(suggestion)
-                                .font(.custom("PlusJakartaSans-SemiBold", size: 15))
-                                .foregroundStyle(subject == suggestion ? .white : .white.opacity(0.62))
-                                .padding(.horizontal, 18)
-                                .padding(.vertical, 12)
-                                .background(
-                                    subject == suggestion ? AnyShapeStyle(accent) : AnyShapeStyle(.white.opacity(0.18)),
-                                    in: Capsule()
-                                )
-                                .overlay {
-                                    Capsule()
-                                        .stroke(.white.opacity(0.28), lineWidth: 1.03)
-                                }
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-
-                Button {
-                    isShowingManualSubjectField = true
-                } label: {
-                    Text("Can't find it? Input manually")
-                        .font(.custom("PlusJakartaSans-Regular", size: 14))
-                        .foregroundStyle(accent)
-                }
-                .buttonStyle(.plain)
-                .padding(.top, 4)
-            }
-        }
-    }
-
-    private func formField(label: String, placeholder: String, text: Binding<String>) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
             Text(label)
-                .font(.custom("PlusJakartaSans-Regular", size: 14))
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Regular",
+                        size: 14
+                    )
+                )
                 .foregroundStyle(.white.opacity(0.62))
 
-            TextField(placeholder, text: text)
-                .font(.custom("PlusJakartaSans-Regular", size: 16))
-                .foregroundStyle(.white)
-                .tint(accent)
-                .focused($focusedField, equals: .deckTitle)
-                .padding(.horizontal, 15)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .contentShape(Rectangle())
-                .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 12))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(.white.opacity(0.28), lineWidth: 1.03)
-                }
-                .onTapGesture {
-                    focusedField = .deckTitle
-                }
+            TextField(
+                placeholder,
+                text: text
+            )
+            .font(
+                .custom(
+                    "PlusJakartaSans-Regular",
+                    size: 16
+                )
+            )
+            .foregroundStyle(.white)
+            .tint(accent)
+            .focused(
+                $focusedField,
+                equals: field
+            )
+            .padding(.horizontal, 15)
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
+            .contentShape(Rectangle())
+            .background(
+                .white.opacity(0.18),
+                in: RoundedRectangle(
+                    cornerRadius: 12
+                )
+            )
+            .overlay {
+                RoundedRectangle(
+                    cornerRadius: 12
+                )
+                .stroke(
+                    .white.opacity(0.28),
+                    lineWidth: 1.03
+                )
+            }
         }
     }
 
@@ -498,7 +427,9 @@ struct CreateOwnDeckView: View {
             in: .whitespacesAndNewlines
         )
 
-        existingDeck.educationLevel = educationLevel.title
+        existingDeck.educationLevel = educationLevel.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
 
         existingDeck.isSynced = false
 
@@ -548,7 +479,9 @@ struct CreateOwnDeckView: View {
                 ? subject.trimmingCharacters(in: .whitespacesAndNewlines)
                 : parentDeck?.subject ?? "General",
             educationLevel: mode == .withCards
-                ? educationLevel.title
+                ? educationLevel.trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                )
                 : parentDeck?.educationLevel ?? "Self-Study"
         )
 
@@ -628,33 +561,6 @@ private struct FlowLayout: Layout {
     // MARK: - Deck Creation
 
     
-}
-
-private enum EducationLevel: String, CaseIterable, Identifiable {
-    case elementary
-    case juniorHigh
-    case highSchool
-    case university
-    case professional
-    case selfStudy
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .elementary: "Elementary School"
-        case .juniorHigh: "Junior High School"
-        case .highSchool: "High School"
-        case .university: "University"
-        case .professional: "Professional"
-        case .selfStudy: "Self-Study"
-        }
-    }
-
-    init?(title: String?) {
-        guard let match = EducationLevel.allCases.first(where: { $0.title == title }) else { return nil }
-        self = match
-    }
 }
 
 #Preview {

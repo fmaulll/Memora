@@ -15,6 +15,7 @@ struct NewStudyDeckView: View {
     @State private var isShowingUploadMaterials = false
     @State private var isShowingCreateOwnDeck = false
     @State private var isShowingCreateEmptyDeck = false
+    @State private var isShowingCreateWithAi = false
     @State private var isShowingHome = false
 
     private let background = Color(red: 0.04, green: 0.04, blue: 0.13)
@@ -125,6 +126,9 @@ struct NewStudyDeckView: View {
         .navigationDestination(isPresented: $isShowingUploadMaterials) {
             UploadStudyMaterialsView()
         }
+        .navigationDestination(isPresented: $isShowingCreateWithAi) {
+            AIDeckSetupView()
+        }
         .navigationDestination(isPresented: $isShowingCreateOwnDeck) {
             CreateOwnDeckView(
                 onFinish: { deck in
@@ -153,7 +157,9 @@ struct NewStudyDeckView: View {
             isShowingCreateOwnDeck = true
         case .empty:
             isShowingCreateEmptyDeck = true
-        case .aiTopic, .anki, nil:
+        case .aiTopic:
+            isShowingCreateWithAi = true
+        case .anki, nil:
             break
         }
     }
