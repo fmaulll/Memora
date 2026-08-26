@@ -4,6 +4,8 @@ struct DeckOptionsSheet: View {
     let deck: StudyDeck
     let isParentDeck: Bool
     let canCreateSubDeck: Bool
+    let canCreateWithAI: Bool
+    let aiDeckAction: AIDeckAction?
 
     let onEditDeck: () -> Void
     let onCreateSubDeck: () -> Void
@@ -12,6 +14,8 @@ struct DeckOptionsSheet: View {
     let onManageCards: () -> Void
     let onResetProgress: () -> Void
     let onDeleteDeck: () -> Void
+    let onGenerateCardsWithAI: () -> Void
+    let onGenerateMoreCardsWithAI: () -> Void
     
 
     private let accent = Color(
@@ -40,12 +44,31 @@ struct DeckOptionsSheet: View {
                             action: onCreateSubDeck
                         )
                     }
-                    if canCreateSubDeck {
-                        optionButton(
-                            title: "Create with AI",
-                            icon: "sparkles",
-                            action: onCreateWithAI
-                        )
+                    
+                    if let aiDeckAction {
+                        switch aiDeckAction {
+
+                        case .createDeck:
+                            optionButton(
+                                title: "Create with AI",
+                                icon: "sparkles",
+                                action: onCreateWithAI
+                            )
+
+                        case .generateCards:
+                            optionButton(
+                                title: "Generate Cards with AI",
+                                icon: "sparkles",
+                                action: onGenerateCardsWithAI
+                            )
+
+                        case .generateMoreCards:
+                            optionButton(
+                                title: "Generate More Cards",
+                                icon: "sparkles",
+                                action: onGenerateMoreCardsWithAI
+                            )
+                        }
                     }
 
                     optionButton(

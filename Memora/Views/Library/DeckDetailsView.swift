@@ -1,5 +1,11 @@
 import SwiftUI
 
+enum AIDeckAction {
+    case createDeck
+    case generateCards
+    case generateMoreCards
+}
+
 struct DeckDetailsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -80,7 +86,14 @@ struct DeckDetailsView: View {
     }
 
     private var canCreateSubDeck: Bool {
-        deck.parentDeck == nil && !hasCards
+        deck.parentDeck == nil
+        && !hasCards
+    }
+
+    private var canCreateWithAI: Bool {
+        deck.parentDeck == nil
+        && !hasCards
+        && deck.childDecks.isEmpty
     }
 
     private var totalStudyCards: Int {
@@ -89,6 +102,26 @@ struct DeckDetailsView: View {
         }
 
         return totalCards
+    }
+
+    private var aiDeckAction: AIDeckAction? {
+        let hasCards = !deck.cards.filter { !$0.needsDeletion }.isEmpty
+        let isRoot = deck.parentDeck == nil
+        let hasChildren = !deck.childDecks.isEmpty
+
+        if hasCards {
+            return .generateMoreCards
+        }
+
+        if isRoot && !hasChildren {
+            return .createDeck
+        }
+
+        if !isRoot {
+            return .generateCards
+        }
+
+        return nil
     }
 
     var body: some View {
@@ -226,6 +259,8 @@ struct DeckDetailsView: View {
                 deck: deck,
                 isParentDeck: isParentDeck,
                 canCreateSubDeck: canCreateSubDeck,
+                canCreateWithAI: canCreateWithAI,
+                aiDeckAction: aiDeckAction,
                 onEditDeck: {
                     isShowingMoreOptions = false
                     isShowingEditDeck = true
@@ -253,6 +288,13 @@ struct DeckDetailsView: View {
                 onDeleteDeck: {
                     isShowingMoreOptions = false
                     isShowingDeleteConfirmation = true
+                },
+                onGenerateCardsWithAI: {
+                    print("🤖 GENERATE CARDS FOR DECK")
+                },
+
+                onGenerateMoreCardsWithAI: {
+                    print("🤖 GENERATE MORE CARDS")
                 }
             )
             .presentationDetents([.fraction(0.67)])

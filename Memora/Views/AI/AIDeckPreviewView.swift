@@ -316,6 +316,11 @@ struct AIDeckPreviewView: View {
                 print("❌ AI DECK MUST BE EMPTY")
                 return nil
             }
+            
+            guard existingDeck.childDecks.isEmpty else {
+                print("❌ AI DECK MUST HAVE NO CHILDREN")
+                return nil
+            }
 
             rootDeck = existingDeck
             rootDeck.isSynced = false
