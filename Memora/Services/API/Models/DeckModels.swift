@@ -56,4 +56,26 @@ struct DeckUpdateRequest: Encodable {
         case isFavorite = "is_favorite"
         case parentDeckId = "parent_deck_id"
     }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        try container.encodeIfPresent(title, forKey: .title)
+        try container.encodeIfPresent(subject, forKey: .subject)
+        try container.encodeIfPresent(
+            educationLevel,
+            forKey: .educationLevel
+        )
+        try container.encodeIfPresent(
+            isFavorite,
+            forKey: .isFavorite
+        )
+
+        // IMPORTANT:
+        // Encode nil as explicit JSON null.
+        try container.encode(
+            parentDeckId,
+            forKey: .parentDeckId
+        )
+    }
 }

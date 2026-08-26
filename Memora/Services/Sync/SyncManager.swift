@@ -85,7 +85,8 @@ final class SyncManager {
             title: deck.title,
             subject: deck.subject,
             educationLevel: deck.educationLevel,
-            isFavorite: deck.isFavorite
+            isFavorite: deck.isFavorite,
+            parentDeckId: deck.parentDeck?.id
         )
 
         print("Updated deck:", response.id)
@@ -390,36 +391,52 @@ final class SyncManager {
     ) async {
 
         print("")
-        print("UPLOADING DECK:", deck.id, deck.title)
+        print("SYNCING DECK:", deck.id, deck.title)
 
         do {
+            let exists = try await deckExists(deck.id)
 
-            let serverDeck = try await DeckAPI.shared.create(
-                id: deck.id,
-                title: deck.title,
-                subject: deck.subject,
-                educationLevel: deck.educationLevel,
-                isFavorite: deck.isFavorite,
-                parentDeckId: deck.parentDeck?.id
-            )
+            let serverDeck: DeckResponse
+
+            if exists {
+                print("UPDATING EXISTING DECK:", deck.id)
+
+                serverDeck = try await DeckAPI.shared.update(
+                    id: deck.id,
+                    title: deck.title,
+                    subject: deck.subject,
+                    educationLevel: deck.educationLevel,
+                    isFavorite: deck.isFavorite,
+                    parentDeckId: deck.parentDeck?.id
+                )
+
+            } else {
+                print("CREATING NEW DECK:", deck.id)
+
+                serverDeck = try await DeckAPI.shared.create(
+                    id: deck.id,
+                    title: deck.title,
+                    subject: deck.subject,
+                    educationLevel: deck.educationLevel,
+                    isFavorite: deck.isFavorite,
+                    parentDeckId: deck.parentDeck?.id
+                )
+            }
 
             guard serverDeck.id == deck.id else {
-
                 print("❌ UUID MISMATCH")
                 print("LOCAL:", deck.id)
                 print("SERVER:", serverDeck.id)
-
                 return
             }
 
             deck.isSynced = true
 
-            print("✅ DECK UPLOADED:", deck.id)
+            print("✅ DECK SYNCED:", deck.id)
 
         } catch {
-
             print(
-                "❌ FAILED TO UPLOAD DECK:",
+                "❌ FAILED TO SYNC DECK:",
                 deck.id,
                 error
             )

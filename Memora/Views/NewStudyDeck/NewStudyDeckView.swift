@@ -14,6 +14,7 @@ struct NewStudyDeckView: View {
     @State private var selectedMethod: StudyDeckMethod?
     @State private var isShowingUploadMaterials = false
     @State private var isShowingCreateOwnDeck = false
+    @State private var isShowingCreateEmptyDeck = false
     @State private var isShowingHome = false
 
     private let background = Color(red: 0.04, green: 0.04, blue: 0.13)
@@ -131,6 +132,14 @@ struct NewStudyDeckView: View {
                 }
             )
         }
+        .navigationDestination(isPresented: $isShowingCreateEmptyDeck) {
+            CreateOwnDeckView(
+                mode: .empty,
+                onFinish: { deck in
+                    onFinish?(deck)
+                }
+            )
+        }
         .navigationDestination(isPresented: $isShowingHome) {
             HomeView()
         }
@@ -142,6 +151,8 @@ struct NewStudyDeckView: View {
             isShowingUploadMaterials = true
         case .custom:
             isShowingCreateOwnDeck = true
+        case .empty:
+            isShowingCreateEmptyDeck = true
         case .aiTopic, .anki, nil:
             break
         }
@@ -152,7 +163,9 @@ private enum StudyDeckMethod: String, CaseIterable, Identifiable {
     case upload
     case aiTopic
     case custom
+    case empty
     case anki
+    
 
     var id: String { rawValue }
 
@@ -161,6 +174,7 @@ private enum StudyDeckMethod: String, CaseIterable, Identifiable {
         case .upload: "Upload Study Materials"
         case .aiTopic: "Learn Any Topic with AI"
         case .custom: "Create Your Own Deck"
+        case .empty: "Create Empty Deck"
         case .anki: "Import Anki Deck"
         }
     }
@@ -170,6 +184,8 @@ private enum StudyDeckMethod: String, CaseIterable, Identifiable {
         case .upload: "PDF, DOCX, or TXT — AI extracts everything."
         case .aiTopic: "Describe what you want to master. AI does the rest."
         case .custom: "Build flashcards manually with complete control."
+        case .empty:
+            "Create a deck now and add cards or sub-decks later."
         case .anki: "Import your existing .apkg flashcard decks into Memora."
         }
     }
@@ -179,6 +195,8 @@ private enum StudyDeckMethod: String, CaseIterable, Identifiable {
         case .upload: ["PDF", "DOCX", "TXT"]
         case .aiTopic: ["Any Subject", "AI-Powered"]
         case .custom: ["Custom Cards", "Full Control"]
+        case .empty:
+            ["Empty Deck", "Organize Later"]
         case .anki: ["APKG Import", "Anki Compatible"]
         }
     }
@@ -188,6 +206,8 @@ private enum StudyDeckMethod: String, CaseIterable, Identifiable {
         case .upload: "arrow.up"
         case .aiTopic: "sparkles"
         case .custom: "doc.badge.plus"
+        case .empty:
+            "folder.badge.plus"
         case .anki: "rectangle.stack.badge.plus"
         }
     }
@@ -197,6 +217,7 @@ private enum StudyDeckMethod: String, CaseIterable, Identifiable {
         case .upload: Color(red: 0.35, green: 0.33, blue: 0.95)
         case .aiTopic: Color(red: 0.59, green: 0.25, blue: 0.95)
         case .custom: Color(red: 0.41, green: 0.22, blue: 0.75)
+        case .empty: Color(red: 0.39, green: 0.40, blue: 0.95)
         case .anki: Color(red: 0.20, green: 0.47, blue: 0.82)
         }
     }
@@ -206,6 +227,7 @@ private enum StudyDeckMethod: String, CaseIterable, Identifiable {
         case .upload: 3
         case .aiTopic: 4
         case .custom: 3
+        case .empty: 2
         case .anki: 3
         }
     }

@@ -6,6 +6,8 @@ struct DeckDetailsView: View {
 
     let deck: StudyDeck
 
+    @State private var isShowingMoveDeck = false
+    @State private var isShowingCreateSubDeck = false
     @State private var isShowingEditDeck = false
     @State private var isShowingEditCards = false
     @State private var isShowingMoreOptions = false
@@ -196,6 +198,22 @@ struct DeckDetailsView: View {
         .preferredColorScheme(.dark)
         .navigationBarBackButtonHidden()
 
+        .navigationDestination(
+            isPresented: $isShowingMoveDeck
+        ) {
+            MoveDeckView(deck: deck)
+        }
+
+        .navigationDestination(isPresented: $isShowingCreateSubDeck) {
+            CreateOwnDeckView(
+                mode: .empty,
+                parentDeck: deck,
+                onFinish: { _ in
+                    isShowingCreateSubDeck = false
+                }
+            )
+        }
+
         // MARK: More Options
 
         .confirmationDialog(
@@ -207,6 +225,26 @@ struct DeckDetailsView: View {
                 isShowingEditDeck = true
             } label: {
                 Label("Edit Deck", systemImage: "pencil")
+            }
+
+            if deck.parentDeck == nil {
+                Button {
+                    isShowingCreateSubDeck = true
+                } label: {
+                    Label(
+                        "Create Sub-deck",
+                        systemImage: "folder.badge.plus"
+                    )
+                }
+            }
+
+            Button {
+                isShowingMoveDeck = true
+            } label: {
+                Label(
+                    "Move Deck",
+                    systemImage: "folder"
+                )
             }
 
             Button("Manage Cards") {

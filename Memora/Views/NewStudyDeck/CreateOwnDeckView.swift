@@ -8,8 +8,15 @@
 import SwiftUI
 import SwiftData
 
+enum CreateDeckMode {
+    case withCards
+    case empty
+}
+
 struct CreateOwnDeckView: View {
     let existingDeck: StudyDeck?
+    let mode: CreateDeckMode
+    let parentDeck: StudyDeck?
     let onFinish: ((StudyDeck) -> Void)?
 
     @Environment(\.modelContext) private var modelContext
@@ -37,10 +44,14 @@ struct CreateOwnDeckView: View {
 
     init(
         existingDeck: StudyDeck? = nil,
+        mode: CreateDeckMode = .withCards,
+        parentDeck: StudyDeck? = nil,
         onFinish: ((StudyDeck) -> Void)? = nil
     ) {
         self.existingDeck = existingDeck
         self.onFinish = onFinish
+        self.parentDeck = parentDeck
+        self.mode = mode    
 
         _deckTitle = State(initialValue: existingDeck?.title ?? "")
         _subject = State(initialValue: existingDeck?.subject ?? "")
@@ -54,8 +65,9 @@ struct CreateOwnDeckView: View {
     }
 
     private var canContinue: Bool {
-        !deckTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !deckTitle
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .isEmpty
     }
 
     var body: some View {
@@ -64,64 +76,96 @@ struct CreateOwnDeckView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
 
-                        Text(isEditMode ? "EDIT STUDY DECK" : "NEW STUDY DECK")
+                        Text(headerEyebrow)
                             .font(.custom("PlusJakartaSans-Bold", size: 14))
                             .foregroundStyle(.white.opacity(0.62))
                             .padding(.top, 16)
 
-                        Text(isEditMode ? "Edit your deck" : "What do you want\nto learn?")
+                        Text(headerTitle)
                             .font(.custom("PlusJakartaSans-ExtraBold", size: 40))
                             .foregroundStyle(.white)
                             .tracking(-1)
                             .lineSpacing(-3)
                             .padding(.top, 16)
 
-                        Text("Be specific for better flashcards")
+                        Text(headerDescription)
                             .font(.custom("PlusJakartaSans-Regular", size: 16))
                             .foregroundStyle(.white.opacity(0.62))
                             .padding(.top, 20)
+
+                        if let parentDeck {
+                            parentDeckPreview(parentDeck)
+                                .padding(.top, 30)
+                        }
 
                         formField(
                             label: "DECK TITLE",
                             placeholder: "e.g. Spanish Vocabulary — Beginner",
                             text: $deckTitle
                         )
-                        .padding(.top, 30)
+                        .padding(.top, parentDeck != nil ? 24 : 30)
 
-                        subjectField
-                            .padding(.top, 24)
+                        if mode == .withCards && parentDeck == nil {
+                            subjectField
+                                .padding(.top, 24)
 
-                        Text("EDUCATION LEVEL")
-                            .font(.custom("PlusJakartaSans-Regular", size: 14))
-                            .foregroundStyle(.white.opacity(0.62))
-                            .padding(.top, 24)
+                            Text("EDUCATION LEVEL")
+                                .font(.custom("PlusJakartaSans-Regular", size: 14))
+                                .foregroundStyle(.white.opacity(0.62))
+                                .padding(.top, 24)
 
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                            ForEach(levels) { level in
-                                Button {
-                                    educationLevel = level
-                                } label: {
-                                    Text(level.title)
-                                        .font(.custom("PlusJakartaSans-SemiBold", size: 16))
-                                        .foregroundStyle(educationLevel == level ? .white : .white.opacity(0.62))
-                                        .frame(maxWidth: .infinity)
-                                        .frame(height: 64)
-                                        .background(
-                                            educationLevel == level ? AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing)) : AnyShapeStyle(.white.opacity(0.18)),
-                                            in: RoundedRectangle(cornerRadius: 20)
-                                        )
-                                        .overlay {
-                                            RoundedRectangle(cornerRadius: 20)
-                                                .stroke(.white.opacity(0.28), lineWidth: 1.5)
-                                        }
+                            LazyVGrid(
+                                columns: [
+                                    GridItem(.flexible()),
+                                    GridItem(.flexible())
+                                ],
+                                spacing: 8
+                            ) {
+                                ForEach(levels) { level in
+                                    Button {
+                                        educationLevel = level
+                                    } label: {
+                                        Text(level.title)
+                                            .font(.custom("PlusJakartaSans-SemiBold", size: 16))
+                                            .foregroundStyle(
+                                                educationLevel == level
+                                                    ? .white
+                                                    : .white.opacity(0.62)
+                                            )
+                                            .frame(maxWidth: .infinity)
+                                            .frame(height: 64)
+                                            .background(
+                                                educationLevel == level
+                                                    ? AnyShapeStyle(
+                                                        LinearGradient(
+                                                            colors: [
+                                                                accent,
+                                                                Color(
+                                                                    red: 0.55,
+                                                                    green: 0.36,
+                                                                    blue: 0.96
+                                                                )
+                                                            ],
+                                                            startPoint: .leading,
+                                                            endPoint: .trailing
+                                                        )
+                                                    )
+                                                    : AnyShapeStyle(.white.opacity(0.18)),
+                                                in: RoundedRectangle(cornerRadius: 20)
+                                            )
+                                            .overlay {
+                                                RoundedRectangle(cornerRadius: 20)
+                                                    .stroke(
+                                                        .white.opacity(0.28),
+                                                        lineWidth: 1.5
+                                                    )
+                                            }
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
                             }
+                            .padding(.top, 18)
                         }
-                        .padding(.top, 18)
-
-                        Color.clear
-                            .frame(height: 120)
                     }
                     .padding(.horizontal, 20)
                 }
@@ -139,9 +183,9 @@ struct CreateOwnDeckView: View {
         .dismissKeyboardOnTap()
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
-                if !isEditMode {
+                if !isEditMode && (mode == .withCards || mode == .empty && parentDeck == nil) {
                     WorkflowIndicator(
-                        numberOfSteps: 3,
+                        numberOfSteps: mode == .empty ? 2 : 3,
                         currentStep: 1,
                         accent: accent
                     )
@@ -151,7 +195,11 @@ struct CreateOwnDeckView: View {
 
                 HStack {
                     AppButton(
-                        title: isEditMode ? "Save Deck" : "Continue",
+                        title: isEditMode
+                            ? "Save Deck"
+                            : mode == .empty
+                                ? (parentDeck != nil ? "Create Sub-deck" : "Create Deck")
+                                : "Continue",
                         foreground: canContinue ? .white : .white.opacity(0.45),
                         background: AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing))
                     ) {
@@ -198,6 +246,90 @@ struct CreateOwnDeckView: View {
                 "Your deck and cards haven't been finished yet. "
                 + "If you discard it, all of your progress will be lost."
             )
+        }
+    }
+
+    private var headerEyebrow: String {
+        if isEditMode {
+            return "EDIT STUDY DECK"
+        }
+
+        if parentDeck != nil {
+            return "CREATE SUB-DECK"
+        }
+
+        if mode == .empty {
+            return "CREATE EMPTY DECK"
+        }
+
+        return "NEW STUDY DECK"
+    }
+
+    private var headerTitle: String {
+        if isEditMode {
+            return "Edit your deck"
+        }
+
+        if parentDeck != nil {
+            return "Add a section"
+        }
+
+        if mode == .empty {
+            return "Create your deck"
+        }
+
+        return "What do you want\nto learn?"
+    }
+
+    private var headerDescription: String {
+        if isEditMode {
+            return "Update your deck details"
+        }
+
+        if parentDeck != nil {
+            return "Organize this deck into a focused study topic."
+        }
+
+        if mode == .empty {
+            return "Add cards or sub-decks whenever you're ready."
+        }
+
+        return "Be specific for better flashcards"
+    }
+
+    private func parentDeckPreview(_ parentDeck: StudyDeck) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("PARENT DECK")
+                .font(.custom("PlusJakartaSans-Regular", size: 14))
+                .foregroundStyle(.white.opacity(0.62))
+
+            HStack(spacing: 12) {
+                Image(systemName: "folder.fill")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(accent)
+
+                Text(parentDeck.title)
+                    .font(.custom("PlusJakartaSans-SemiBold", size: 16))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+
+                Spacer()
+
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.35))
+            }
+            .padding(.horizontal, 15)
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
+            .background(
+                .white.opacity(0.12),
+                in: RoundedRectangle(cornerRadius: 12)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(.white.opacity(0.20), lineWidth: 1)
+            }
         }
     }
 
@@ -412,10 +544,15 @@ struct CreateOwnDeckView: View {
 
         let deck = StudyDeck(
             title: deckTitle.trimmingCharacters(in: .whitespacesAndNewlines),
-            subject: subject.trimmingCharacters(in: .whitespacesAndNewlines),
-            educationLevel: educationLevel.title
+            subject: mode == .withCards
+                ? subject.trimmingCharacters(in: .whitespacesAndNewlines)
+                : parentDeck?.subject ?? "General",
+            educationLevel: mode == .withCards
+                ? educationLevel.title
+                : parentDeck?.educationLevel ?? "Self-Study"
         )
 
+        deck.parentDeck = parentDeck
         deck.isSynced = false
 
         modelContext.insert(deck)
@@ -431,7 +568,14 @@ struct CreateOwnDeckView: View {
             print("SYNCED:", deck.isSynced)
 
             createdDeck = deck
-            isShowingAddFlashcards = true
+
+            switch mode {
+            case .withCards:
+                isShowingAddFlashcards = true
+
+            case .empty:
+                onFinish?(deck)
+            }
 
         } catch {
             print("❌ CREATE DECK ERROR:", error)
