@@ -6,6 +6,8 @@ struct AIDeckPreviewView: View {
     @Environment(\.dismiss) private var dismiss
 
     let deck: GeneratedDeckResponse
+    let timeline: StudyTimelineResponse?
+
     let onDeckCreated: (StudyDeck) -> Void
     let existingDeck: StudyDeck?
 
@@ -25,6 +27,10 @@ struct AIDeckPreviewView: View {
                     header
 
                     summary
+
+                    if let timeline {
+                        studyTimeline(timeline)
+                    }
 
                     cards
 
@@ -178,6 +184,140 @@ struct AIDeckPreviewView: View {
         )
     }
 
+    // MARK: - Study Timeline
+
+    private func studyTimeline(
+        _ timeline: StudyTimelineResponse
+    ) -> some View {
+
+        VStack(
+            alignment: .leading,
+            spacing: 14
+        ) {
+
+            Text("STUDY TIMELINE")
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Bold",
+                        size: 11
+                    )
+                )
+                .foregroundStyle(
+                    .white.opacity(0.45)
+                )
+
+            Text(
+                "\(timeline.totalDays) day study plan"
+            )
+            .font(
+                .custom(
+                    "PlusJakartaSans-Bold",
+                    size: 18
+                )
+            )
+            .foregroundStyle(.white)
+
+            Text(
+                "Complete \(timeline.totalCards) flashcards based on your study schedule."
+            )
+            .font(
+                .custom(
+                    "PlusJakartaSans-Regular",
+                    size: 13
+                )
+            )
+            .foregroundStyle(
+                .white.opacity(0.55)
+            )
+
+            VStack(spacing: 10) {
+
+                ForEach(
+                    timeline.dailyPlan,
+                    id: \.day
+                ) { studyDay in
+
+                    timelineRow(studyDay)
+                }
+            }
+        }
+    }
+
+    private func timelineRow(
+        _ studyDay: StudyDayResponse
+    ) -> some View {
+
+        HStack(
+            alignment: .center,
+            spacing: 14
+        ) {
+
+            VStack(spacing: 2) {
+
+                Text("DAY")
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-Bold",
+                            size: 8
+                        )
+                    )
+                    .foregroundStyle(
+                        .white.opacity(0.4)
+                    )
+
+                Text("\(studyDay.day)")
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-Bold",
+                            size: 18
+                        )
+                    )
+                    .foregroundStyle(accent)
+            }
+            .frame(width: 42)
+
+            VStack(
+                alignment: .leading,
+                spacing: 5
+            ) {
+
+                Text(
+                    studyDay.newCards > 0
+                        ? "\(studyDay.newCards) new flashcards"
+                        : "Review day"
+                )
+                .font(
+                    .custom(
+                        "PlusJakartaSans-SemiBold",
+                        size: 14
+                    )
+                )
+                .foregroundStyle(.white)
+
+                Text(studyDay.focus)
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-Regular",
+                            size: 11
+                        )
+                    )
+                    .foregroundStyle(
+                        .white.opacity(0.5)
+                    )
+                    .lineLimit(2)
+            }
+
+            Spacer()
+        }
+        .padding(14)
+        .background(
+            .white.opacity(0.06),
+            in: RoundedRectangle(
+                cornerRadius: 14
+            )
+        )
+    }
+
     // MARK: - Cards
 
     private var cards: some View {
@@ -316,7 +456,7 @@ struct AIDeckPreviewView: View {
                 print("❌ AI DECK MUST BE EMPTY")
                 return nil
             }
-            
+
             guard existingDeck.childDecks.isEmpty else {
                 print("❌ AI DECK MUST HAVE NO CHILDREN")
                 return nil

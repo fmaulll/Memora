@@ -9,8 +9,12 @@ struct AIDeckSetupView: View {
 
     @State private var topic = ""
     @State private var educationLevel = "University"
+    @State private var studyPurpose = "Learn from Scratch"
     @State private var studyGoal = ""
     @State private var learningDepth = "Comprehensive"
+
+    @State private var hasTargetDate = false
+    @State private var targetDate = Date()
     // @State private var cardCount = 20
 
     @State private var isGenerating = false
@@ -35,7 +39,15 @@ struct AIDeckSetupView: View {
         "Middle School",
         "High School",
         "University",
-        "Professional"
+        "Professional",
+        "Self-taught",
+    ]
+
+    private let studyPurposeOptions = [
+        "Learn from Scratch",
+        "Expand My Knowledge",
+        "Prepare for an Exam",
+        "Prepare for a Certification"
     ]
 
     var body: some View {
@@ -50,11 +62,15 @@ struct AIDeckSetupView: View {
 
                     educationSection
 
+                    studyPurposeSection
+
                     goalSection
 
                     learningDepthSection
 
-                    // cardCountSection
+                    if requiresTargetDate {
+                        targetDateSection
+                    }
 
                     if let errorMessage {
                         Text(errorMessage)
@@ -78,6 +94,8 @@ struct AIDeckSetupView: View {
             if let generatedPlan {
                 AIPlanPreviewView(
                     plan: generatedPlan,
+                    studyPurpose: studyPurpose,
+                    targetDate: hasTargetDate ? targetDate : nil,
                     onDeckCreated: onDeckCreated,
                     existingDeck: existingDeck
                 )
@@ -342,54 +360,6 @@ struct AIDeckSetupView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Card Count
-
-    // private var cardCountSection: some View {
-    //     VStack(alignment: .leading, spacing: 12) {
-    //         HStack {
-    //             sectionTitle("NUMBER OF CARDS")
-
-    //             Spacer()
-
-    //             Text("\(cardCount)")
-    //                 .font(
-    //                     .custom(
-    //                         "PlusJakartaSans-Bold",
-    //                         size: 16
-    //                     )
-    //                 )
-    //                 .foregroundStyle(accent)
-    //         }
-
-    //         Slider(
-    //             value: Binding(
-    //                 get: {
-    //                     Double(cardCount)
-    //                 },
-    //                 set: {
-    //                     cardCount = Int($0)
-    //                 }
-    //             ),
-    //             in: 10...50,
-    //             step: 5
-    //         )
-    //         .tint(accent)
-
-    //         HStack {
-    //             Text("10")
-    //             Spacer()
-    //             Text("50")
-    //         }
-    //         .font(
-    //             .custom(
-    //                 "PlusJakartaSans-Regular",
-    //                 size: 11
-    //             )
-    //         )
-    //         .foregroundStyle(.white.opacity(0.35))
-    //     }
-    // }
-
     // MARK: - Generate
 
     private var generateButton: some View {
@@ -425,6 +395,191 @@ struct AIDeckSetupView: View {
         )
     }
 
+    // MARK: - Study Purpose
+
+    private var studyPurposeSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+
+            sectionTitle("STUDY PURPOSE")
+
+            VStack(spacing: 10) {
+
+                studyPurposeOption(
+                    title: "Learn from Scratch",
+                    description: "Build a strong foundation from the beginning",
+                    icon: "book.closed"
+                )
+
+                studyPurposeOption(
+                    title: "Expand My Knowledge",
+                    description: "Deepen your understanding of a subject",
+                    icon: "brain.head.profile"
+                )
+
+                studyPurposeOption(
+                    title: "Prepare for an Exam",
+                    description: "Study toward an upcoming academic exam",
+                    icon: "graduationcap"
+                )
+
+                studyPurposeOption(
+                    title: "Prepare for a Certification",
+                    description: "Prepare for a professional certification",
+                    icon: "checkmark.seal"
+                )
+            }
+        }
+    }
+
+    private func studyPurposeOption(
+        title: String,
+        description: String,
+        icon: String
+    ) -> some View {
+
+        Button {
+            studyPurpose = title
+
+            if !requiresTargetDate {
+                hasTargetDate = false
+            }
+
+        } label: {
+
+            HStack(spacing: 14) {
+
+                Image(systemName: icon)
+                    .font(.system(size: 18))
+                    .foregroundStyle(
+                        studyPurpose == title
+                        ? accent
+                        : .white.opacity(0.55)
+                    )
+                    .frame(width: 24)
+
+                VStack(
+                    alignment: .leading,
+                    spacing: 4
+                ) {
+
+                    Text(title)
+                        .font(
+                            .custom(
+                                "PlusJakartaSans-Bold",
+                                size: 14
+                            )
+                        )
+                        .foregroundStyle(.white)
+
+                    Text(description)
+                        .font(
+                            .custom(
+                                "PlusJakartaSans-Regular",
+                                size: 12
+                            )
+                        )
+                        .foregroundStyle(
+                            .white.opacity(0.45)
+                        )
+                }
+
+                Spacer()
+
+                Image(
+                    systemName:
+                        studyPurpose == title
+                        ? "checkmark.circle.fill"
+                        : "circle"
+                )
+                .font(.system(size: 20))
+                .foregroundStyle(
+                    studyPurpose == title
+                    ? accent
+                    : .white.opacity(0.25)
+                )
+            }
+            .padding(.horizontal, 16)
+            .frame(minHeight: 70)
+            .background(
+                studyPurpose == title
+                ? accent.opacity(0.12)
+                : .white.opacity(0.06),
+                in: RoundedRectangle(cornerRadius: 14)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(
+                        studyPurpose == title
+                        ? accent.opacity(0.5)
+                        : .white.opacity(0.10),
+                        lineWidth: 1
+                    )
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Target Date
+
+    private var targetDateSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+
+            sectionTitle("TARGET DATE")
+
+            Toggle(
+                isOn: $hasTargetDate
+            ) {
+                VStack(alignment: .leading, spacing: 4) {
+
+                    Text("I have a target date")
+                        .font(
+                            .custom(
+                                "PlusJakartaSans-Bold",
+                                size: 14
+                            )
+                        )
+                        .foregroundStyle(.white)
+
+                    Text(
+                        "We'll create a study timeline based on your deadline."
+                    )
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-Regular",
+                            size: 12
+                        )
+                    )
+                    .foregroundStyle(
+                        .white.opacity(0.45)
+                    )
+                }
+            }
+            .tint(accent)
+            .padding(16)
+            .background(
+                .white.opacity(0.06),
+                in: RoundedRectangle(cornerRadius: 14)
+            )
+
+            if hasTargetDate {
+
+                DatePicker(
+                    "Target Date",
+                    selection: $targetDate,
+                    in: Date()...,
+                    displayedComponents: .date
+                )
+                .datePickerStyle(.compact)
+                .tint(accent)
+                .padding(16)
+                .background(
+                    .white.opacity(0.06),
+                    in: RoundedRectangle(cornerRadius: 14)
+                )
+            }
+        }
+    }
+
     // MARK: - Helpers
 
     private func sectionTitle(_ title: String) -> some View {
@@ -451,10 +606,12 @@ struct AIDeckSetupView: View {
                         in: .whitespacesAndNewlines
                     ),
                     educationLevel: educationLevel,
+                    studyPurpose: studyPurpose,
                     studyGoal: studyGoal.trimmingCharacters(
                         in: .whitespacesAndNewlines
                     ),
-                    learningDepth: learningDepth
+                    learningDepth: learningDepth,
+                    targetDate: hasTargetDate ? targetDate : nil
                 )
 
                 await MainActor.run {
@@ -470,6 +627,12 @@ struct AIDeckSetupView: View {
                 }
             }
         }
+    }
+
+    private var requiresTargetDate: Bool {
+        studyPurpose == "Prepare for an Exam"
+        ||
+        studyPurpose == "Prepare for a Certification"
     }
 
     private var canContinue: Bool {

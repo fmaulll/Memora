@@ -12,6 +12,9 @@ final class StudyDeck {
     var isFavorite: Bool = false
     var lastRating: String?
 
+    // MARK: - Generation
+    var generationStatus: String = "completed"
+
     var studyQueueIDs: [UUID] = []
     var learningQueueIDs: [UUID] = []
     var studyCompletedCount: Int = 0
@@ -60,7 +63,8 @@ final class StudyDeck {
         educationLevel: String,
         createdAt: Date = .now,
         cards: [StudyFlashcardCard] = [],
-        parentDeck: StudyDeck? = nil
+        parentDeck: StudyDeck? = nil,
+        generationStatus: String = "completed"
     ) {
         self.id = id
         self.title = title
@@ -70,6 +74,7 @@ final class StudyDeck {
 
         self.cards = cards
         self.parentDeck = parentDeck
+        self.generationStatus = generationStatus
 
         for card in cards {
             card.deck = self

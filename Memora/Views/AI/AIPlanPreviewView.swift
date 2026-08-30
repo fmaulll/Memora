@@ -5,11 +5,15 @@ struct AIPlanPreviewView: View {
     @Environment(\.dismiss) private var dismiss
 
     let plan: DeckPlanResponse
+    let studyPurpose: String
+    let targetDate: Date?
+
     let onDeckCreated: (StudyDeck) -> Void
     let existingDeck: StudyDeck?
 
     @State private var isGenerating = false
     @State private var generatedDeck: GeneratedDeckResponse?
+    @State private var generatedTimeline: StudyTimelineResponse?
     @State private var isShowingDeckPreview = false
     @State private var errorMessage: String?
 
@@ -86,6 +90,7 @@ struct AIPlanPreviewView: View {
             if let generatedDeck {
                 AIDeckPreviewView(
                     deck: generatedDeck,
+                    timeline: generatedTimeline,
                     onDeckCreated: onDeckCreated,
                     existingDeck: existingDeck
                 )
@@ -342,13 +347,17 @@ struct AIPlanPreviewView: View {
         Task {
             do {
 
-                let deck =
+                let response =
                     try await AIService.shared.generateDeck(
-                        from: plan
+                        plan: plan,
+                        studyPurpose: studyPurpose,
+                        targetDate: targetDate
                     )
 
                 await MainActor.run {
-                    generatedDeck = deck
+                    generatedDeck = response.deck
+                    generatedTimeline = response.timeline
+
                     isGenerating = false
                     isShowingDeckPreview = true
                 }
