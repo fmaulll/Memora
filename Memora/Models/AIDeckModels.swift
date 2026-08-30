@@ -74,7 +74,6 @@ struct GeneratedDeckResponse: Decodable {
     }
 }
 
-
 struct GeneratedChapter: Decodable, Identifiable {
     let id: UUID
     let title: String
@@ -87,27 +86,11 @@ struct GeneratedChapter: Decodable, Identifiable {
     }
 }
 
-struct GeneratedChapter: Decodable, Identifiable {
-    let title: String
-    let cards: [GeneratedCard]
+// MARK: - Generated Deck
 
-    var id: String {
-        title
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case title
-        case cards
-    }
-}
-
-struct GeneratedCard: Decodable, Identifiable {
+struct GeneratedCard: Decodable {
     let front: String
     let back: String
-
-    var id: String {
-        front
-    }
 }
 
 struct GenerateDeckRequest: Encodable {

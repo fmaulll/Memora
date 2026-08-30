@@ -32,7 +32,7 @@ struct AIDeckPreviewView: View {
                         studyTimeline(timeline)
                     }
 
-                    cards
+                    chapters
 
                 }
                 .padding(.horizontal, 20)
@@ -111,9 +111,7 @@ struct AIDeckPreviewView: View {
     // MARK: - Summary
 
     private var totalCards: Int {
-        deck.chapters.reduce(0) {
-            $0 + $1.cards.count
-        }
+        timeline?.totalCards ?? 0
     }
 
     private var summary: some View {
@@ -318,90 +316,69 @@ struct AIDeckPreviewView: View {
         )
     }
 
-    // MARK: - Cards
+    // MARK: - Chapters
 
-    private var cards: some View {
-        VStack(alignment: .leading, spacing: 20) {
+    private var chapters: some View {
+        VStack(alignment: .leading, spacing: 12) {
 
-            ForEach(deck.chapters) { chapter in
+            Text("CHAPTERS")
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Bold",
+                        size: 11
+                    )
+                )
+                .foregroundStyle(
+                    .white.opacity(0.45)
+                )
 
-                VStack(alignment: .leading, spacing: 12) {
+            ForEach(
+                Array(deck.chapters.enumerated()),
+                id: \.element.id
+            ) { index, chapter in
+
+                HStack(spacing: 14) {
+
+                    Text("\(index + 1)")
+                        .font(
+                            .custom(
+                                "PlusJakartaSans-Bold",
+                                size: 13
+                            )
+                        )
+                        .foregroundStyle(accent)
+                        .frame(width: 28, height: 28)
+                        .background(
+                            accent.opacity(0.12),
+                            in: Circle()
+                        )
 
                     Text(chapter.title)
                         .font(
                             .custom(
-                                "PlusJakartaSans-Bold",
-                                size: 16
+                                "PlusJakartaSans-SemiBold",
+                                size: 14
                             )
                         )
                         .foregroundStyle(.white)
 
-                    ForEach(chapter.cards) { card in
-                        cardRow(card)
-                    }
+                    Spacer()
+
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 13))
+                        .foregroundStyle(
+                            .white.opacity(0.4)
+                        )
                 }
+                .padding(14)
+                .background(
+                    .white.opacity(0.06),
+                    in: RoundedRectangle(
+                        cornerRadius: 14
+                    )
+                )
             }
         }
-    }
-
-    private func cardRow(
-        _ card: GeneratedCard
-    ) -> some View {
-
-        VStack(alignment: .leading, spacing: 12) {
-
-            Text("QUESTION")
-                .font(
-                    .custom(
-                        "PlusJakartaSans-Bold",
-                        size: 9
-                    )
-                )
-                .foregroundStyle(accent)
-
-            Text(card.front)
-                .font(
-                    .custom(
-                        "PlusJakartaSans-SemiBold",
-                        size: 14
-                    )
-                )
-                .foregroundStyle(.white)
-
-            Divider()
-                .overlay(
-                    .white.opacity(0.08)
-                )
-
-            Text("ANSWER")
-                .font(
-                    .custom(
-                        "PlusJakartaSans-Bold",
-                        size: 9
-                    )
-                )
-                .foregroundStyle(
-                    .white.opacity(0.4)
-                )
-
-            Text(card.back)
-                .font(
-                    .custom(
-                        "PlusJakartaSans-Regular",
-                        size: 14
-                    )
-                )
-                .foregroundStyle(
-                    .white.opacity(0.65)
-                )
-        }
-        .padding(16)
-        .background(
-            .white.opacity(0.06),
-            in: RoundedRectangle(
-                cornerRadius: 14
-            )
-        )
     }
 
     // MARK: - Create Button
@@ -467,9 +444,11 @@ struct AIDeckPreviewView: View {
 
         } else {
             rootDeck = StudyDeck(
+                id: deck.id,
                 title: deck.title,
                 subject: deck.subject,
-                educationLevel: deck.educationLevel
+                educationLevel: deck.educationLevel,
+                generationStatus: deck.generationStatus
             )
 
             rootDeck.isSynced = false
@@ -477,27 +456,19 @@ struct AIDeckPreviewView: View {
         }
 
         for chapter in deck.chapters {
+
             let chapterDeck = StudyDeck(
+                id: chapter.id,
                 title: chapter.title,
                 subject: deck.subject,
                 educationLevel: deck.educationLevel,
-                parentDeck: rootDeck
+                parentDeck: rootDeck,
+                generationStatus: chapter.generationStatus
             )
 
+            chapterDeck.isSynced = false
+
             modelContext.insert(chapterDeck)
-
-            for generatedCard in chapter.cards {
-                let card = StudyFlashcardCard(
-                    front: generatedCard.front,
-                    back: generatedCard.back,
-                    deck: chapterDeck
-                )
-
-                card.isSynced = false
-                card.syncState = 1
-
-                modelContext.insert(card)
-            }
         }
 
         do {

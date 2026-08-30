@@ -24,6 +24,9 @@ struct DeckDetailsView: View {
     @State private var isAnswerRevealed = false
     @State private var currentCardIndex = 0
 
+    @State private var generationPollingTask: Task<Void, Never>?
+    @State private var isPollingGeneration = false
+
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
     private let cardFill = Color.white.opacity(0.18)
 
@@ -369,6 +372,12 @@ struct DeckDetailsView: View {
                 existingDeck: deck
             )
         }
+        .task {
+            startGenerationPollingIfNeeded()
+        }
+        .onDisappear {
+            stopGenerationPolling()
+        }
     }
 
     private var header: some View {
@@ -473,6 +482,128 @@ struct DeckDetailsView: View {
 
         } catch {
             print("❌ FAILED TO MARK DECK FOR DELETION:", error)
+        }
+    }
+
+    // MARK: - AI Generation Polling
+
+    private func startGenerationPollingIfNeeded() {
+        guard deck.parentDeck == nil else {
+            return
+        }
+
+        guard deck.generationStatus == "generating" else {
+            return
+        }
+
+        guard generationPollingTask == nil else {
+            return
+        }
+
+        isPollingGeneration = true
+
+        generationPollingTask = Task {
+            await pollGenerationStatus()
+        }
+    }
+
+
+    private func stopGenerationPolling() {
+        generationPollingTask?.cancel()
+        generationPollingTask = nil
+        isPollingGeneration = false
+    }
+
+
+    private func pollGenerationStatus() async {
+
+        while !Task.isCancelled {
+
+            do {
+                let status = try await AIService.shared
+                    .fetchGenerationStatus(deckID: deck.id)
+
+                let chaptersToSync = await MainActor.run {
+                    () -> [UUID] in
+
+                    deck.generationStatus = status.generationStatus
+
+                    var completedIDs: [UUID] = []
+
+                    for chapterStatus in status.chapters {
+
+                        guard let localChapter = deck.childDecks.first(
+                            where: { $0.id == chapterStatus.id }
+                        ) else {
+                            continue
+                        }
+
+                        let previousStatus =
+                            localChapter.generationStatus
+
+                        localChapter.generationStatus =
+                            chapterStatus.generationStatus
+
+                        if previousStatus != "completed"
+                            && chapterStatus.generationStatus == "completed" {
+
+                            completedIDs.append(chapterStatus.id)
+                        }
+                    }
+
+                    try? modelContext.save()
+
+                    return completedIDs
+                }
+
+                // Download ONLY newly completed chapters
+                for chapterID in chaptersToSync {
+
+                    do {
+                        try await SyncManager.shared.downloadDeck(
+                            id: chapterID,
+                            modelContext: modelContext
+                        )
+                    } catch {
+                        print(
+                            "❌ FAILED TO DOWNLOAD CHAPTER:",
+                            chapterID,
+                            error
+                        )
+                    }
+                }
+
+                // Stop when backend says everything is completed
+                if status.generationStatus == "completed" {
+
+                    isPollingGeneration = false
+                    generationPollingTask = nil
+
+                    break
+                }
+
+            } catch is CancellationError {
+
+                break
+
+            } catch {
+
+                print(
+                    "❌ GENERATION POLLING ERROR:",
+                    error
+                )
+            }
+
+            do {
+
+                try await Task.sleep(
+                    for: .seconds(3)
+                )
+
+            } catch {
+
+                break
+            }
         }
     }
 
@@ -704,75 +835,145 @@ struct DeckDetailsView: View {
 
             ForEach(childDecks) { childDeck in
 
-                NavigationLink {
-                    DeckDetailsView(deck: childDeck)
-                } label: {
-                    HStack(spacing: 14) {
+                if childDeck.generationStatus == "completed" {
 
-                        VStack(
-                            alignment: .leading,
-                            spacing: 5
-                        ) {
-                            Text(childDeck.title)
-                                .font(
-                                    .custom(
-                                        "PlusJakartaSans-SemiBold",
-                                        size: 15
-                                    )
-                                )
-                                .foregroundStyle(.white)
-
-                            Text(
-                                "\(childDeck.totalCardCount) cards"
-                                + (masteredCount(for: childDeck) > 0
-                                    ? " · \(masteredCount(for: childDeck)) mastered"
-                                    : "")
-                            )
-                            .font(
-                                .custom(
-                                    "PlusJakartaSans-Regular",
-                                    size: 12
-                                )
-                            )
-                            .foregroundStyle(
-                                .white.opacity(0.5)
-                            )
-                        }
-
-                        Spacer()
-
-                        Image(systemName: "chevron.right")
-                            .font(
-                                .system(
-                                    size: 12,
-                                    weight: .semibold
-                                )
-                            )
-                            .foregroundStyle(
-                                .white.opacity(0.3)
-                            )
+                    NavigationLink {
+                        DeckDetailsView(deck: childDeck)
+                    } label: {
+                        childDeckRow(childDeck)
                     }
-                    .padding(16)
-                    .background(
-                        Color.white.opacity(0.055),
-                        in: RoundedRectangle(
-                            cornerRadius: 16
-                        )
-                    )
-                    .overlay {
-                        RoundedRectangle(
-                            cornerRadius: 16
-                        )
-                        .stroke(
-                            .white.opacity(0.12),
-                            lineWidth: 1
-                        )
-                    }
+                    .buttonStyle(.plain)
+
+                } else {
+
+                    childDeckRow(childDeck)
+                        .opacity(0.6)
                 }
-                .buttonStyle(.plain)
             }
         }
     }
+
+    private func childDeckRow(
+        _ childDeck: StudyDeck
+    ) -> some View {
+
+        HStack(spacing: 14) {
+
+            VStack(
+                alignment: .leading,
+                spacing: 5
+            ) {
+
+                Text(childDeck.title)
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-SemiBold",
+                            size: 15
+                        )
+                    )
+                    .foregroundStyle(.white)
+
+                generationStatusText(
+                    for: childDeck
+                )
+            }
+
+            Spacer()
+
+            if childDeck.generationStatus == "completed" {
+
+                Image(systemName: "chevron.right")
+                    .font(
+                        .system(
+                            size: 12,
+                            weight: .semibold
+                        )
+                    )
+                    .foregroundStyle(
+                        .white.opacity(0.3)
+                    )
+
+            } else {
+
+                ProgressView()
+                    .scaleEffect(0.8)
+                    .tint(.white.opacity(0.6))
+            }
+        }
+        .padding(16)
+        .background(
+            Color.white.opacity(0.055),
+            in: RoundedRectangle(
+                cornerRadius: 16
+            )
+        )
+        .overlay {
+            RoundedRectangle(
+                cornerRadius: 16
+            )
+            .stroke(
+                .white.opacity(0.12),
+                lineWidth: 1
+            )
+        }
+    }
+
+    @ViewBuilder
+        private func generationStatusText(
+            for childDeck: StudyDeck
+        ) -> some View {
+
+            switch childDeck.generationStatus {
+
+            case "completed":
+
+                Text(
+                    "\(childDeck.totalCardCount) cards"
+                    + (masteredCount(for: childDeck) > 0
+                        ? " · \(masteredCount(for: childDeck)) mastered"
+                        : "")
+                )
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Regular",
+                        size: 12
+                    )
+                )
+                .foregroundStyle(
+                    .white.opacity(0.5)
+                )
+
+            case "generating":
+
+                Label(
+                    "Generating cards...",
+                    systemImage: "sparkles"
+                )
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Regular",
+                        size: 12
+                    )
+                )
+                .foregroundStyle(accent)
+
+            default:
+
+                Label(
+                    "Waiting to generate...",
+                    systemImage: "clock"
+                )
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Regular",
+                        size: 12
+                    )
+                )
+                .foregroundStyle(
+                    .white.opacity(0.5)
+                )
+            }
+        }
     
     private struct FlashcardView: View {
         let card: StudyFlashcardCard
@@ -1169,6 +1370,31 @@ struct DeckDetailsView: View {
                     )
                 )
                 .foregroundStyle(.green)
+        }
+    }
+
+    private func completedChapterIDs(
+        from status: DeckGenerationStatusResponse
+    ) -> [UUID] {
+
+        status.chapters.compactMap { chapterStatus in
+
+            guard chapterStatus.generationStatus == "completed" else {
+                return nil
+            }
+
+            guard let localChapter = deck.childDecks.first(
+                where: { $0.id == chapterStatus.id }
+            ) else {
+                return nil
+            }
+
+            // Already downloaded
+            guard localChapter.cards.isEmpty else {
+                return nil
+            }
+
+            return chapterStatus.id
         }
     }
 }

@@ -7,6 +7,9 @@ struct DeckResponse: Decodable {
     let subject: String
     let educationLevel: String
     let isFavorite: Bool
+
+    let generationStatus: String
+
     let createdAt: Date
     let updatedAt: Date
     let parentDeckId: UUID?
@@ -18,6 +21,9 @@ struct DeckResponse: Decodable {
         case subject
         case educationLevel = "education_level"
         case isFavorite = "is_favorite"
+
+        case generationStatus = "generation_status"
+
         case createdAt = "created_at"
         case updatedAt = "updated_at"
         case parentDeckId = "parent_deck_id"

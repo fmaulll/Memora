@@ -831,4 +831,87 @@ final class SyncManager {
         print("========== SYNC SUCCESS ==========")
     }
 
+    // MARK: - Download Single Deck
+
+    func downloadDeck(
+        id: UUID,
+        modelContext: ModelContext
+    ) async throws {
+
+        // Fetch the deck from backend
+        let serverDeck = try await DeckAPI.shared.get(
+            id: id
+        )
+
+        // Fetch only this deck's cards
+        let serverCards = try await CardAPI.shared.getAll(
+            deckID: id
+        )
+
+        // Find the local deck
+        let descriptor = FetchDescriptor<StudyDeck>(
+            predicate: #Predicate {
+                $0.id == id
+            }
+        )
+
+        guard let localDeck = try modelContext.fetch(
+            descriptor
+        ).first else {
+            print("⚠️ Local deck not found:", id)
+            return
+        }
+
+        // Update deck information
+        localDeck.title = serverDeck.title
+        localDeck.subject = serverDeck.subject
+        localDeck.educationLevel = serverDeck.educationLevel
+        localDeck.isFavorite = serverDeck.isFavorite
+        localDeck.generationStatus = serverDeck.generationStatus
+
+        // =====================================================
+        // CREATE / UPDATE CARDS
+        // =====================================================
+
+        let existingCards = Dictionary(
+            uniqueKeysWithValues: localDeck.cards.map {
+                ($0.id, $0)
+            }
+        )
+
+        for serverCard in serverCards {
+
+            if let localCard = existingCards[serverCard.id] {
+
+                localCard.front = serverCard.front
+                localCard.back = serverCard.back
+
+                localCard.isSynced = true
+                localCard.syncState = CardSyncState.synced
+
+            } else {
+
+                let newCard = StudyFlashcardCard(
+                    id: serverCard.id,
+                    front: serverCard.front,
+                    back: serverCard.back,
+                    deck: localDeck
+                )
+
+                newCard.isSynced = true
+                newCard.syncState = CardSyncState.synced
+
+                modelContext.insert(newCard)
+            }
+        }
+
+        try modelContext.save()
+
+        print(
+            "⬇️ Downloaded deck:",
+            localDeck.title,
+            "| Cards:",
+            serverCards.count
+        )
+    }
 }
