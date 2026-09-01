@@ -8,7 +8,7 @@ struct AppBackground<Content: View>: View {
     }
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .topTrailing) {
             Color.appBackground
                 .ignoresSafeArea()
 

@@ -40,3 +40,19 @@ struct UserResponse: Codable, Identifiable {
         case createdAt = "created_at"
     }
 }
+
+struct AnonymousUserRequest: Encodable {
+    let name: String
+}
+
+struct AuthResponse: Decodable {
+    let user: UserResponse
+    let accessToken: String
+    let tokenType: String
+
+    enum CodingKeys: String, CodingKey {
+        case user
+        case accessToken = "access_token"
+        case tokenType = "token_type"
+    }
+}

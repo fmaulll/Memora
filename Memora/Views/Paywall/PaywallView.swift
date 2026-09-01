@@ -2,11 +2,11 @@ import SwiftUI
 
 struct PaywallView: View {
 
-    @Environment(\.dismiss)
-    private var dismiss
+    let onSubscribed: () -> Void
+    let onContinueFree: () -> Void
 
-    @AppStorage("hasCompletedOnboarding")
-    private var hasCompletedOnboarding = false
+    @State private var subscriptionManager =
+        SubscriptionManager.shared
 
     var body: some View {
 
@@ -17,42 +17,7 @@ struct PaywallView: View {
 
             VStack(spacing: 0) {
 
-                // MARK: - Top Bar
-
-                HStack {
-
-                    Spacer()
-
-                    Button {
-                        dismiss()
-                    } label: {
-
-                        Image(systemName: "xmark")
-                            .font(
-                                .system(
-                                    size: 15,
-                                    weight: .semibold
-                                )
-                            )
-                            .foregroundStyle(
-                                Color.appTextSecondary
-                            )
-                            .frame(
-                                width: 40,
-                                height: 40
-                            )
-                            .background(
-                                Color.appSurface,
-                                in: Circle()
-                            )
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
-
-
                 Spacer()
-
 
                 // MARK: - Mr. Ed
 
@@ -209,8 +174,10 @@ struct PaywallView: View {
                     background: Color.appAccent
                 ) {
 
-                    // StoreKit purchase later
-                    print("Accept deal")
+                    // Temporary subscription testing
+                    SubscriptionManager.shared.isSubscribed = true
+
+                    onSubscribed()
                 }
                 .padding(.horizontal, 20)
 
@@ -230,16 +197,23 @@ struct PaywallView: View {
                 .multilineTextAlignment(.center)
                 .padding(.top, 10)
 
-                Button("Maybe later") {
-                    hasCompletedOnboarding = true
+                Button {
+
+                    onContinueFree()
+
+                } label: {
+
+                    Text("Maybe later")
+                        .font(
+                            .custom(
+                                "PlusJakartaSans-SemiBold",
+                                size: 13
+                            )
+                        )
+                        .foregroundStyle(
+                            Color.appTextSecondary
+                        )
                 }
-                .font(
-                    .custom(
-                        "PlusJakartaSans-SemiBold",
-                        size: 13
-                    )
-                )
-                .foregroundStyle(Color.appTextSecondary)
                 .padding(.top, 16)
             }
         }
@@ -334,5 +308,8 @@ struct PaywallView: View {
 
 
 #Preview {
-    PaywallView()
+    PaywallView(
+        onSubscribed: {},
+        onContinueFree: {}
+    )
 }

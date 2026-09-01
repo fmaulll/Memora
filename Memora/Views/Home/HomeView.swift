@@ -9,6 +9,9 @@ struct HomeView: View {
     @State private var selectedDeck: StudyDeck?
     @State private var authManager = AuthManager.shared
 
+    @AppStorage("hasCompletedOnboarding")
+    private var hasCompletedOnboarding = false
+
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
     private let cardFill = Color.white.opacity(0.18)
 
@@ -71,6 +74,31 @@ struct HomeView: View {
                 // NavigationLink("AI Test") {
                 //     AITestView()
                 // }
+                VStack(spacing: 12) {
+
+
+                    Button("Logout / Clear Token") {
+                        KeychainService.shared.deleteAccessToken()
+                    }
+
+                    Button(role: .destructive) {
+                        hasCompletedOnboarding = false
+                    } label: {
+                        Text("Reset Onboarding")
+                    }
+
+                    Button {
+                        SubscriptionManager.shared.isSubscribed = true
+                    } label: {
+                        Text("Fake Subscribe")
+                    }
+
+                    Button {
+                        SubscriptionManager.shared.isSubscribed = false
+                    } label: {
+                        Text("Fake Unsubscribe")
+                    }
+                }
                 HStack(spacing: 16) {
                     summaryCard(title: "STREAK", value: "14", icon: "flame.fill", color: .orange)
                     summaryCard(title: "GOAL", value: "82", icon: "target", color: accent)

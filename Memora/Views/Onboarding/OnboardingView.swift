@@ -6,11 +6,25 @@
 //
 
 import SwiftUI
+import SwiftData
+
+private enum OnboardingStep {
+    case introduction
+    case paywall
+    case freeGoodbye
+    case subscribed
+    case studySetup
+}
 
 struct OnboardingView: View {
 
+    @Environment(\.modelContext)
+    private var modelContext
+
+
+    @State private var authManager = AuthManager.shared
     @State private var currentPage = 0
-    @State private var showPaywall = false
+    @State private var onboardingStep: OnboardingStep = .introduction
     @State private var isDialogueFinished = false
 
     @AppStorage("hasCompletedOnboarding")
@@ -67,7 +81,113 @@ struct OnboardingView: View {
         )
     ]
 
+    private func saveLocalProfile(
+        name: String,
+        educationLevel: String,
+        studyReason: String
+    ) {
+
+        let profile = LocalUserProfile(
+            id: UUID(),
+            name: name,
+            email: "",
+            educationLevel: educationLevel,
+            studyReason: studyReason,
+            createdAt: Date()
+        )
+
+        modelContext.insert(profile)
+
+        do {
+
+            try modelContext.save()
+
+            print("LOCAL PROFILE SAVED")
+            print("NAME:", name)
+            print("EDUCATION:", educationLevel)
+            print("REASON:", studyReason)
+
+        } catch {
+
+            print(
+                "FAILED TO SAVE LOCAL PROFILE:",
+                error.localizedDescription
+            )
+        }
+    }
+
     var body: some View {
+
+        switch onboardingStep {
+
+        case .introduction:
+
+            introductionView
+
+        case .paywall:
+
+            PaywallView(
+                onSubscribed: {
+
+                    onboardingStep = .subscribed
+                },
+                onContinueFree: {
+
+                    onboardingStep = .freeGoodbye
+                }
+            )
+
+        case .freeGoodbye:
+
+            MrEdGoodbyeView {
+
+                hasCompletedOnboarding = true
+            }
+
+        case .subscribed:
+
+            MrEdSubscribedView {
+
+                onboardingStep = .studySetup
+            }
+
+        case .studySetup:
+
+            StudentProfileView {
+                name,
+                educationLevel,
+                studyReason in
+
+                Task {
+                    do {
+                        // 1. Save onboarding information locally
+                        saveLocalProfile(
+                            name: name,
+                            educationLevel: educationLevel,
+                            studyReason: studyReason
+                        )
+
+                        // 2. Create anonymous backend user
+                        try await authManager.createAnonymousUser(
+                            name: name,
+                            modelContext: modelContext
+                        )
+
+                        // 3. Only complete onboarding after success
+                        hasCompletedOnboarding = true
+
+                    } catch {
+                        print(
+                            "FAILED TO CREATE ANONYMOUS USER:",
+                            error
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private var introductionView: some View {
         ZStack(alignment: .topTrailing) {
 
             AppBackground {
@@ -117,7 +237,6 @@ struct OnboardingView: View {
                         iconPosition: .right,
                         foreground: .white
                     ) {
-
                         withAnimation(
                             .easeInOut(duration: 0.45)
                         ) {
@@ -127,7 +246,8 @@ struct OnboardingView: View {
                                 currentPage += 1
 
                             } else {
-                                showPaywall = true
+
+                                onboardingStep = .paywall
                             }
                         }
                     }
@@ -138,40 +258,10 @@ struct OnboardingView: View {
                 .padding(.top, 20)
                 .padding(.bottom, 28)
             }
-
-            Button("Skip") {
-
-                withAnimation(
-                    .easeInOut(duration: 0.25)
-                ) {
-                    hasCompletedOnboarding = true
-                }
-            }
-            .font(
-                .custom(
-                    "PlusJakartaSans-Regular",
-                    size: 14
-                )
-            )
-            .foregroundStyle(
-                .white.opacity(0.45)
-            )
-            .padding(.horizontal, 16)
-            .frame(height: 34)
-            .background(
-                .white.opacity(0.07),
-                in: Capsule()
-            )
-            .padding(.top, 20)
-            .padding(.trailing, 20)
             
         }
-        .fullScreenCover(
-            isPresented: $showPaywall
-        ) {
-            PaywallView()
-        }
     }
+
 }
 
 

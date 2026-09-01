@@ -106,12 +106,15 @@ final class AuthManager {
                 print("LOCAL USER FOUND")
                 print("LOCAL ID:", localUser.id)
                 print("LOCAL NAME:", localUser.name)
-                print("LOCAL EMAIL:", localUser.email)
+                print(
+                    "LOCAL EMAIL:",
+                    localUser.email ?? "No email"
+                )
 
                 currentUser = UserResponse(
-                    id: localUser.id,
+                    id: localUser.userId ?? localUser.id,
                     name: localUser.name,
-                    email: localUser.email,
+                    email: localUser.email ?? "",
                     createdAt: localUser.createdAt
                 )
 
@@ -136,30 +139,69 @@ final class AuthManager {
 
         do {
 
-            let descriptor = FetchDescriptor<LocalUserProfile>(
+            let backendUserId = user.id
+
+            // First, check whether this backend account
+            // is already connected to a local profile.
+
+            let userDescriptor = FetchDescriptor<LocalUserProfile>(
                 predicate: #Predicate<LocalUserProfile> { profile in
-                    profile.id == user.id
+                    profile.userId == backendUserId
                 }
             )
 
             if let existingProfile = try modelContext.fetch(
-                descriptor
+                userDescriptor
             ).first {
 
+                // Account already exists locally.
                 existingProfile.name = user.name
                 existingProfile.email = user.email
                 existingProfile.createdAt = user.createdAt
 
             } else {
 
-                let profile = LocalUserProfile(
-                    id: user.id,
-                    name: user.name,
-                    email: user.email,
-                    createdAt: user.createdAt
+                // Look for the guest profile created during onboarding.
+                let guestDescriptor = FetchDescriptor<LocalUserProfile>(
+                    predicate: #Predicate<LocalUserProfile> {
+                        profile in
+                        profile.userId == nil
+                    }
                 )
 
-                modelContext.insert(profile)
+                if let guestProfile = try modelContext.fetch(
+                    guestDescriptor
+                ).first {
+
+                    // Convert guest profile into authenticated profile.
+                    guestProfile.userId = user.id
+                    guestProfile.email = user.email
+
+                    // IMPORTANT:
+                    // Keep the onboarding name and information.
+                    //
+                    // guestProfile.name stays unchanged
+                    // guestProfile.educationLevel stays unchanged
+                    // guestProfile.studyReason stays unchanged
+
+                    print(
+                        "GUEST PROFILE CONNECTED TO:",
+                        user.email
+                    )
+
+                } else {
+
+                    // No guest profile exists.
+                    // Create a completely new profile.
+                    let profile = LocalUserProfile(
+                        userId: user.id,
+                        name: user.name,
+                        email: user.email,
+                        createdAt: user.createdAt
+                    )
+
+                    modelContext.insert(profile)
+                }
             }
 
             try modelContext.save()
@@ -186,11 +228,12 @@ final class AuthManager {
             print("LOCAL USER PROFILES:", profiles.count)
 
             for profile in profiles {
+
                 print(
                     "PROFILE:",
                     profile.id,
                     profile.name,
-                    profile.email
+                    profile.email ?? "No email"
                 )
             }
 
@@ -202,5 +245,34 @@ final class AuthManager {
 
             return nil
         }
+    }
+
+    func createAnonymousUser(
+        name: String,
+        modelContext: ModelContext
+    ) async throws {
+
+        let response = try await AuthAPI.shared
+            .createAnonymousUser(
+                name: name
+            )
+
+        // Save JWT
+        try KeychainService.shared.saveAccessToken(
+            response.accessToken
+        )
+
+        // Update app authentication state
+        currentUser = response.user
+        isAuthenticated = true
+
+        // Save/connect local profile
+        saveUserLocally(
+            response.user,
+            modelContext: modelContext
+        )
+
+        print("ANONYMOUS USER CREATED")
+        print("USER ID:", response.user.id)
     }
 }

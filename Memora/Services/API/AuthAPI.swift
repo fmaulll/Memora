@@ -88,4 +88,19 @@ final class AuthAPI {
     func logout() {
         KeychainService.shared.deleteAccessToken()
     }
+
+    func createAnonymousUser(
+        name: String
+    ) async throws -> AuthResponse {
+
+        let requestBody = AnonymousUserRequest(
+            name: name
+        )
+
+        return try await APIClient.shared.request(
+            endpoint: "/auth/anonymous",
+            method: .post,
+            body: requestBody
+        )
+    }
 }
