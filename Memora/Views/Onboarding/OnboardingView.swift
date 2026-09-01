@@ -8,161 +8,346 @@
 import SwiftUI
 
 struct OnboardingView: View {
-    @State private var currentPage = 0
-    @State private var hasCompletedOnboarding = false
 
-    private let background = Color(red: 0.04, green: 0.04, blue: 0.13)
-    private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
-    private let accent2 = Color(red: 0.66, green: 0.33, blue: 0.97)
-    private let accent3 = Color(red: 0.13, green: 0.77, blue: 0.37)
+    @State private var currentPage = 0
+    @State private var showPaywall = false
+    @State private var isDialogueFinished = false
+
+    @AppStorage("hasCompletedOnboarding")
+    private var hasCompletedOnboarding = false
+
+    private let background = Color(
+        red: 0.04,
+        green: 0.04,
+        blue: 0.13
+    )
+
+    private let accent = Color(
+        red: 0.39,
+        green: 0.40,
+        blue: 0.95
+    )
 
     private let pages = [
+
         OnboardingPage(
-            title: "Learn Any Subject with AI",
-            subtitle: "Ask AI about any topic and instantly create a personalized study deck.",
-            imageName: "StepOne"
+            dialogue: [
+                "I'm Mr. Ed.",
+                "Your new study coach.",
+                "I don't care about excuses.",
+                "I care about results."
+            ],
+            imageName: "MrEdLeaning",
+            buttonTitle: "Continue"
         ),
+
         OnboardingPage(
-            title: "Upload Your Notes",
-            subtitle: "Import PDFs, DOCX, or TXT files and let AI generate flashcards automatically.",
-            imageName: "StepTwo"
+            dialogue: [
+                "Give me a goal.",
+                "I'll build your curriculum.",
+                "Plan your study.",
+                "Prepare your cards.",
+                "And test your knowledge.",
+                "You focus on one thing.",
+                "Studying."
+            ],
+            imageName: "MrEdLeaning",
+            buttonTitle: "Continue"
         ),
+
         OnboardingPage(
-            title: "Study Smarter, Not Harder",
-            subtitle: "Review with spaced repetition and take adaptive exams based on what you struggle with.",
-            imageName: "StepThree"
+            dialogue: [
+                "So tell me.",
+                "Everyone wants to succeed.",
+                "Not everyone wants to do the work.",
+                "Are you serious about studying?"
+            ],
+            imageName: "MrEdJudging",
+            buttonTitle: "I'M SERIOUS."
         )
     ]
 
     var body: some View {
-        Group {
-            if hasCompletedOnboarding {
-                WelcomeView()
-            } else {
-                ZStack(alignment: .topTrailing) {
-                    background.ignoresSafeArea()
+        ZStack(alignment: .topTrailing) {
 
-                    VStack(spacing: 0) {
-                        TabView(selection: $currentPage) {
-                            ForEach(Array(pages.enumerated()), id: \.offset) { index, page in
-                                OnboardingPageView(page: page)
-                                    .tag(index)
-                            }
-                        }
-                        .tabViewStyle(.page(indexDisplayMode: .never))
-                        .animation(.easeInOut(duration: 0.45), value: currentPage)
-                        .frame(height: .infinity)   // or 560 depending on your design
+            AppBackground {
+                VStack(spacing: 0) {
 
-                        PageIndicator(
-                            numberOfPages: pages.count,
-                            currentPage: currentPage,
-                            accents: [accent, accent2, accent3]
-                        ).padding(.bottom, 20)
+                    TabView(selection: $currentPage) {
 
-                        AppButton(
-                            title: currentPage == pages.count - 1 ? "Get Started" : "Next",
-                            icon: .sf(currentPage == pages.count - 1 ? "sparkles" : "chevron.right"),
-                            iconPosition: .right,
-                            foreground: .white,
-                            background: LinearGradient(
-                                stops: [
-                                Gradient.Stop(color: Color(red: 0.39, green: 0.4, blue: 0.95), location: 0.00),
-                                Gradient.Stop(color: Color(red: 0.55, green: 0.36, blue: 0.96), location: 1.00),
-                                ],
-                                startPoint: UnitPoint(x: 0, y: 0.5),
-                                endPoint: UnitPoint(x: 1, y: 0.5))
-                        ) {
-                            withAnimation(.easeInOut(duration: 0.45)) {
-                                if currentPage < pages.count - 1 {
-                                    currentPage += 1
-                                } else {
-                                    hasCompletedOnboarding = true
+                        ForEach(
+                            Array(pages.enumerated()),
+                            id: \.offset
+                        ) { index, page in
+
+                            OnboardingPageView(
+                                page: page,
+                                onDialogueFinished: {
+                                    isDialogueFinished = true
                                 }
+                            )
+                            .tag(index)
+                        }
+                    }
+                    .tabViewStyle(
+                        .page(indexDisplayMode: .never)
+                    )
+                    .animation(
+                        .easeInOut(duration: 0.45),
+                        value: currentPage
+                    )
+                    .onChange(of: currentPage) { _, _ in
+                        isDialogueFinished = false
+                    }
+
+                    PageIndicator(
+                        numberOfPages: pages.count,
+                        currentPage: currentPage,
+                        accent: .appAccent
+                    )
+                    .padding(.bottom, 20)
+
+                    AppButton(
+                        title: pages[currentPage].buttonTitle,
+                        icon: .sf(
+                            currentPage == pages.count - 1
+                            ? "checkmark"
+                            : "chevron.right"
+                        ),
+                        iconPosition: .right,
+                        foreground: .white
+                    ) {
+
+                        withAnimation(
+                            .easeInOut(duration: 0.45)
+                        ) {
+
+                            if currentPage < pages.count - 1 {
+
+                                currentPage += 1
+
+                            } else {
+                                showPaywall = true
                             }
                         }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
-                    .padding(.bottom, 28)
+                    .disabled(!isDialogueFinished)
+                    .opacity(isDialogueFinished ? 1 : 0.45)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 28)
+            }
 
-                    Button("Skip") {
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            hasCompletedOnboarding = true
-                        }
-                    }
-                    .font(.custom("PlusJakartaSans-Regular", size: 14))
-                    .foregroundStyle(.white.opacity(0.45))
-                    .padding(.horizontal, 16)
-                    .frame(height: 34)
-                    .background(.white.opacity(0.07), in: Capsule())
-                    .padding(.top, 20)
-                    .padding(.trailing, 20)
+            Button("Skip") {
+
+                withAnimation(
+                    .easeInOut(duration: 0.25)
+                ) {
+                    hasCompletedOnboarding = true
                 }
             }
+            .font(
+                .custom(
+                    "PlusJakartaSans-Regular",
+                    size: 14
+                )
+            )
+            .foregroundStyle(
+                .white.opacity(0.45)
+            )
+            .padding(.horizontal, 16)
+            .frame(height: 34)
+            .background(
+                .white.opacity(0.07),
+                in: Capsule()
+            )
+            .padding(.top, 20)
+            .padding(.trailing, 20)
+            
+        }
+        .fullScreenCover(
+            isPresented: $showPaywall
+        ) {
+            PaywallView()
         }
     }
 }
 
+
+
+// MARK: - Page Indicator
+
 private struct PageIndicator: View {
+
     let numberOfPages: Int
     let currentPage: Int
-    let accents: [Color]
+    let accent: Color
 
     var body: some View {
+
         HStack(spacing: 8) {
-            ForEach(0..<numberOfPages, id: \.self) { page in
+
+            ForEach(
+                0..<numberOfPages,
+                id: \.self
+            ) { page in
+
                 Capsule()
                     .fill(
                         page == currentPage
-                        ? accents[min(page, accents.count - 1)]
+                        ? accent
                         : .white.opacity(0.10)
                     )
-                    .frame(width: page == currentPage ? 24 : 8, height: 8)
-                    .animation(.easeInOut(duration: 0.2), value: currentPage)
+                    .frame(
+                        width: page == currentPage
+                        ? 24
+                        : 8,
+                        height: 8
+                    )
+                    .animation(
+                        .easeInOut(duration: 0.2),
+                        value: currentPage
+                    )
             }
         }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Onboarding page \(currentPage + 1) of \(numberOfPages)")
     }
 }
 
-struct OnboardingPage {
-    let title: String
-    let subtitle: String
+
+// MARK: - Model
+
+private struct OnboardingPage {
+
+    let dialogue: [String]
     let imageName: String
+    let buttonTitle: String
 }
 
-struct OnboardingPageView: View {
+
+private struct OnboardingPageView: View {
+
     let page: OnboardingPage
-    @State private var isAnimating = false
+    let onDialogueFinished: () -> Void
+
+    @State private var displayedText = ""
+    @State private var dialogueIndex = 0
 
     var body: some View {
-        VStack(alignment: .center, spacing: 10) {
+
+        VStack(
+            alignment: .center,
+            spacing: 20
+        ) {
+
+            Spacer()
+
             Image(page.imageName)
                 .resizable()
                 .scaledToFit()
-                .frame(height: 310)
-                .scaleEffect(isAnimating ? 1.13 : 1.10)
-                .offset(y: isAnimating ? -6 : 6)
-                .opacity(isAnimating ? 1 : 0.82)
-                .animation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true), value: isAnimating)
-                .onAppear {
-                    isAnimating = true
+                .frame(height: 330)
+
+            Text(displayedText)
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Bold",
+                        size: 28
+                    )
+                )
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+                .frame(
+                    minHeight: 80
+                )
+
+            Spacer()
+                .frame(height: 30)
+        }
+        .frame(
+            maxWidth: .infinity,
+            maxHeight: .infinity
+        )
+        .padding(.horizontal, 20)
+        .task {
+            await playDialogue()
+        }
+    }
+
+
+    // MARK: - Dialogue Animation
+
+    private func playDialogue() async {
+
+        displayedText = ""
+
+        for (index, line) in page.dialogue.enumerated() {
+
+            guard !Task.isCancelled else {
+                return
+            }
+
+            displayedText = ""
+
+            // Type current dialogue
+            for character in line {
+
+                guard !Task.isCancelled else {
+                    return
                 }
 
-            Text(page.title)
-                .font(.largeTitle)
-                .bold()
-                .foregroundColor(.white)
-                .multilineTextAlignment(.center)
+                displayedText.append(character)
 
-            Text(page.subtitle)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.gray)
+                let delay: UInt64
+
+                switch character {
+
+                case ".", "!", "?":
+                    delay = 180_000_000
+
+                case ",", ":":
+                    delay = 80_000_000
+
+                case " ":
+                    delay = 15_000_000
+
+                default:
+                    delay = 40_000_000
+                }
+
+                try? await Task.sleep(
+                    nanoseconds: delay
+                )
+            }
+
+            // Check if this is the last dialogue
+            let isLastLine = index == page.dialogue.count - 1
+
+            if !isLastLine {
+
+                // Let user read it
+                try? await Task.sleep(
+                    nanoseconds: 1_500_000_000
+                )
+
+                guard !Task.isCancelled else {
+                    return
+                }
+
+                // Remove dialogue before next line
+                displayedText = ""
+
+                try? await Task.sleep(
+                    nanoseconds: 250_000_000
+                )
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .padding(.top, 40)
-        .padding(.horizontal, 20)
+
+        guard !Task.isCancelled else {
+            return
+        }
+
+        // Last dialogue stays visible
+        onDialogueFinished()
     }
 }
 

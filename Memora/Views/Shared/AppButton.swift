@@ -38,8 +38,8 @@ struct AppButton: View {
             self.background = AnyShapeStyle(
                 LinearGradient(
                     colors: [
-                        Color(red: 0.39, green: 0.40, blue: 0.95),
-                        Color(red: 0.55, green: 0.36, blue: 0.96)
+                        .appAccent,
+                        .appAccent
                     ],
                     startPoint: .leading,
                     endPoint: .trailing
