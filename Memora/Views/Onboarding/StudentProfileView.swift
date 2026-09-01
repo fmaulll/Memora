@@ -360,7 +360,7 @@ struct StudentProfileView: View {
         case .finished:
 
             AppButton(
-                title: "Let's build your first deck",
+                title: "Show me what you've got.",
                 icon: .sf("arrow.right"),
                 iconPosition: .right,
                 foreground: .black,
@@ -508,7 +508,7 @@ struct StudentProfileView: View {
             displayedText = ""
 
             await type(
-                "Let's see what you're capable of."
+                "Now let's see what you're actually trying to learn."
             )
         }
 

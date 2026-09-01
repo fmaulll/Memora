@@ -15,6 +15,13 @@ struct HomeView: View {
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
     private let cardFill = Color.white.opacity(0.18)
 
+    init(initialDeck: StudyDeck? = nil) {
+        _selectedTab = State(
+            initialValue: initialDeck == nil ? .home : .library
+        )
+        _selectedDeck = State(initialValue: initialDeck)
+    }
+
     private var totalCardCount: Int {
         decks.reduce(0) { $0 + $1.cards.count }
     }

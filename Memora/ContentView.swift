@@ -7,6 +7,7 @@ struct ContentView: View {
 
     @State private var isShowingSplash = true
     @State private var authManager = AuthManager.shared
+    @State private var firstCreatedDeck: StudyDeck?
 
     @AppStorage("hasCompletedOnboarding")
     private var hasCompletedOnboarding = false
@@ -28,11 +29,13 @@ struct ContentView: View {
 
             } else if !hasCompletedOnboarding {
 
-                OnboardingView()
+                OnboardingView { createdDeck in
+                    firstCreatedDeck = createdDeck
+                }
 
             } else if authManager.isAuthenticated {
 
-                HomeView()
+                HomeView(initialDeck: firstCreatedDeck)
 
             } else {
 

@@ -18,6 +18,8 @@ private enum OnboardingStep {
 
 struct OnboardingView: View {
 
+    let onFirstDeckCreated: (StudyDeck) -> Void
+
     @Environment(\.modelContext)
     private var modelContext
 
@@ -26,6 +28,7 @@ struct OnboardingView: View {
     @State private var currentPage = 0
     @State private var onboardingStep: OnboardingStep = .introduction
     @State private var isDialogueFinished = false
+    @State private var isShowingFirstDeckSetup = false
 
     @AppStorage("hasCompletedOnboarding")
     private var hasCompletedOnboarding = false
@@ -118,72 +121,83 @@ struct OnboardingView: View {
 
     var body: some View {
 
-        switch onboardingStep {
+        Group {
+            switch onboardingStep {
 
-        case .introduction:
+            case .introduction:
 
-            introductionView
+                introductionView
 
-        case .paywall:
+            case .paywall:
 
-            PaywallView(
-                onSubscribed: {
+                PaywallView(
+                    onSubscribed: {
 
-                    onboardingStep = .subscribed
-                },
-                onContinueFree: {
+                        onboardingStep = .subscribed
+                    },
+                    onContinueFree: {
 
-                    onboardingStep = .freeGoodbye
+                        onboardingStep = .freeGoodbye
+                    }
+                )
+
+            case .freeGoodbye:
+
+                MrEdGoodbyeView {
+
+                    hasCompletedOnboarding = true
                 }
-            )
 
-        case .freeGoodbye:
+            case .subscribed:
 
-            MrEdGoodbyeView {
+                MrEdSubscribedView {
 
-                hasCompletedOnboarding = true
-            }
+                    onboardingStep = .studySetup
+                }
 
-        case .subscribed:
+            case .studySetup:
 
-            MrEdSubscribedView {
+                StudentProfileView {
+                    name,
+                    educationLevel,
+                    studyReason in
 
-                onboardingStep = .studySetup
-            }
+                    Task {
+                        do {
+                            // 1. Save onboarding information locally
+                            saveLocalProfile(
+                                name: name,
+                                educationLevel: educationLevel,
+                                studyReason: studyReason
+                            )
 
-        case .studySetup:
+                            // 2. Create anonymous backend user
+                            try await authManager.createAnonymousUser(
+                                name: name,
+                                modelContext: modelContext
+                            )
 
-            StudentProfileView {
-                name,
-                educationLevel,
-                studyReason in
+                            // 3. Continue to first AI deck creation after success
+                            isShowingFirstDeckSetup = true
 
-                Task {
-                    do {
-                        // 1. Save onboarding information locally
-                        saveLocalProfile(
-                            name: name,
-                            educationLevel: educationLevel,
-                            studyReason: studyReason
-                        )
-
-                        // 2. Create anonymous backend user
-                        try await authManager.createAnonymousUser(
-                            name: name,
-                            modelContext: modelContext
-                        )
-
-                        // 3. Only complete onboarding after success
-                        hasCompletedOnboarding = true
-
-                    } catch {
-                        print(
-                            "FAILED TO CREATE ANONYMOUS USER:",
-                            error
-                        )
+                        } catch {
+                            print(
+                                "FAILED TO CREATE ANONYMOUS USER:",
+                                error
+                            )
+                        }
                     }
                 }
             }
+        }
+        .navigationDestination(isPresented: $isShowingFirstDeckSetup) {
+            AIDeckSetupView(
+                onDeckCreated: { createdDeck in
+                    onFirstDeckCreated(createdDeck)
+                    hasCompletedOnboarding = true
+                },
+                existingDeck: nil
+            )
         }
     }
 
@@ -443,5 +457,6 @@ private struct OnboardingPageView: View {
 
 
 #Preview {
-    OnboardingView()
+    OnboardingView { _ in
+    }
 }
