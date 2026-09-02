@@ -6,8 +6,8 @@ struct SplashScreenView: View {
     @State private var isGlowing = false
     @State private var hasAppeared = false
 
-    private let background = Color(red: 0.04, green: 0.04, blue: 0.13)
-    private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
+    private let background = Color.appBackground
+    private let accent = Color.appAccent
 
     var body: some View {
         ZStack {
@@ -19,10 +19,10 @@ struct SplashScreenView: View {
                 .blur(radius: 60)
                 .scaleEffect(isGlowing ? 1.08 : 0.92)
 
-            Image("MemoraLogoVioletNoBg")
+            Image("MrEdLeaningReading")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 140, height: 140)
+                .frame(width: 240, height: 240)
                 .opacity(hasAppeared ? 1 : 0)
                 .scaleEffect(hasAppeared ? 1 : 0.9)
         }

@@ -170,6 +170,7 @@ struct HomeView: View {
                         .foregroundStyle(Color.appBackground)
                         .frame(width: 52, height: 52)
                         .background(accent, in: RoundedRectangle(cornerRadius: 8))
+                        .padding(.vertical, 4)
                 }
                 .accessibilityLabel("Create a new study deck")
             }
@@ -211,7 +212,7 @@ struct HomeView: View {
         let newCards = newCardCount(in: deck)
         let isResuming = deck.isStudySessionActive || deck.isStudyAllSessionActive
 
-        return VStack(alignment: .leading, spacing: 18) {
+        return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .center, spacing: 0) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("MR. ED'S VERDICT")
@@ -227,14 +228,22 @@ struct HomeView: View {
                     .foregroundStyle(Color.appTextPrimary)
                     .lineSpacing(-2)
                 }
+                .padding(.bottom, 8)
 
                 Spacer(minLength: 12)
 
-                Image("MrEdJudging")
+                Image("MrEdLeaning")
                     .resizable()
                     .scaledToFit()
                     .frame(width: 76, height: 88)
                     .accessibilityHidden(true)
+                    // .background(accent, in: RoundedRectangle(cornerRadius: 8))
+
+            }
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(Color.appBorder)
+                    .frame(height: 1)
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -307,7 +316,7 @@ struct HomeView: View {
                     HStack(spacing: 12) {
                         Image(systemName: deck.isFavorite ? "star.fill" : "book.closed")
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(deck.isFavorite ? Color.appWarning : Color.appInfo)
+                            .foregroundStyle(deck.isFavorite ? Color.appWarning : Color.appAccent)
                             .frame(width: 34, height: 34)
                             .background(Color.appSecondarySurface, in: RoundedRectangle(cornerRadius: 8))
 
