@@ -2,17 +2,19 @@ import SwiftUI
 
 struct MrEdGoodbyeView: View {
 
-    let onFinish: () -> Void
+    let onContinue: () -> Void
 
     @State private var displayedText = ""
     @State private var dialogueFinished = false
 
+
     private let dialogue = [
         "Fine.",
-        "You're on your own.",
-        "You can still make your own decks.",
-        "But don't expect me to do the work for you."
+        "You don't need to pay me to start studying.",
+        "But I can't help someone I know nothing about.",
+        "So let's fix that."
     ]
+
 
     var body: some View {
 
@@ -21,57 +23,119 @@ struct MrEdGoodbyeView: View {
             Color.appBackground
                 .ignoresSafeArea()
 
+
             VStack(spacing: 0) {
 
-                Spacer()
+                // MARK: - Main Content
 
-                Image("MrEdJudging")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: 280)
+                VStack(spacing: 0) {
 
-                Spacer()
-                    .frame(height: 32)
+                    Spacer()
 
-                Text(displayedText)
-                    .font(
-                        .custom(
-                            "PlusJakartaSans-Bold",
-                            size: 24
+
+                    // MARK: - Mr. Ed
+
+                    Image("MrEdJudging")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(
+                            maxWidth: 300,
+                            maxHeight: 340
+                        )
+                        .padding(.horizontal, 32)
+
+
+                    Spacer()
+                        .frame(height: 20)
+
+
+                    // MARK: - Dialogue Card
+
+                    VStack(spacing: 0) {
+
+                        Text(displayedText)
+                            .font(
+                                .custom(
+                                    "PlusJakartaSans-Bold",
+                                    size: 26
+                                )
+                            )
+                            .foregroundStyle(
+                                Color.appTextPrimary
+                            )
+                            .multilineTextAlignment(.center)
+                            .frame(
+                                maxWidth: .infinity,
+                                minHeight: 120
+                            )
+                            .padding(.horizontal, 28)
+                            .padding(.vertical, 30)
+                    }
+                    .frame(
+                        maxWidth: .infinity
+                    )
+                    .background(
+                        Color.appSurface
+                    )
+                    .clipShape(
+                        UnevenRoundedRectangle(
+                            topLeadingRadius: 30,
+                            bottomLeadingRadius: 0,
+                            bottomTrailingRadius: 0,
+                            topTrailingRadius: 30
                         )
                     )
-                    .foregroundStyle(
-                        Color.appTextPrimary
-                    )
-                    .multilineTextAlignment(.center)
-                    .frame(
-                        maxWidth: .infinity,
-                        minHeight: 90
-                    )
-                    .padding(.horizontal, 30)
+                    .overlay(
+                        alignment: .top
+                    ) {
 
-                Spacer()
-
-                AppButton(
-                    title: "Fine. I'll do it myself.",
-                    icon: .sf("arrow.right"),
-                    iconPosition: .right,
-                    foreground: .black,
-                    background: Color.appAccent
-                ) {
-                    onFinish()
+                        UnevenRoundedRectangle(
+                            topLeadingRadius: 30,
+                            bottomLeadingRadius: 0,
+                            bottomTrailingRadius: 0,
+                            topTrailingRadius: 30
+                        )
+                        .stroke(
+                            Color.appBorder,
+                            lineWidth: 1
+                        )
+                    }
                 }
-                .disabled(!dialogueFinished)
-                .opacity(
-                    dialogueFinished
+
+
+                // MARK: - Bottom Controls
+
+                VStack(spacing: 18) {
+
+                    AppButton(
+                        title: "Alright. Ask away.",
+                        icon: .sf("arrow.right"),
+                        iconPosition: .right,
+                        foreground: Color.appBackground,
+                        background: Color.appAccent
+                    ) {
+
+                        onContinue()
+                    }
+                    .disabled(
+                        !dialogueFinished
+                    )
+                    .opacity(
+                        dialogueFinished
                         ? 1
                         : 0.45
-                )
+                    )
+                }
                 .padding(.horizontal, 20)
-                .padding(.bottom, 30)
+                .padding(.top, 16)
+                .padding(.bottom, 20)
+                .background(
+                    Color.appBackground
+                )
             }
         }
         .task {
+
             await playDialogue()
         }
     }
@@ -119,6 +183,7 @@ struct MrEdGoodbyeView: View {
                 )
             }
 
+
             let isLastLine =
                 index == dialogue.count - 1
 
@@ -128,12 +193,20 @@ struct MrEdGoodbyeView: View {
                     nanoseconds: 1_400_000_000
                 )
 
+                guard !Task.isCancelled else {
+                    return
+                }
+
                 displayedText = ""
 
                 try? await Task.sleep(
                     nanoseconds: 250_000_000
                 )
             }
+        }
+
+        guard !Task.isCancelled else {
+            return
         }
 
         dialogueFinished = true

@@ -61,15 +61,6 @@ struct AIPlanPreviewView: View {
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 0) {
-
-                    WorkflowIndicator(
-                        numberOfSteps: 4,
-                        currentStep: 2,
-                        accent: accent
-                    )
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 12)
-
                     generateButton
                 }
                 .padding(.top, 12)
@@ -305,21 +296,7 @@ struct AIPlanPreviewView: View {
             title: isGenerating
                 ? "Generating..."
                 : "Continue",
-            foreground: .white,
-            background: AnyShapeStyle(
-                LinearGradient(
-                    colors: [
-                        accent,
-                        Color(
-                            red: 0.55,
-                            green: 0.36,
-                            blue: 0.96
-                        )
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
+            foreground: Color.appTextPrimary
         ) {
             generateCards()
         }

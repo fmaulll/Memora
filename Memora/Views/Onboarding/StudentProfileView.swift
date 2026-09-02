@@ -2,133 +2,351 @@ import SwiftUI
 
 struct StudentProfileView: View {
 
-    let onFinish: (
-        String,
-        String,
-        String
+    // MARK: - Callback
+
+    let onComplete: (
+        _ name: String,
+        _ educationLevel: String,
+        _ studyReason: String
     ) -> Void
 
-    private enum Step {
+    // MARK: - Steps
+
+    private enum Step: Int, CaseIterable {
         case name
-        case education
-        case school
+        case currentSituation
         case studyReason
+        case intensity
         case finished
-        case reasonReaction
     }
+
+    // MARK: - State
 
     @State private var step: Step = .name
 
     @State private var name = ""
-    @State private var selectedEducation = ""
-    @State private var selectedReason = ""
 
-    @State private var displayedText = ""
-    @State private var isTyping = true
+    @State private var currentSituation = ""
 
-    private let educationOptions = [
-        "High School",
-        "University",
-        "Working",
-        "Self-taught",
+    @State private var studyReason = ""
+
+    @State private var intensity = ""
+
+    // MARK: - Options
+
+    private let situationOptions = [
+        "I'm working",
+        "University student",
+        "School student",
         "Something else"
     ]
 
-    private let studyReasons = [
+    private let studyReasonOptions = [
         "Pass an exam",
         "Get certified",
-        "Advance my career",
-        "Learn something new",
+        "Career",
+        "Learn something",
         "I have no choice"
     ]
 
-    private var reasonReaction: String {
+    private let intensityOptions = [
+        (
+            title: "Go easy on me",
+            subtitle: "Keep things comfortable."
+        ),
+        (
+            title: "Keep me balanced",
+            subtitle: "Challenge me, but don't destroy me."
+        ),
+        (
+            title: "Push me",
+            subtitle: "I can handle it."
+        )
+    ]
 
-        switch selectedReason {
-
-        case "Pass an exam":
-            return "Then we'd better not waste time."
-
-        case "Get certified":
-            return "Good. Something measurable."
-
-        case "Advance my career":
-            return "Finally. A practical reason."
-
-        case "Learn something new":
-            return "Curiosity isn't a bad habit."
-
-        case "I have no choice":
-            return "At least you're honest."
-
-        default:
-            return "Interesting."
-        }
-    }
+    // MARK: - Body
 
     var body: some View {
 
-        ZStack {
+        VStack(spacing: 0) {
 
+            // MARK: - Progress
+
+            progressView
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+
+
+            Spacer()
+
+
+            // MARK: - Content
+
+            VStack(spacing: 20) {
+
+                stepHeader
+
+                stepContent
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 20)
+
+
+            Spacer()
+
+
+            // MARK: - Navigation
+
+            navigationButton
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
+        }
+        .background(
             Color.appBackground
                 .ignoresSafeArea()
+        )
+        .animation(
+            .easeInOut(duration: 0.25),
+            value: step
+        )
+    }
 
-            VStack(spacing: 0) {
 
-                Spacer()
+    // MARK: - Progress
 
-                Image(step == .reasonReaction ? "MrEdThinking" : "MrEdJudging")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: 260)
+    private var progressView: some View {
 
-                Spacer()
-                    .frame(height: 28)
+        HStack(spacing: 8) {
 
-                Text(displayedText)
+            ForEach(
+                0..<4,
+                id: \.self
+            ) { index in
+
+                Capsule()
+                    .fill(
+                        index <= step.rawValue
+                        ? Color.appAccent
+                        : Color.appBorder
+                    )
+                    .frame(height: 4)
+            }
+        }
+    }
+
+
+    // MARK: - Header
+
+    @ViewBuilder
+    private var stepHeader: some View {
+
+        VStack(spacing: 12) {
+
+            Text(headerTitle)
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Bold",
+                        size: 28
+                    )
+                )
+                .foregroundStyle(
+                    Color.appTextPrimary
+                )
+                .multilineTextAlignment(.center)
+
+
+            Text(headerSubtitle)
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Regular",
+                        size: 15
+                    )
+                )
+                .foregroundStyle(
+                    Color.appTextSecondary
+                )
+                .multilineTextAlignment(.center)
+        }
+    }
+
+
+    // MARK: - Step Content
+
+    @ViewBuilder
+    private var stepContent: some View {
+
+        switch step {
+
+        // MARK: Name
+
+        case .name:
+
+            TextField(
+                "Your name",
+                text: $name
+            )
+            .font(
+                .custom(
+                    "PlusJakartaSans-Medium",
+                    size: 17
+                )
+            )
+            .foregroundStyle(
+                Color.appTextPrimary
+            )
+            .padding(.horizontal, 18)
+            .frame(height: 58)
+            .background(
+                Color.appSecondarySurface
+            )
+            .clipShape(
+                RoundedRectangle(
+                    cornerRadius: 8,
+                    style: .continuous
+                )
+            )
+            .overlay {
+                RoundedRectangle(
+                    cornerRadius: 8,
+                    style: .continuous
+                )
+                .stroke(
+                    Color.appBorder,
+                    lineWidth: 1
+                )
+            }
+
+
+        // MARK: Current Situation
+
+        case .currentSituation:
+
+            optionList(
+                options: situationOptions,
+                selection: $currentSituation
+            )
+
+
+        // MARK: Study Reason
+
+        case .studyReason:
+
+            optionList(
+                options: studyReasonOptions,
+                selection: $studyReason
+            )
+
+
+        // MARK: Intensity
+
+        case .intensity:
+
+            VStack(spacing: 12) {
+
+                ForEach(
+                    intensityOptions,
+                    id: \.title
+                ) { option in
+
+                    Button {
+
+                        intensity = option.title
+
+                    } label: {
+
+                        HStack {
+
+                            VStack(
+                                alignment: .leading,
+                                spacing: 4
+                            ) {
+
+                                Text(option.title)
+                                    .font(
+                                        .custom(
+                                            "PlusJakartaSans-SemiBold",
+                                            size: 16
+                                        )
+                                    )
+
+                                Text(option.subtitle)
+                                    .font(
+                                        .custom(
+                                            "PlusJakartaSans-Regular",
+                                            size: 13
+                                        )
+                                    )
+                                    .foregroundStyle(
+                                        Color.appTextSecondary
+                                    )
+                            }
+
+                            Spacer()
+
+                            Image(
+                                systemName:
+                                    intensity == option.title
+                                    ? "checkmark.circle.fill"
+                                    : "circle"
+                            )
+                            .font(.system(size: 22))
+                        }
+                        .foregroundStyle(
+                            Color.appTextPrimary
+                        )
+                        .padding(18)
+                        .background(
+                            intensity == option.title
+                            ? Color.appAccent.opacity(0.12)
+                            : Color.appSurface
+                        )
+                        .clipShape(
+                            RoundedRectangle(
+                                cornerRadius: 8,
+                                style: .continuous
+                            )
+                        )
+                        .overlay {
+
+                            RoundedRectangle(
+                                cornerRadius: 8,
+                                style: .continuous
+                            )
+                            .stroke(
+                                intensity == option.title
+                                ? Color.appAccent
+                                : Color.appBorder,
+                                lineWidth:
+                                    intensity == option.title
+                                    ? 2
+                                    : 1
+                            )
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+
+        // MARK: Finished
+
+        case .finished:
+
+            VStack(spacing: 16) {
+
+                Text("Alright, \(name).")
                     .font(
                         .custom(
                             "PlusJakartaSans-Bold",
-                            size: 24
+                            size: 26
                         )
                     )
                     .foregroundStyle(
                         Color.appTextPrimary
                     )
-                    .multilineTextAlignment(.center)
-                    .frame(
-                        maxWidth: .infinity,
-                        minHeight: 80
-                    )
-                    .padding(.horizontal, 28)
 
-                Spacer()
-                    .frame(height: 24)
-
-                inputSection
-
-                Spacer()
-            }
-        }
-        .task {
-            await startCurrentStep()
-        }
-    }
-
-    // MARK: - Input Section
-
-    @ViewBuilder
-    private var inputSection: some View {
-
-        switch step {
-
-        case .name:
-
-            VStack(spacing: 14) {
-
-                TextField(
-                    "Your name",
-                    text: $name
+                Text(
+                    "I know enough to get started."
                 )
                 .font(
                     .custom(
@@ -136,436 +354,275 @@ struct StudentProfileView: View {
                         size: 16
                     )
                 )
-                .padding()
-                .background(
-                    Color.white.opacity(0.07),
-                    in: RoundedRectangle(
-                        cornerRadius: 14
+                .foregroundStyle(
+                    Color.appTextSecondary
+                )
+            }
+        }
+    }
+
+
+    // MARK: - Option List
+
+    private func optionList(
+        options: [String],
+        selection: Binding<String>
+    ) -> some View {
+
+        VStack(spacing: 12) {
+
+            ForEach(
+                options,
+                id: \.self
+            ) { option in
+
+                Button {
+
+                    selection.wrappedValue = option
+
+                } label: {
+
+                    HStack {
+
+                        Text(option)
+                            .font(
+                                .custom(
+                                    "PlusJakartaSans-SemiBold",
+                                    size: 16
+                                )
+                            )
+
+                        Spacer()
+
+                        Image(
+                            systemName:
+                                selection.wrappedValue == option
+                                ? "checkmark.circle.fill"
+                                : "circle"
+                        )
+                        .font(
+                            .system(
+                                size: 22
+                            )
+                        )
+                    }
+                    .foregroundStyle(
+                        Color.appTextPrimary
                     )
-                )
-                .foregroundStyle(.white)
-                .padding(.horizontal, 24)
-                .disabled(isTyping)
-
-                AppButton(
-                    title: "Tell him",
-                    icon: .sf("arrow.right"),
-                    iconPosition: .right,
-                    foreground: .black,
-                    background: Color.appAccent
-                ) {
-                    nextStep()
-                }
-                .disabled(
-                    name.trimmingCharacters(
-                        in: .whitespacesAndNewlines
-                    ).isEmpty || isTyping
-                )
-                .opacity(
-                    name.trimmingCharacters(
-                        in: .whitespacesAndNewlines
-                    ).isEmpty || isTyping
-                    ? 0.45
-                    : 1
-                )
-                .padding(.horizontal, 24)
-            }
-
-        case .education:
-
-            VStack(spacing: 10) {
-
-                ForEach(
-                    educationOptions,
-                    id: \.self
-                ) { option in
-
-                    Button {
-
-                        selectedEducation = option
-
-                    } label: {
-
-                        HStack {
-
-                            Text(option)
-                                .font(
-                                    .custom(
-                                        "PlusJakartaSans-SemiBold",
-                                        size: 15
-                                    )
-                                )
-
-                            Spacer()
-
-                            if selectedEducation == option {
-
-                                Image(
-                                    systemName: "checkmark.circle.fill"
-                                )
-                            }
-                        }
-                        .foregroundStyle(
-                            selectedEducation == option
-                                ? Color.appAccent
-                                : Color.appTextPrimary
-                        )
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 16)
-                        .background(
-                            selectedEducation == option
+                    .padding(.horizontal, 18)
+                    .frame(height: 58)
+                    .background(
+                        selection.wrappedValue == option
                                 ? Color.appAccent.opacity(0.12)
-                                : Color.white.opacity(0.07),
-                            in: RoundedRectangle(
-                                cornerRadius: 14
-                            )
+                        : Color.appSurface
+                    )
+                    .clipShape(
+                        RoundedRectangle(
+                            cornerRadius: 8,
+                            style: .continuous
                         )
-                        .overlay {
+                    )
+                    .overlay {
 
-                            RoundedRectangle(
-                                cornerRadius: 14
-                            )
-                            .stroke(
-                                selectedEducation == option
-                                    ? Color.appAccent
-                                    : Color.white.opacity(0.1),
-                                lineWidth: 1
-                            )
-                        }
+                        RoundedRectangle(
+                            cornerRadius: 8,
+                            style: .continuous
+                        )
+                        .stroke(
+                            selection.wrappedValue == option
+                            ? Color.appAccent
+                            : Color.appBorder,
+                            lineWidth:
+                                selection.wrappedValue == option
+                                ? 2
+                                : 1
+                        )
                     }
-                    .buttonStyle(.plain)
-                    .disabled(isTyping)
                 }
-
-                AppButton(
-                    title: "Continue",
-                    icon: .sf("arrow.right"),
-                    iconPosition: .right,
-                    foreground: .black,
-                    background: Color.appAccent
-                ) {
-
-                    nextStep()
-
-                }
-                .disabled(
-                    selectedEducation.isEmpty || isTyping
-                )
-                .opacity(
-                    selectedEducation.isEmpty || isTyping
-                        ? 0.45
-                        : 1
-                )
-                .padding(.top, 12)
+                .buttonStyle(.plain)
             }
-            .padding(.horizontal, 24)
-
-        case .school:
-
-            EmptyView()
-
-        case .studyReason:
-
-            VStack(spacing: 10) {
-
-                ForEach(
-                    studyReasons,
-                    id: \.self
-                ) { reason in
-
-                    Button {
-
-                        selectedReason = reason
-
-                    } label: {
-
-                        HStack {
-
-                            Text(reason)
-                                .font(
-                                    .custom(
-                                        "PlusJakartaSans-SemiBold",
-                                        size: 15
-                                    )
-                                )
-
-                            Spacer()
-
-                            if selectedReason == reason {
-
-                                Image(
-                                    systemName: "checkmark.circle.fill"
-                                )
-                            }
-                        }
-                        .foregroundStyle(
-                            selectedReason == reason
-                                ? Color.appAccent
-                                : Color.appTextPrimary
-                        )
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 16)
-                        .background(
-                            selectedReason == reason
-                                ? Color.appAccent.opacity(0.12)
-                                : Color.white.opacity(0.07),
-                            in: RoundedRectangle(
-                                cornerRadius: 14
-                            )
-                        )
-                        .overlay {
-
-                            RoundedRectangle(
-                                cornerRadius: 14
-                            )
-                            .stroke(
-                                selectedReason == reason
-                                    ? Color.appAccent
-                                    : Color.white.opacity(0.1),
-                                lineWidth: 1
-                            )
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(isTyping)
-                }
-
-                AppButton(
-                    title: "Continue",
-                    icon: .sf("arrow.right"),
-                    iconPosition: .right,
-                    foreground: .black,
-                    background: Color.appAccent
-                ) {
-
-                    nextStep()
-
-                }
-                .disabled(
-                    selectedReason.isEmpty || isTyping
-                )
-                .opacity(
-                    selectedReason.isEmpty || isTyping
-                        ? 0.45
-                        : 1
-                )
-                .padding(.top, 12)
-            }
-            .padding(.horizontal, 24)
-
-        case .reasonReaction:
-
-            EmptyView()
-
-        case .finished:
-
-            AppButton(
-                title: "Show me what you've got.",
-                icon: .sf("arrow.right"),
-                iconPosition: .right,
-                foreground: .black,
-                background: Color.appAccent
-            ) {
-                onFinish(
-                    name,
-                    selectedEducation,
-                    selectedReason
-                )
-            }
-            .disabled(isTyping)
-            .opacity(isTyping ? 0.45 : 1)
-            .padding(.horizontal, 24)
         }
     }
 
 
-    // MARK: - Flow
+    // MARK: - Navigation Button
 
-    private func nextStep() {
+    private var navigationButton: some View {
+
+        Button {
+
+            handleNext()
+
+        } label: {
+
+            HStack {
+
+                Text(buttonTitle)
+
+                Spacer()
+
+                Image(
+                    systemName:
+                        step == .finished
+                        ? "sparkles"
+                        : "arrow.right"
+                )
+            }
+            .font(
+                .custom(
+                    "PlusJakartaSans-Bold",
+                    size: 16
+                )
+            )
+            .foregroundStyle(
+                stepIsValid
+                ? Color.appBackground
+                : Color.appTextSecondary
+            )
+            .padding(.horizontal, 20)
+            .frame(height: 58)
+            .background(
+                stepIsValid
+                ? Color.appAccent
+                : Color.appSecondarySurface
+            )
+            .clipShape(
+                RoundedRectangle(
+                    cornerRadius: 8,
+                    style: .continuous
+                )
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(!stepIsValid)
+    }
+
+
+    // MARK: - Text
+
+    private var headerTitle: String {
 
         switch step {
 
         case .name:
-            step = .education
+            return "First things first."
 
-        case .education:
-            step = .school
-
-        case .school:
-            step = .studyReason
+        case .currentSituation:
+            return "What are you doing right now?"
 
         case .studyReason:
-            step = .reasonReaction
+            return "Why are you studying?"
 
-        case .reasonReaction:
-            step = .finished
+        case .intensity:
+            return "How much can you handle?"
 
         case .finished:
-            break
-        }
-
-        Task {
-            await startCurrentStep()
+            return "You're all set."
         }
     }
 
 
-    // MARK: - Dialogue
-
-    private func startCurrentStep() async {
-
-        isTyping = true
-        displayedText = ""
+    private var headerSubtitle: String {
 
         switch step {
 
         case .name:
+            return "What should I call you?"
 
-            await type(
-                "First things first. What's your name?"
-            )
-
-        case .education:
-
-            await type(
-                "Alright, \(name). What are you doing these days?"
-            )
-
-        case .school:
-
-            await type(
-                "Where do you go to school?"
-            )
-
-            try? await Task.sleep(
-                nanoseconds: 1_200_000_000
-            )
-
-            displayedText = ""
-
-            await type(
-                "Actually..."
-            )
-
-            try? await Task.sleep(
-                nanoseconds: 500_000_000
-            )
-
-            displayedText = ""
-
-            await type(
-                "I don't care where you go to school."
-            )
-
-            try? await Task.sleep(
-                nanoseconds: 900_000_000
-            )
-
-            displayedText = ""
-
-            await type(
-                "A school doesn't study for you."
-            )
-
-            try? await Task.sleep(
-                nanoseconds: 1_400_000_000
-            )
-
-            nextStep()
-
-            return
+        case .currentSituation:
+            return "This helps me understand your routine."
 
         case .studyReason:
+            return "Give me a practical reason."
 
-            await type(
-                "So why are you here?"
-            )
-
-        case .reasonReaction:
-
-            let reaction = reasonReaction
-
-            await type(reaction)
-
-            try? await Task.sleep(
-                nanoseconds: 1_500_000_000
-            )
-
-            nextStep()
-
-            return
+        case .intensity:
+            return "How hard should I push you?"
 
         case .finished:
-
-            await type(
-                "Alright. I know enough about you."
-            )
-
-            try? await Task.sleep(
-                nanoseconds: 1_000_000_000
-            )
-
-            displayedText = ""
-
-            await type(
-                "Now let's see what you're actually trying to learn."
-            )
+            return "Let's build something worth studying."
         }
-
-        isTyping = false
     }
 
 
-    // MARK: - Typing Effect
+    private var buttonTitle: String {
 
-    private func type(
-        _ text: String
-    ) async {
+        switch step {
 
-        displayedText = ""
+        case .finished:
+            return "Let's go"
 
-        for character in text {
+        default:
+            return "Continue"
+        }
+    }
 
-            guard !Task.isCancelled else {
-                return
-            }
 
-            displayedText.append(character)
+    // MARK: - Validation
 
-            let delay: UInt64
+    private var stepIsValid: Bool {
 
-            switch character {
+        switch step {
 
-            case ".", "!", "?":
-                delay = 180_000_000
+        case .name:
+            return !name
+                .trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                )
+                .isEmpty
 
-            case ",":
-                delay = 80_000_000
+        case .currentSituation:
+            return !currentSituation.isEmpty
 
-            case " ":
-                delay = 15_000_000
+        case .studyReason:
+            return !studyReason.isEmpty
+
+        case .intensity:
+            return !intensity.isEmpty
+
+        case .finished:
+            return true
+        }
+    }
+
+
+    // MARK: - Actions
+
+    private func handleNext() {
+
+        if step == .finished {
+
+            // Map current situation to
+            // the existing educationLevel value.
+
+            let educationLevel: String
+
+            switch currentSituation {
+
+            case "I'm working":
+                educationLevel = "Working Professional"
+
+            case "University student":
+                educationLevel = "University"
+
+            case "School student":
+                educationLevel = "School"
 
             default:
-                delay = 35_000_000
+                educationLevel = "Other"
             }
 
-            try? await Task.sleep(
-                nanoseconds: delay
+            onComplete(
+                name,
+                educationLevel,
+                studyReason
             )
+
+            return
         }
-    }
-}
 
 
-#Preview {
-
-    StudentProfileView {
-        name,
-        education,
-        reason in
-
-        print(name)
-        print(education)
-        print(reason)
+        step = Step(
+            rawValue: step.rawValue + 1
+        ) ?? .finished
     }
 }
