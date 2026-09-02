@@ -124,6 +124,97 @@ final class APIClient {
         }
     }
 
+    // MARK: - Multipart Upload
+
+    func upload<Response: Decodable>(
+        endpoint: String,
+        files: [URL],
+        fieldName: String,
+        authenticated: Bool = true,
+        timeout: TimeInterval? = nil
+    ) async throws -> Response {
+        let cleanEndpoint = endpoint.hasPrefix("/")
+            ? String(endpoint.dropFirst())
+            : endpoint
+        let url = baseURL.appendingPathComponent(cleanEndpoint)
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var body = Data()
+
+        for fileURL in files {
+            let hasSecurityScope = fileURL.startAccessingSecurityScopedResource()
+            defer {
+                if hasSecurityScope {
+                    fileURL.stopAccessingSecurityScopedResource()
+                }
+            }
+
+            let fileData: Data
+
+            do {
+                fileData = try Data(contentsOf: fileURL)
+            } catch {
+                throw APIError.encodingError(error)
+            }
+
+            let filename = fileURL.lastPathComponent.replacingOccurrences(
+                of: "\"",
+                with: ""
+            )
+            let header = "--\(boundary)\r\n"
+                + "Content-Disposition: form-data; name=\"\(fieldName)\"; filename=\"\(filename)\"\r\n"
+                + "Content-Type: application/octet-stream\r\n\r\n"
+
+            body.append(Data(header.utf8))
+            body.append(fileData)
+            body.append(Data("\r\n".utf8))
+        }
+
+        body.append(Data("--\(boundary)--\r\n".utf8))
+
+        var request = URLRequest(url: url)
+        request.httpMethod = HTTPMethod.post.rawValue
+        request.httpBody = body
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(
+            "multipart/form-data; boundary=\(boundary)",
+            forHTTPHeaderField: "Content-Type"
+        )
+
+        if let timeout {
+            request.timeoutInterval = timeout
+        }
+
+        if authenticated,
+           let token = try KeychainService.shared.getAccessToken() {
+            request.setValue(
+                "Bearer \(token)",
+                forHTTPHeaderField: "Authorization"
+            )
+        }
+
+        do {
+            let (data, response) = try await session.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw APIError.invalidResponse
+            }
+
+            try validateResponse(httpResponse, data: data)
+
+            do {
+                return try decoder.decode(Response.self, from: data)
+            } catch {
+                throw APIError.decodingError(error)
+            }
+
+        } catch let error as APIError {
+            throw error
+
+        } catch {
+            throw APIError.networkError(error)
+        }
+    }
+
     // MARK: - Request Without Response Body
 
     func requestWithoutResponse(

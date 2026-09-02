@@ -1,8 +1,11 @@
 import SwiftUI
+import SwiftData
 
 struct AIDeckSetupView: View {
 
     @Environment(\.dismiss) private var dismiss
+    @Query(sort: \LocalUserProfile.createdAt, order: .reverse)
+    private var profiles: [LocalUserProfile]
 
     let onDeckCreated: (StudyDeck) -> Void
     let existingDeck: StudyDeck?
@@ -10,29 +13,14 @@ struct AIDeckSetupView: View {
     @State private var topic = ""
     @State private var educationLevel = "University"
     @State private var studyPurpose = "Learn from Scratch"
-    @State private var studyGoal = ""
-    @State private var learningDepth = "Comprehensive"
+    @State private var preparationDetails = ""
 
     @State private var hasTargetDate = false
     @State private var targetDate = Date()
-    // @State private var cardCount = 20
 
-    @State private var isGenerating = false
-    @State private var generatedPlan: DeckPlanResponse?
-    @State private var isShowingPlanPreview = false
-    @State private var errorMessage: String?
+    @State private var isShowingStudyMaterials = false
 
-    private let learningDepthOptions = [
-        "Quick Review",
-        "Balanced",
-        "Comprehensive",
-    ]
-
-    private let accent = Color(
-        red: 0.40,
-        green: 0.40,
-        blue: 0.95
-    )
+    private let accent = Color.appAccent
 
     private let educationLevels = [
         "Elementary School",
@@ -64,24 +52,9 @@ struct AIDeckSetupView: View {
 
                     studyPurposeSection
 
-                    goalSection
+                    preparationDetailsSection
 
-                    learningDepthSection
-
-                    if requiresTargetDate {
-                        targetDateSection
-                    }
-
-                    if let errorMessage {
-                        Text(errorMessage)
-                            .font(
-                                .custom(
-                                    "PlusJakartaSans-Regular",
-                                    size: 13
-                                )
-                            )
-                            .foregroundStyle(.red.opacity(0.9))
-                    }
+                    targetDateSection
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 20)
@@ -89,34 +62,41 @@ struct AIDeckSetupView: View {
             }
         }
         .navigationDestination(
-            isPresented: $isShowingPlanPreview
+            isPresented: $isShowingStudyMaterials
         ) {
-            if let generatedPlan {
-                AIPlanPreviewView(
-                    plan: generatedPlan,
-                    studyPurpose: studyPurpose,
-                    targetDate: hasTargetDate ? targetDate : nil,
-                    onDeckCreated: onDeckCreated,
-                    existingDeck: existingDeck
-                )
-            }
+            AIStudyMaterialsView(
+                topic: topic.trimmingCharacters(in: .whitespacesAndNewlines),
+                preparationDetails: preparationDetails.trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                ),
+                educationLevel: educationLevel,
+                studyPurpose: studyPurpose,
+                targetDate: hasTargetDate ? targetDate : nil,
+                onDeckCreated: onDeckCreated,
+                existingDeck: existingDeck
+            )
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
-
-                WorkflowIndicator(
-                    numberOfSteps: 4,
-                    currentStep: 1,
-                    accent: accent
-                )
+                AppButton(
+                    title: "Continue",
+                    foreground: canContinue
+                        ? Color.appTextPrimary
+                        : Color.appTextSecondary
+                ) {
+                    isShowingStudyMaterials = true
+                }
+                .disabled(!canContinue)
                 .padding(.horizontal, 20)
-                .padding(.bottom, 12)
-
-                generateButton
             }
             .padding(.top, 12)
             .padding(.bottom, 12)
-            .background(.black.opacity(0.92))
+            .background(Color.appBackground)
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(.white.opacity(0.10))
+                    .frame(height: 1)
+            }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             BackNavigationBar {
@@ -124,6 +104,12 @@ struct AIDeckSetupView: View {
             }
         }
         .navigationBarBackButtonHidden()
+        .onAppear {
+            if let educationLevel = profiles.first?.educationLevel,
+               !educationLevel.isEmpty {
+                self.educationLevel = educationLevel
+            }
+        }
     }
 
     // MARK: - Header
@@ -139,7 +125,7 @@ struct AIDeckSetupView: View {
                 )
                 .foregroundStyle(accent)
 
-            Text("What do you want\nto learn?")
+            Text("What do you want\nto study?")
                 .font(
                     .custom(
                         "PlusJakartaSans-ExtraBold",
@@ -151,7 +137,7 @@ struct AIDeckSetupView: View {
                 .lineSpacing(-3)
 
             Text(
-                "Tell Memora what you want to learn and AI will build a study plan for you."
+                "Give Mr. Ed the subject. You can add materials in the next step."
             )
             .font(
                 .custom(
@@ -180,10 +166,10 @@ struct AIDeckSetupView: View {
             .frame(height: 56)
             .background(
                 .white.opacity(0.06),
-                in: RoundedRectangle(cornerRadius: 14)
+                in: RoundedRectangle(cornerRadius: 8)
             )
             .overlay {
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: 8)
                     .stroke(
                         .white.opacity(0.10),
                         lineWidth: 1
@@ -227,10 +213,10 @@ struct AIDeckSetupView: View {
                 .frame(height: 56)
                 .background(
                     .white.opacity(0.06),
-                    in: RoundedRectangle(cornerRadius: 14)
+                    in: RoundedRectangle(cornerRadius: 8)
                 )
                 .overlay {
-                    RoundedRectangle(cornerRadius: 14)
+                    RoundedRectangle(cornerRadius: 8)
                         .stroke(
                             .white.opacity(0.10),
                             lineWidth: 1
@@ -240,26 +226,28 @@ struct AIDeckSetupView: View {
         }
     }
 
-    // MARK: - Study Goal
+    // MARK: - Preparation Details
 
-    private var goalSection: some View {
+    private var preparationDetailsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            sectionTitle("STUDY GOAL")
+            sectionTitle("WHAT ARE YOU PREPARING FOR?")
 
             TextField(
-                "e.g. Learn Python fundamentals",
-                text: $studyGoal
+                "e.g. Math exam covering multiplication, division, and word problems",
+                text: $preparationDetails,
+                axis: .vertical
             )
             .textInputAutocapitalization(.sentences)
             .foregroundStyle(.white)
-            .padding(.horizontal, 16)
-            .frame(height: 56)
+            .lineLimit(3...6)
+            .padding(16)
+            .frame(minHeight: 112, alignment: .topLeading)
             .background(
                 .white.opacity(0.06),
-                in: RoundedRectangle(cornerRadius: 14)
+                in: RoundedRectangle(cornerRadius: 8)
             )
             .overlay {
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: 8)
                     .stroke(
                         .white.opacity(0.10),
                         lineWidth: 1
@@ -268,142 +256,13 @@ struct AIDeckSetupView: View {
         }
     }
 
-    // MARK: - Learning Depth
-
-    private var learningDepthSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            sectionTitle("LEARNING DEPTH")
-
-            VStack(spacing: 10) {
-                learningDepthOption(
-                    title: "Quick Review",
-                    description: "Essential concepts only"
-                )
-
-                learningDepthOption(
-                    title: "Standard",
-                    description: "Solid coverage for normal learning"
-                )
-
-                learningDepthOption(
-                    title: "Comprehensive",
-                    description: "Thorough coverage of important concepts"
-                )
-            }
-        }
-    }
-
-    private func learningDepthOption(
-        title: String,
-        description: String
-    ) -> some View {
-        Button {
-            learningDepth = title
-        } label: {
-            HStack(spacing: 14) {
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
-                        .font(
-                            .custom(
-                                "PlusJakartaSans-Bold",
-                                size: 14
-                            )
-                        )
-                        .foregroundStyle(.white)
-
-                    Text(description)
-                        .font(
-                            .custom(
-                                "PlusJakartaSans-Regular",
-                                size: 12
-                            )
-                        )
-                        .foregroundStyle(
-                            .white.opacity(0.45)
-                        )
-                }
-
-                Spacer()
-
-                Image(
-                    systemName:
-                        learningDepth == title
-                        ? "checkmark.circle.fill"
-                        : "circle"
-                )
-                .font(.system(size: 20))
-                .foregroundStyle(
-                    learningDepth == title
-                    ? accent
-                    : .white.opacity(0.25)
-                )
-            }
-            .padding(.horizontal, 16)
-            .frame(minHeight: 64)
-            .background(
-                learningDepth == title
-                ? accent.opacity(0.12)
-                : .white.opacity(0.06),
-                in: RoundedRectangle(cornerRadius: 14)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(
-                        learningDepth == title
-                        ? accent.opacity(0.5)
-                        : .white.opacity(0.10),
-                        lineWidth: 1
-                    )
-            }
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Generate
-
-    private var generateButton: some View {
-        AppButton(
-            title: isGenerating
-                ? "Generating..."
-                : "Continue",
-            foreground: canContinue
-                ? .white
-                : .white.opacity(0.45),
-            background: AnyShapeStyle(
-                LinearGradient(
-                    colors: [
-                        accent,
-                        Color(
-                            red: 0.55,
-                            green: 0.36,
-                            blue: 0.96
-                        )
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
-        ) {
-            generatePlan()
-        }
-        .disabled(!canContinue || isGenerating)
-        .padding(.horizontal, 20)
-        .ignoresSafeArea(
-            .keyboard,
-            edges: .bottom
-        )
-    }
-
     // MARK: - Study Purpose
 
     private var studyPurposeSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-
             sectionTitle("STUDY PURPOSE")
 
             VStack(spacing: 10) {
-
                 studyPurposeOption(
                     title: "Learn from Scratch",
                     description: "Build a strong foundation from the beginning",
@@ -436,32 +295,20 @@ struct AIDeckSetupView: View {
         description: String,
         icon: String
     ) -> some View {
-
         Button {
             studyPurpose = title
-
-            if !requiresTargetDate {
-                hasTargetDate = false
-            }
-
         } label: {
-
             HStack(spacing: 14) {
-
                 Image(systemName: icon)
                     .font(.system(size: 18))
                     .foregroundStyle(
                         studyPurpose == title
-                        ? accent
-                        : .white.opacity(0.55)
+                            ? accent
+                            : Color.appTextSecondary
                     )
                     .frame(width: 24)
 
-                VStack(
-                    alignment: .leading,
-                    spacing: 4
-                ) {
-
+                VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .font(
                             .custom(
@@ -469,7 +316,7 @@ struct AIDeckSetupView: View {
                                 size: 14
                             )
                         )
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.appTextPrimary)
 
                     Text(description)
                         .font(
@@ -478,60 +325,57 @@ struct AIDeckSetupView: View {
                                 size: 12
                             )
                         )
-                        .foregroundStyle(
-                            .white.opacity(0.45)
-                        )
+                        .foregroundStyle(Color.appTextSecondary)
                 }
 
                 Spacer()
 
                 Image(
-                    systemName:
-                        studyPurpose == title
+                    systemName: studyPurpose == title
                         ? "checkmark.circle.fill"
                         : "circle"
                 )
                 .font(.system(size: 20))
                 .foregroundStyle(
                     studyPurpose == title
-                    ? accent
-                    : .white.opacity(0.25)
+                        ? accent
+                        : Color.appTextSecondary
                 )
             }
             .padding(.horizontal, 16)
             .frame(minHeight: 70)
             .background(
                 studyPurpose == title
-                ? accent.opacity(0.12)
-                : .white.opacity(0.06),
-                in: RoundedRectangle(cornerRadius: 14)
+                    ? Color.appSecondarySurface
+                    : Color.appSurface,
+                in: RoundedRectangle(cornerRadius: 8)
             )
             .overlay {
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: 8)
                     .stroke(
                         studyPurpose == title
-                        ? accent.opacity(0.5)
-                        : .white.opacity(0.10),
-                        lineWidth: 1
+                            ? accent
+                            : Color.appBorder,
+                        lineWidth: studyPurpose == title ? 2 : 1
                     )
             }
         }
         .buttonStyle(.plain)
     }
 
-    // MARK: - Target Date
+    // MARK: - Study Deadline
 
     private var targetDateSection: some View {
         VStack(alignment: .leading, spacing: 12) {
 
-            sectionTitle("TARGET DATE")
+            sectionTitle("WHEN DO YOU NEED TO KNOW THIS?")
 
             Toggle(
                 isOn: $hasTargetDate
             ) {
                 VStack(alignment: .leading, spacing: 4) {
 
-                    Text("I have a target date")
+                    Text("I have a study deadline")
                         .font(
                             .custom(
                                 "PlusJakartaSans-Bold",
@@ -541,7 +385,7 @@ struct AIDeckSetupView: View {
                         .foregroundStyle(.white)
 
                     Text(
-                        "We'll create a study timeline based on your deadline."
+                        "Optional. We'll build a study schedule around it."
                     )
                     .font(
                         .custom(
@@ -558,13 +402,13 @@ struct AIDeckSetupView: View {
             .padding(16)
             .background(
                 .white.opacity(0.06),
-                in: RoundedRectangle(cornerRadius: 14)
+                in: RoundedRectangle(cornerRadius: 8)
             )
 
             if hasTargetDate {
 
                 DatePicker(
-                    "Target Date",
+                    "Study Deadline",
                     selection: $targetDate,
                     in: Date()...,
                     displayedComponents: .date
@@ -574,7 +418,7 @@ struct AIDeckSetupView: View {
                 .padding(16)
                 .background(
                     .white.opacity(0.06),
-                    in: RoundedRectangle(cornerRadius: 14)
+                    in: RoundedRectangle(cornerRadius: 8)
                 )
             }
         }
@@ -593,54 +437,8 @@ struct AIDeckSetupView: View {
             .foregroundStyle(.white.opacity(0.45))
     }
 
-    private func generatePlan() {
-        guard !isGenerating else { return }
-
-        isGenerating = true
-        errorMessage = nil
-
-        Task {
-            do {
-                let plan = try await AIService.shared.generatePlan(
-                    topic: topic.trimmingCharacters(
-                        in: .whitespacesAndNewlines
-                    ),
-                    educationLevel: educationLevel,
-                    studyPurpose: studyPurpose,
-                    studyGoal: studyGoal.trimmingCharacters(
-                        in: .whitespacesAndNewlines
-                    ),
-                    learningDepth: learningDepth,
-                    targetDate: hasTargetDate ? targetDate : nil
-                )
-
-                await MainActor.run {
-                    generatedPlan = plan
-                    isGenerating = false
-                    isShowingPlanPreview = true
-                }
-
-            } catch {
-                await MainActor.run {
-                    errorMessage = error.localizedDescription
-                    isGenerating = false
-                }
-            }
-        }
-    }
-
-    private var requiresTargetDate: Bool {
-        studyPurpose == "Prepare for an Exam"
-        ||
-        studyPurpose == "Prepare for a Certification"
-    }
-
     private var canContinue: Bool {
         !topic
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .isEmpty
-        &&
-        !studyGoal
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .isEmpty
     }

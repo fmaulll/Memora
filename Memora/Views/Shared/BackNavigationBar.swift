@@ -46,10 +46,7 @@ struct BackNavigationBar<Content: View>: View {
         .padding(.horizontal, 20)
         .padding(.bottom, 16)
         .frame(maxWidth: .infinity)
-        .background(
-            Color(red: 0.04, green: 0.04, blue: 0.13)
-                .ignoresSafeArea(edges: .top)
-        )
+        .background(Color.appBackground)
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(.white.opacity(0.10))

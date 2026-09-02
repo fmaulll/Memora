@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AIPlanPreviewView: View {
 
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
     let plan: DeckPlanResponse
@@ -17,11 +18,7 @@ struct AIPlanPreviewView: View {
     @State private var isShowingDeckPreview = false
     @State private var errorMessage: String?
 
-    private let accent = Color(
-        red: 0.40,
-        green: 0.40,
-        blue: 0.95
-    )
+    private let accent = Color.appAccent
 
     private var totalCards: Int {
         plan.chapters.reduce(0) {
@@ -49,7 +46,7 @@ struct AIPlanPreviewView: View {
                                 )
                             )
                             .foregroundStyle(
-                                .red.opacity(0.9)
+                                Color.appError
                             )
                     }
                 }
@@ -91,6 +88,7 @@ struct AIPlanPreviewView: View {
                 AIDeckPreviewView(
                     deck: generatedDeck,
                     timeline: generatedTimeline,
+                    targetDate: targetDate,
                     onDeckCreated: onDeckCreated,
                     existingDeck: existingDeck
                 )
@@ -359,7 +357,12 @@ struct AIPlanPreviewView: View {
                     generatedTimeline = response.timeline
 
                     isGenerating = false
-                    isShowingDeckPreview = true
+
+                    if targetDate != nil {
+                        isShowingDeckPreview = true
+                    } else {
+                        createDeck(response.deck)
+                    }
                 }
 
             } catch {
@@ -371,6 +374,21 @@ struct AIPlanPreviewView: View {
                     isGenerating = false
                 }
             }
+        }
+    }
+
+    private func createDeck(_ generatedDeck: GeneratedDeckResponse) {
+        do {
+            let createdDeck = try AIDeckCreationService.shared.createDeck(
+                from: generatedDeck,
+                existingDeck: existingDeck,
+                modelContext: modelContext
+            )
+
+            onDeckCreated(createdDeck)
+
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 }

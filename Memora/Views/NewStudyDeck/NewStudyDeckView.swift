@@ -12,14 +12,10 @@ struct NewStudyDeckView: View {
     private let showsSetUpLater: Bool
     private let onFinish: ((StudyDeck) -> Void)?
     @State private var selectedMethod: StudyDeckMethod?
-    @State private var isShowingUploadMaterials = false
     @State private var isShowingCreateOwnDeck = false
-    @State private var isShowingCreateEmptyDeck = false
     @State private var isShowingCreateWithAi = false
     @State private var isShowingHome = false
 
-    private let background = Color(red: 0.04, green: 0.04, blue: 0.13)
-    private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
     private let methods = StudyDeckMethod.allCases
 
     init(
@@ -32,35 +28,31 @@ struct NewStudyDeckView: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            
             AppBackground {
-                
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
-                        
                         Text("NEW STUDY DECK")
                             .font(.custom("PlusJakartaSans-Bold", size: 14))
-                            .foregroundStyle(.white.opacity(0.62))
+                            .foregroundStyle(Color.appTextSecondary)
                             .padding(.top, 16)
-                        
+
                         Text("How do you want\nto study?")
                             .font(.custom("PlusJakartaSans-ExtraBold", size: 40))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Color.appTextPrimary)
                             .tracking(-1)
                             .lineSpacing(-3)
                             .padding(.top, 16)
-                        
-                        Text("Choose your method to get started")
+
+                        Text("Mr. Ed can build a deck from a topic. Materials are optional.")
                             .font(.custom("PlusJakartaSans-Regular", size: 16))
-                            .foregroundStyle(.white.opacity(0.62))
+                            .foregroundStyle(Color.appTextSecondary)
                             .padding(.top, 20)
-                        
+
                         VStack(spacing: 12) {
                             ForEach(methods) { method in
                                 StudyDeckMethodCard(
                                     method: method,
-                                    isSelected: selectedMethod == method,
-                                    accent: accent
+                                    isSelected: selectedMethod == method
                                 ) {
                                     withAnimation(.easeInOut(duration: 0.2)) {
                                         selectedMethod = method
@@ -73,12 +65,10 @@ struct NewStudyDeckView: View {
                     }
                     .padding(.horizontal, 20)
                 }
-                
             }
             .preferredColorScheme(.dark)
             .navigationBarBackButtonHidden()
-            
-            
+
             if showsSetUpLater {
                 Button("Set up later") {
                     isShowingHome = true
@@ -99,32 +89,29 @@ struct NewStudyDeckView: View {
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
-                WorkflowIndicator(
-                    numberOfSteps: selectedMethod?.stepCount ?? methods.count,
-                    currentStep: 0,
-                    accent: accent
-                )
-                .padding(.horizontal, 20)
-                .padding(.bottom, 12)
-
-                HStack {
-                    AppButton(
-                        title: "Continue",
-                        foreground: selectedMethod == nil ? .white.opacity(0.45) : .white,
-                        background: AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing))
-                    ) {
-                        continueToSelectedMethod()
+                AppButton(
+                    title: "Continue",
+                    foreground: selectedMethod == nil
+                        ? Color.appTextSecondary
+                        : Color.appTextPrimary,
+                    background: Color.appAccent
+                ) {
+                    if let selectedMethod {
+                        open(selectedMethod)
                     }
-                    .disabled(selectedMethod == nil)
-                    .padding(.horizontal, 20)
                 }
+                .disabled(selectedMethod == nil)
+                .opacity(selectedMethod == nil ? 0.45 : 1)
+                .padding(.horizontal, 20)
             }
             .padding(.top, 12)
             .padding(.bottom, 12)
-            .background(.black.opacity(0.92))
-        }
-        .navigationDestination(isPresented: $isShowingUploadMaterials) {
-            UploadStudyMaterialsView()
+            .background(Color.appBackground)
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(.white.opacity(0.10))
+                    .frame(height: 1)
+            }
         }
         .navigationDestination(isPresented: $isShowingCreateWithAi) {
             AIDeckSetupView(
@@ -141,105 +128,67 @@ struct NewStudyDeckView: View {
                 }
             )
         }
-        .navigationDestination(isPresented: $isShowingCreateEmptyDeck) {
-            CreateOwnDeckView(
-                mode: .empty,
-                onFinish: { deck in
-                    onFinish?(deck)
-                }
-            )
-        }
         .navigationDestination(isPresented: $isShowingHome) {
             HomeView()
         }
     }
 
-    private func continueToSelectedMethod() {
-        switch selectedMethod {
-        case .upload:
-            isShowingUploadMaterials = true
+    private func open(_ method: StudyDeckMethod) {
+        switch method {
+        case .studyWithMrEd:
+            isShowingCreateWithAi = true
         case .custom:
             isShowingCreateOwnDeck = true
-        case .empty:
-            isShowingCreateEmptyDeck = true
-        case .aiTopic:
-            isShowingCreateWithAi = true
-        case .anki, nil:
+        case .anki:
             break
         }
     }
 }
 
 private enum StudyDeckMethod: String, CaseIterable, Identifiable {
-    case upload
-    case aiTopic
+    case studyWithMrEd
     case custom
-    case empty
     case anki
-    
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .upload: "Upload Study Materials"
-        case .aiTopic: "Learn Any Topic with AI"
+        case .studyWithMrEd: "Study with Mr. Ed"
         case .custom: "Create Your Own Deck"
-        case .empty: "Create Empty Deck"
         case .anki: "Import Anki Deck"
         }
     }
 
     var description: String {
         switch self {
-        case .upload: "PDF, DOCX, or TXT — AI extracts everything."
-        case .aiTopic: "Describe what you want to master. AI does the rest."
-        case .custom: "Build flashcards manually with complete control."
-        case .empty:
-            "Create a deck now and add cards or sub-decks later."
+        case .studyWithMrEd: "Give me a topic. Materials are optional."
+        case .custom: "Build your own flashcards."
         case .anki: "Import your existing .apkg flashcard decks into Memora."
         }
     }
 
     var tags: [String] {
         switch self {
-        case .upload: ["PDF", "DOCX", "TXT"]
-        case .aiTopic: ["Any Subject", "AI-Powered"]
-        case .custom: ["Custom Cards", "Full Control"]
-        case .empty:
-            ["Empty Deck", "Organize Later"]
+        case .studyWithMrEd: ["Topic", "AI-Powered"]
+        case .custom: ["Custom Cards"]
         case .anki: ["APKG Import", "Anki Compatible"]
         }
     }
 
     var icon: String {
         switch self {
-        case .upload: "arrow.up"
-        case .aiTopic: "sparkles"
+        case .studyWithMrEd: "brain.head.profile"
         case .custom: "doc.badge.plus"
-        case .empty:
-            "folder.badge.plus"
         case .anki: "rectangle.stack.badge.plus"
         }
     }
 
     var iconColor: Color {
         switch self {
-        case .upload: Color(red: 0.35, green: 0.33, blue: 0.95)
-        case .aiTopic: Color(red: 0.59, green: 0.25, blue: 0.95)
-        case .custom: Color(red: 0.41, green: 0.22, blue: 0.75)
-        case .empty: Color(red: 0.39, green: 0.40, blue: 0.95)
-        case .anki: Color(red: 0.20, green: 0.47, blue: 0.82)
-        }
-    }
-
-    var stepCount: Int {
-        switch self {
-        case .upload: 3
-        case .aiTopic: 4
-        case .custom: 3
-        case .empty: 2
-        case .anki: 3
+        case .studyWithMrEd: Color.appAccent
+        case .custom: Color.appInfo
+        case .anki: Color.appSecondarySurface
         }
     }
 }
@@ -247,7 +196,6 @@ private enum StudyDeckMethod: String, CaseIterable, Identifiable {
 private struct StudyDeckMethodCard: View {
     let method: StudyDeckMethod
     let isSelected: Bool
-    let accent: Color
     let action: () -> Void
 
     var body: some View {
@@ -263,19 +211,19 @@ private struct StudyDeckMethodCard: View {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text(method.title)
                             .font(.custom("PlusJakartaSans-SemiBold", size: 16))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Color.appTextPrimary)
                             .multilineTextAlignment(.leading)
 
                         Spacer(minLength: 4)
 
                         Image(systemName: "chevron.right")
                             .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.62))
+                            .foregroundStyle(Color.appTextSecondary)
                     }
 
                     Text(method.description)
                         .font(.custom("PlusJakartaSans-Regular", size: 13))
-                        .foregroundStyle(.white.opacity(0.62))
+                        .foregroundStyle(Color.appTextSecondary)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
 
@@ -283,10 +231,13 @@ private struct StudyDeckMethodCard: View {
                         ForEach(method.tags, id: \.self) { tag in
                             Text(tag)
                                 .font(.custom("PlusJakartaSans-Regular", size: 12))
-                                .foregroundStyle(.white.opacity(0.48))
+                                .foregroundStyle(Color.appTextSecondary)
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 8)
-                                .background(.white.opacity(0.08), in: Capsule())
+                                .background(
+                                    Color.appSecondarySurface,
+                                    in: Capsule()
+                                )
                         }
                     }
                     .padding(.top, 8)
@@ -294,10 +245,18 @@ private struct StudyDeckMethodCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(28)
-            .background(.white.opacity(isSelected ? 0.23 : 0.18), in: RoundedRectangle(cornerRadius: 20))
+            .background(
+                isSelected
+                    ? Color.appSecondarySurface
+                    : Color.appSurface,
+                in: RoundedRectangle(cornerRadius: 8)
+            )
             .overlay {
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(isSelected ? accent : .white.opacity(0.28), lineWidth: isSelected ? 2 : 1.5)
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(
+                        isSelected ? Color.appAccent : Color.appBorder,
+                        lineWidth: isSelected ? 2 : 1
+                    )
             }
         }
         .buttonStyle(.plain)

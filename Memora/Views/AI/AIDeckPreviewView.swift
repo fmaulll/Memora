@@ -7,17 +7,15 @@ struct AIDeckPreviewView: View {
 
     let deck: GeneratedDeckResponse
     let timeline: StudyTimelineResponse?
+    let targetDate: Date?
 
     let onDeckCreated: (StudyDeck) -> Void
     let existingDeck: StudyDeck?
 
     @State private var isCreating = false
+    @State private var errorMessage: String?
 
-    private let accent = Color(
-        red: 0.40,
-        green: 0.40,
-        blue: 0.95
-    )
+    private let accent = Color.appAccent
 
     var body: some View {
         AppBackground {
@@ -32,7 +30,16 @@ struct AIDeckPreviewView: View {
                         studyTimeline(timeline)
                     }
 
-                    chapters
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(
+                                .custom(
+                                    "PlusJakartaSans-Regular",
+                                    size: 13
+                                )
+                            )
+                            .foregroundStyle(Color.appError)
+                    }
 
                 }
                 .padding(.horizontal, 20)
@@ -204,16 +211,27 @@ struct AIDeckPreviewView: View {
                     .white.opacity(0.45)
                 )
 
-            Text(
-                "\(timeline.totalDays) day study plan"
-            )
-            .font(
-                .custom(
-                    "PlusJakartaSans-Bold",
-                    size: 18
+            if let targetDate {
+                Text(
+                    "Ready by \(targetDate.formatted(date: .long, time: .omitted))"
                 )
-            )
-            .foregroundStyle(.white)
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Bold",
+                        size: 18
+                    )
+                )
+                .foregroundStyle(.white)
+            }
+
+            Text("\(timeline.totalDays) day study plan")
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Regular",
+                        size: 13
+                    )
+                )
+                .foregroundStyle(Color.appTextSecondary)
 
             Text(
                 "Complete \(timeline.totalCards) flashcards based on your study schedule."
@@ -408,9 +426,16 @@ struct AIDeckPreviewView: View {
 
             isCreating = true
 
-            if let createdDeck = createDeck() {
+            do {
+                let createdDeck = try AIDeckCreationService.shared.createDeck(
+                    from: deck,
+                    existingDeck: existingDeck,
+                    modelContext: modelContext
+                )
+
                 onDeckCreated(createdDeck)
-            } else {
+            } catch {
+                errorMessage = error.localizedDescription
                 isCreating = false
             }
         }
@@ -418,84 +443,4 @@ struct AIDeckPreviewView: View {
         .padding(.horizontal, 20)
     }
 
-    // MARK: - Create
-
-    private func createDeck() -> StudyDeck? {
-        let rootDeck: StudyDeck
-
-        if let existingDeck {
-            guard existingDeck.parentDeck == nil else {
-                print("❌ AI DECK MUST BE ROOT")
-                return nil
-            }
-
-            guard existingDeck.cards.isEmpty else {
-                print("❌ AI DECK MUST BE EMPTY")
-                return nil
-            }
-
-            guard existingDeck.childDecks.isEmpty else {
-                print("❌ AI DECK MUST HAVE NO CHILDREN")
-                return nil
-            }
-
-            rootDeck = existingDeck
-            rootDeck.isSynced = false
-
-        } else {
-            rootDeck = StudyDeck(
-                id: deck.id,
-                title: deck.title,
-                subject: deck.subject,
-                educationLevel: deck.educationLevel,
-                generationStatus: deck.generationStatus
-            )
-
-            rootDeck.isSynced = false
-            modelContext.insert(rootDeck)
-        }
-
-        for chapter in deck.chapters {
-
-            let chapterDeck = StudyDeck(
-                id: chapter.id,
-                title: chapter.title,
-                subject: deck.subject,
-                educationLevel: deck.educationLevel,
-                parentDeck: rootDeck,
-                generationStatus: chapter.generationStatus
-            )
-
-            chapterDeck.isSynced = false
-
-            modelContext.insert(chapterDeck)
-        }
-
-        do {
-            try modelContext.save()
-
-            print("========== AI DECK CREATED LOCALLY ==========")
-            print("ROOT DECK:", rootDeck.title)
-            print("CHAPTERS:", rootDeck.childDecks.count)
-
-            for chapter in rootDeck.childDecks {
-                print(
-                    "CHAPTER:",
-                    chapter.title,
-                    "| CARDS:",
-                    chapter.cards.count
-                )
-            }
-
-            return rootDeck
-
-        } catch {
-            print(
-                "❌ FAILED TO CREATE AI DECK:",
-                error
-            )
-
-            return nil
-        }
-    }
 }

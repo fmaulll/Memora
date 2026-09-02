@@ -6,15 +6,31 @@ final class AIService {
 
     private init() {}
 
+    // MARK: - Study Materials
+
+    func uploadStudyMaterials(
+        _ fileURLs: [URL]
+    ) async throws -> [UploadedStudyMaterial] {
+        let response: StudyMaterialsUploadResponse =
+            try await APIClient.shared.upload(
+                endpoint: "/ai/study-materials",
+                files: fileURLs,
+                fieldName: "files",
+                timeout: 300
+            )
+
+        return response.materials
+    }
+
     // MARK: - Generate Plan
 
     func generatePlan(
         topic: String,
         educationLevel: String,
         studyPurpose: String,
-        studyGoal: String,
-        learningDepth: String,
-        targetDate: Date?
+        preparationDetails: String,
+        targetDate: Date?,
+        studyMaterialIDs: [String]? = nil
     ) async throws -> DeckPlanResponse {
 
         let dateFormatter = DateFormatter()
@@ -30,9 +46,9 @@ final class AIService {
             topic: topic,
             educationLevel: educationLevel,
             studyPurpose: studyPurpose,
-            studyGoal: studyGoal,
-            learningDepth: learningDepth,
-            targetDate: formattedTargetDate
+            preparationDetails: preparationDetails,
+            targetDate: formattedTargetDate,
+            studyMaterialIDs: studyMaterialIDs
         )
 
         return try await APIClient.shared.request(

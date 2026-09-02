@@ -6,18 +6,29 @@ struct DeckPlanRequest: Encodable {
     let topic: String
     let educationLevel: String
     let studyPurpose: String
-    let studyGoal: String
-    let learningDepth: String
+    let preparationDetails: String
     let targetDate: String?
+    let studyMaterialIDs: [String]?
 
     enum CodingKeys: String, CodingKey {
         case topic
         case educationLevel = "education_level"
         case studyPurpose = "study_purpose"
-        case studyGoal = "study_goal"
-        case learningDepth = "learning_depth"
+        case preparationDetails = "preparation_details"
         case targetDate = "target_date"
+        case studyMaterialIDs = "study_material_ids"
     }
+}
+
+// MARK: - Study Materials
+
+struct StudyMaterialsUploadResponse: Decodable {
+    let materials: [UploadedStudyMaterial]
+}
+
+struct UploadedStudyMaterial: Decodable, Identifiable {
+    let id: String
+    let filename: String
 }
 
 // MARK: - Plan Response
