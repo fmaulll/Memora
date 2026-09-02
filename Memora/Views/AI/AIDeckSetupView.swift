@@ -56,7 +56,7 @@ struct AIDeckSetupView: View {
 
                     targetDateSection
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, 20)
                 .padding(.top, 20)
                 .padding(.bottom, 40)
             }

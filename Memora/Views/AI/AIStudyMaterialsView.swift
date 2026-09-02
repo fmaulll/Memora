@@ -50,7 +50,7 @@ struct AIStudyMaterialsView: View {
                             .foregroundStyle(Color.appError)
                     }
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, 20)
                 .padding(.top, 20)
                 .padding(.bottom, 40)
             }
