@@ -37,7 +37,16 @@ struct CreateOwnDeckView: View {
         case educationLevel
     }
 
-    private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
+    private let accent = Color.appAccent
+
+    private let educationLevels = [
+        "Elementary School",
+        "Middle School",
+        "High School",
+        "University",
+        "Professional",
+        "Self-taught",
+    ]
 
     init(
         existingDeck: StudyDeck? = nil,
@@ -91,19 +100,19 @@ struct CreateOwnDeckView: View {
 
                         Text(headerEyebrow)
                             .font(.custom("PlusJakartaSans-Bold", size: 14))
-                            .foregroundStyle(.white.opacity(0.62))
+                            .foregroundStyle(Color.appAccent)
                             .padding(.top, 16)
 
                         Text(headerTitle)
                             .font(.custom("PlusJakartaSans-ExtraBold", size: 40))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Color.appTextPrimary)
                             .tracking(-1)
                             .lineSpacing(-3)
                             .padding(.top, 16)
 
                         Text(headerDescription)
                             .font(.custom("PlusJakartaSans-Regular", size: 16))
-                            .foregroundStyle(.white.opacity(0.62))
+                            .foregroundStyle(Color.appTextSecondary)
                             .padding(.top, 20)
 
                         if let parentDeck {
@@ -129,16 +138,11 @@ struct CreateOwnDeckView: View {
                             )
                             .padding(.top, 24)
 
-                            formField(
-                                label: "EDUCATION LEVEL",
-                                placeholder: "e.g. University, High School, Self-Study",
-                                text: $educationLevel,
-                                field: .educationLevel
-                            )
+                            educationLevelSection
                             .padding(.top, 24)
                         }
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, 24)
                 }
                 .safeAreaInset(edge: .top, spacing: 0) {
                     BackNavigationBar(
@@ -151,7 +155,7 @@ struct CreateOwnDeckView: View {
         }
         .preferredColorScheme(.dark)
         .navigationBarBackButtonHidden()
-        .dismissKeyboardOnTap()
+        // .dismissKeyboardOnTap()
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
                 if !isEditMode && (mode == .withCards || mode == .empty && parentDeck == nil) {
@@ -172,7 +176,7 @@ struct CreateOwnDeckView: View {
                                 ? (parentDeck != nil ? "Create Sub-deck" : "Create Deck")
                                 : "Continue",
                         foreground: canContinue ? .white : .white.opacity(0.45),
-                        background: AnyShapeStyle(LinearGradient(colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)], startPoint: .leading, endPoint: .trailing))
+                        background: Color.appAccent
                     ) {
                         if isEditMode {
                             saveDeck()
@@ -181,13 +185,18 @@ struct CreateOwnDeckView: View {
                         }
                     }
                     .disabled(!canContinue)
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, 24)
                     .ignoresSafeArea(.keyboard, edges: .bottom)
                 }
             }
             .padding(.top, 12)
             .padding(.bottom, 12)
-            .background(.black.opacity(0.92))
+            .background(Color.appBackground)
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(Color.appBorder)
+                    .frame(height: 1)
+            }
         }
         .navigationDestination(isPresented: $isShowingAddFlashcards) {
             if let createdDeck {
@@ -271,8 +280,8 @@ struct CreateOwnDeckView: View {
     private func parentDeckPreview(_ parentDeck: StudyDeck) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("PARENT DECK")
-                .font(.custom("PlusJakartaSans-Regular", size: 14))
-                .foregroundStyle(.white.opacity(0.62))
+                .font(.custom("PlusJakartaSans-Bold", size: 11))
+                .foregroundStyle(Color.appTextSecondary)
 
             HStack(spacing: 12) {
                 Image(systemName: "folder.fill")
@@ -281,25 +290,22 @@ struct CreateOwnDeckView: View {
 
                 Text(parentDeck.title)
                     .font(.custom("PlusJakartaSans-SemiBold", size: 16))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.appTextPrimary)
                     .lineLimit(1)
 
                 Spacer()
 
                 Image(systemName: "lock.fill")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.35))
+                    .foregroundStyle(Color.appTextSecondary)
             }
             .padding(.horizontal, 15)
             .frame(maxWidth: .infinity)
             .frame(height: 52)
-            .background(
-                .white.opacity(0.12),
-                in: RoundedRectangle(cornerRadius: 12)
-            )
+            .background(Color.appSurface, in: RoundedRectangle(cornerRadius: 8))
             .overlay {
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(.white.opacity(0.20), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.appBorder, lineWidth: 1)
             }
         }
     }
@@ -310,16 +316,16 @@ struct CreateOwnDeckView: View {
         text: Binding<String>,
         field: Field
     ) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 10) {
 
             Text(label)
                 .font(
                     .custom(
-                        "PlusJakartaSans-Regular",
-                        size: 14
+                        "PlusJakartaSans-Bold",
+                        size: 11
                     )
                 )
-                .foregroundStyle(.white.opacity(0.62))
+                .foregroundStyle(Color.appTextSecondary)
 
             TextField(
                 placeholder,
@@ -331,30 +337,78 @@ struct CreateOwnDeckView: View {
                     size: 16
                 )
             )
-            .foregroundStyle(.white)
+            .foregroundStyle(Color.appTextPrimary)
             .tint(accent)
             .focused(
                 $focusedField,
                 equals: field
             )
-            .padding(.horizontal, 15)
+            .padding(.horizontal, 16)
             .frame(maxWidth: .infinity)
-            .frame(height: 52)
+            .frame(height: 56)
             .contentShape(Rectangle())
-            .background(
-                .white.opacity(0.18),
-                in: RoundedRectangle(
-                    cornerRadius: 12
-                )
-            )
+            .background(Color.appSurface, in: RoundedRectangle(cornerRadius: 8))
             .overlay {
-                RoundedRectangle(
-                    cornerRadius: 12
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.appBorder, lineWidth: 1)
+            }
+        }
+    }
+
+    private var educationLevelSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("EDUCATION LEVEL")
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Bold",
+                        size: 11
+                    )
                 )
-                .stroke(
-                    .white.opacity(0.28),
-                    lineWidth: 1.03
+                .foregroundStyle(Color.appTextSecondary)
+
+            Menu {
+                ForEach(educationLevels, id: \.self) { level in
+                    Button {
+                        educationLevel = level
+                    } label: {
+                        Text(level)
+                    }
+                }
+            } label: {
+                HStack {
+                    Text(
+                        educationLevel.isEmpty
+                            ? "Select education level"
+                            : educationLevel
+                    )
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-Regular",
+                            size: 16
+                        )
+                    )
+                    .foregroundStyle(
+                        educationLevel.isEmpty
+                            ? Color.appTextSecondary
+                            : Color.appTextPrimary
+                    )
+
+                    Spacer()
+
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color.appTextSecondary)
+                }
+                .padding(.horizontal, 16)
+                .frame(height: 56)
+                .background(
+                    Color.appSurface,
+                    in: RoundedRectangle(cornerRadius: 8)
                 )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.appBorder, lineWidth: 1)
+                }
             }
         }
     }

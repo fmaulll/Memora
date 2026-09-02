@@ -42,11 +42,7 @@ struct AddFlashcardView: View {
 
     let onFinish: (() -> Void)?
 
-    private let accent = Color(
-        red: 0.39,
-        green: 0.40,
-        blue: 0.95
-    )
+    private let accent = Color.appAccent
 
     private let minEditorHeight: CGFloat = 44
 
@@ -94,16 +90,16 @@ struct AddFlashcardView: View {
                                     Text("\(deck.cards.filter { !$0.needsDeletion }.count)")
                                         .font(.custom("PlusJakartaSans-Bold", size: 14))
                                 }
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Color.appTextPrimary)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)
                                 .background(
-                                    .white.opacity(0.12),
+                                    Color.appSurface,
                                     in: Capsule()
                                 )
                                 .overlay {
                                     Capsule()
-                                        .stroke(accent.opacity(0.5), lineWidth: 1.03)
+                                        .stroke(Color.appBorder, lineWidth: 1)
                                 }
                             }
                             .buttonStyle(.plain)
@@ -114,14 +110,14 @@ struct AddFlashcardView: View {
 
                         Text("Add flashcards")
                             .font(.custom("PlusJakartaSans-ExtraBold", size: 40))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Color.appTextPrimary)
                             .tracking(-1)
                             .lineSpacing(-3)
                             .padding(.top, 16)
 
                         Text("Write the question and its answer")
                             .font(.custom("PlusJakartaSans-Regular", size: 16))
-                            .foregroundStyle(.white.opacity(0.62))
+                            .foregroundStyle(Color.appTextSecondary)
                             .padding(.top, 20)
 
                         sideSwitcher
@@ -133,7 +129,7 @@ struct AddFlashcardView: View {
                         if !deck.cards.isEmpty {
                             Text("Tap a card below to edit it")
                                 .font(.custom("PlusJakartaSans-Regular", size: 13))
-                                .foregroundStyle(.white.opacity(0.45))
+                                .foregroundStyle(Color.appTextSecondary)
                                 .padding(.top, 24)
 
                             VStack(spacing: 12) {
@@ -154,7 +150,7 @@ struct AddFlashcardView: View {
                         Color.clear
                             .frame(height: 120)
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, 24)
                 }
                 .safeAreaInset(edge: .top, spacing: 0) {
                     BackNavigationBar {
@@ -165,7 +161,7 @@ struct AddFlashcardView: View {
         }
         .preferredColorScheme(.dark)
         .navigationBarBackButtonHidden()
-        .dismissKeyboardOnTap()
+        // .dismissKeyboardOnTap()
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .safeAreaInset(edge: .bottom, spacing: 0) {
 
@@ -184,7 +180,12 @@ struct AddFlashcardView: View {
             }
             .padding(.top, 12)
             .padding(.bottom, 12)
-            .background(.black.opacity(0.92))
+            .background(Color.appBackground)
+            .overlay(alignment: .top) {
+                Rectangle()
+                    .fill(Color.appBorder)
+                    .frame(height: 1)
+            }
         }
     }
 
@@ -194,7 +195,10 @@ struct AddFlashcardView: View {
             sideButton(title: "Back", side: .back)
         }
         .padding(4)
-        .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
+        .background(
+            Color.appSecondarySurface,
+            in: RoundedRectangle(cornerRadius: 8)
+        )
     }
 
     private func sideButton(title: String, side: CardSide) -> some View {
@@ -203,11 +207,20 @@ struct AddFlashcardView: View {
         } label: {
             Text(title)
                 .font(.custom("PlusJakartaSans-SemiBold", size: 15))
-                .foregroundStyle(selectedSide == side ? .black : .white.opacity(0.62))
+                .foregroundStyle(
+                    selectedSide == side
+                        ? Color.appTextPrimary
+                        : Color.appTextSecondary
+                )
                 .frame(maxWidth: .infinity)
                 .frame(height: 44)
                 .contentShape(Rectangle())
-                .background(selectedSide == side ? .white : .clear, in: RoundedRectangle(cornerRadius: 12))
+                .background(
+                    selectedSide == side
+                        ? Color.appSurface
+                        : .clear,
+                    in: RoundedRectangle(cornerRadius: 6)
+                )
         }
         .buttonStyle(.plain)
     }
@@ -228,7 +241,10 @@ struct AddFlashcardView: View {
                         .font(.system(size: 16, weight: .medium))
                         .foregroundStyle(accent)
                         .frame(width: 36, height: 36)
-                        .background(accent.opacity(0.15), in: Circle())
+                        .background(
+                            Color.appSecondarySurface,
+                            in: Circle()
+                        )
                 }
                 .buttonStyle(.plain)
             }
@@ -237,7 +253,7 @@ struct AddFlashcardView: View {
                 if activeText.isEmpty {
                     Text(selectedSide == .front ? "Question or term..." : "Answer or definition...")
                         .font(.custom("PlusJakartaSans-Regular", size: 16))
-                        .foregroundStyle(.white.opacity(0.35))
+                        .foregroundStyle(Color.appTextSecondary)
                         .padding(.top, 8)
                         .padding(.leading, 5)
                 }
@@ -259,7 +275,7 @@ struct AddFlashcardView: View {
 
                 TextEditor(text: activeTextBinding)
                     .font(.custom("PlusJakartaSans-Regular", size: 16))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.appTextPrimary)
                     .tint(accent)
                     .focused($isEditorFocused)
                     .scrollContentBackground(.hidden)
@@ -282,9 +298,9 @@ struct AddFlashcardView: View {
                             } label: {
                                 Image(systemName: "xmark")
                                     .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(Color.appTextPrimary)
                                     .frame(width: 26, height: 26)
-                                    .background(.black.opacity(0.55), in: Circle())
+                                    .background(Color.appSurface, in: Circle())
                             }
                             .buttonStyle(.plain)
                             .padding(8)
@@ -300,17 +316,17 @@ struct AddFlashcardView: View {
                 PhotosPicker(selection: activeImageItemBinding, matching: .images) {
                     Image(systemName: "paperclip")
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.7))
+                        .foregroundStyle(Color.appTextSecondary)
                         .frame(width: 36, height: 36)
-                        .background(.white.opacity(0.12), in: Circle())
+                        .background(Color.appSecondarySurface, in: Circle())
                 }
             }
         }
-        .padding(20)
-        .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 20))
+        .padding(16)
+        .background(Color.appSurface, in: RoundedRectangle(cornerRadius: 8))
         .overlay {
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(.white.opacity(0.28), lineWidth: 1.5)
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.appBorder, lineWidth: 1)
         }
         .onChange(of: frontImageItem) { _, newItem in
             loadImage(from: newItem) { data in frontImageData = data }
@@ -335,14 +351,7 @@ struct AddFlashcardView: View {
                     AppButton(
                         title: "Edit Card",
                         icon: .sf("checkmark"),
-                        background: LinearGradient(
-                            colors: [
-                                accent,
-                                Color(red: 0.55, green: 0.36, blue: 0.96)
-                            ],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
+                        background: Color.appAccent
                     ) {
                         updateCard()
                     }
@@ -352,16 +361,16 @@ struct AddFlashcardView: View {
                     } label: {
                         Image(systemName: "trash")
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Color.appError)
                             .frame(width: 58, height: 56)
                             .background(
-                                .red.opacity(0.12),
-                                in: RoundedRectangle(cornerRadius: 16)
+                                Color.appSecondarySurface,
+                                in: RoundedRectangle(cornerRadius: 8)
                             )
                             .overlay {
-                                RoundedRectangle(cornerRadius: 16)
+                                RoundedRectangle(cornerRadius: 8)
                                     .stroke(
-                                        .red.opacity(0.25),
+                                        Color.appError,
                                         lineWidth: 1
                                     )
                             }
@@ -385,19 +394,12 @@ struct AddFlashcardView: View {
                                     )
                                 )
                         }
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.appTextPrimary)
                         .frame(maxWidth: .infinity)
                         .frame(height: 56)
                         .background(
-                            LinearGradient(
-                                colors: [
-                                    accent,
-                                    Color(red: 0.55, green: 0.36, blue: 0.96)
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            ),
-                            in: RoundedRectangle(cornerRadius: 16)
+                            Color.appAccent,
+                            in: RoundedRectangle(cornerRadius: 8)
                         )
                     }
                     .buttonStyle(.plain)
@@ -646,17 +648,12 @@ struct AddFlashcardView: View {
         } label: {
             Image(systemName: "checkmark")
                 .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(.white.opacity(0.78))
+                    .foregroundStyle(Color.appTextPrimary)
                 .frame(width: 40, height: 40)
                 .background(
-                LinearGradient(
-                    colors: [
-                        accent,
-                        Color(red: 0.55, green: 0.36, blue: 0.96)
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                ), in: Circle())
+                Color.appAccent,
+                in: Circle()
+            )
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Done adding flashcards")
@@ -673,7 +670,7 @@ struct AddFlashcardView: View {
                 HStack(alignment: .top, spacing: 14) {
                     Text("\(index + 1)")
                         .font(.custom("PlusJakartaSans-Bold", size: 13))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.appTextPrimary)
                         .frame(width: 26, height: 26)
                         .background(accent, in: Circle())
 
@@ -686,7 +683,7 @@ struct AddFlashcardView: View {
 
                         Text(card.back)
                             .font(.custom("PlusJakartaSans-Regular", size: 14))
-                            .foregroundStyle(.white.opacity(0.62))
+                            .foregroundStyle(Color.appTextSecondary)
                             .lineLimit(1)
                             .truncationMode(.tail)
                     }
@@ -694,11 +691,11 @@ struct AddFlashcardView: View {
                     Spacer(minLength: 30)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(18)
-                .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 20))
+                .padding(16)
+                .background(Color.appSurface, in: RoundedRectangle(cornerRadius: 8))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 20)
-                        .stroke(.white.opacity(0.28), lineWidth: 1.5)
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.appBorder, lineWidth: 1)
                 }
             }
             .buttonStyle(.plain)
@@ -708,9 +705,9 @@ struct AddFlashcardView: View {
             } label: {
                 Image(systemName: "xmark")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(Color.appTextSecondary)
                     .frame(width: 28, height: 28)
-                    .background(.white.opacity(0.12), in: Circle())
+                    .background(Color.appSecondarySurface, in: Circle())
             }
             .buttonStyle(.plain)
             .padding(12)

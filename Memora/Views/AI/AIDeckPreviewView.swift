@@ -54,21 +54,16 @@ struct AIDeckPreviewView: View {
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 VStack(spacing: 0) {
 
-                    WorkflowIndicator(
-                        numberOfSteps: 4,
-                        currentStep: 3,
-                        accent: accent
-                    )
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 12)
-
                     createButton
                 }
                 .padding(.top, 12)
                 .padding(.bottom, 12)
-                .background(
-                    .black.opacity(0.92)
-                )
+                .background(Color.appBackground)
+                .overlay(alignment: .top) {
+                    Rectangle()
+                        .fill(.white.opacity(0.10))
+                        .frame(height: 1)
+                }
             }
         }
         .navigationBarBackButtonHidden()
@@ -406,21 +401,7 @@ struct AIDeckPreviewView: View {
             title: isCreating
                 ? "Creating..."
                 : "Create Deck",
-            foreground: .white,
-            background: AnyShapeStyle(
-                LinearGradient(
-                    colors: [
-                        accent,
-                        Color(
-                            red: 0.55,
-                            green: 0.36,
-                            blue: 0.96
-                        )
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            )
+            foreground: Color.appTextPrimary
         ) {
             guard !isCreating else { return }
 

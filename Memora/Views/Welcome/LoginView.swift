@@ -151,7 +151,7 @@ struct LoginView: View {
         }
         .preferredColorScheme(.dark)
         .navigationBarBackButtonHidden()
-        .dismissKeyboardOnTap()
+        // .dismissKeyboardOnTap()
     }
 
     // MARK: - Form Field
