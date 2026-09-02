@@ -14,9 +14,8 @@ struct LibraryView: View {
     @State private var selectedDeck: StudyDeck?
     @State private var expandedDeckIDs: Set<UUID> = []
 
-    private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
+    private let accent = Color.appAccent
     private let recentLimit = 5
-    private let cardColors: [Color] = [.green, .blue, .orange, .purple]
 
     private var rootDecks: [StudyDeck] {
         decks.filter { $0.parentDeck == nil }
@@ -96,16 +95,25 @@ struct LibraryView: View {
     private var searchField: some View {
         HStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
-                .foregroundStyle(.white.opacity(0.4))
+                .foregroundStyle(Color.appTextSecondary)
 
-            TextField("", text: $searchText, prompt: Text("Search decks or subjects...").foregroundColor(.white.opacity(0.4)))
+            TextField(
+                "",
+                text: $searchText,
+                prompt: Text("Search decks or subjects...")
+                    .foregroundColor(Color.appTextSecondary)
+            )
                 .font(.custom("PlusJakartaSans-Regular", size: 16))
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.appTextPrimary)
                 .tint(accent)
         }
-        .padding(.horizontal, 18)
-        .frame(height: 54)
-        .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
+        .padding(.horizontal, 16)
+        .frame(height: 56)
+        .background(Color.appSurface, in: RoundedRectangle(cornerRadius: 8))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.appBorder, lineWidth: 1)
+        }
     }
 
     private var filterRow: some View {
@@ -125,18 +133,43 @@ struct LibraryView: View {
             HStack(spacing: 8) {
                 Text(title)
                     .font(.custom("PlusJakartaSans-SemiBold", size: 14))
-                    .foregroundStyle(isSelected ? .white : .white.opacity(0.62))
+                    .foregroundStyle(
+                        isSelected
+                            ? Color.appTextPrimary
+                            : Color.appTextSecondary
+                    )
 
                 Text("\(count)")
                     .font(.custom("PlusJakartaSans-Bold", size: 12))
-                    .foregroundStyle(isSelected ? accent : .white.opacity(0.7))
+                    .foregroundStyle(
+                        isSelected
+                            ? Color.appTextPrimary
+                            : Color.appTextSecondary
+                    )
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(isSelected ? .white : .white.opacity(0.15), in: Capsule())
+                    .background(
+                        isSelected
+                            ? accent.opacity(0.35)
+                            : Color.appSecondarySurface,
+                        in: Capsule()
+                    )
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
-            .background(isSelected ? AnyShapeStyle(accent) : AnyShapeStyle(.white.opacity(0.08)), in: Capsule())
+            .background(
+                isSelected
+                    ? Color.appSecondarySurface
+                    : Color.appSurface,
+                in: Capsule()
+            )
+            .overlay {
+                Capsule()
+                    .stroke(
+                        isSelected ? accent : Color.appBorder,
+                        lineWidth: isSelected ? 2 : 1
+                    )
+            }
         }
         .buttonStyle(.plain)
     }
@@ -182,7 +215,7 @@ struct LibraryView: View {
                             size: isChild ? 16 : 17
                         )
                     )
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.appTextPrimary)
 
 
                 HStack(spacing: 4) {
@@ -196,8 +229,8 @@ struct LibraryView: View {
                         )
                         .foregroundStyle(
                             deck.isFavorite
-                                ? .red
-                                : .white.opacity(0.4)
+                                ? Color.appError
+                                : Color.appTextSecondary
                         )
                         .font(.system(size: 16))
                         .frame(width: 36, height: 36)
@@ -213,7 +246,7 @@ struct LibraryView: View {
                             size: 13
                         )
                     )
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(Color.appTextSecondary)
                 }
             }
 
@@ -235,33 +268,33 @@ struct LibraryView: View {
                             weight: .semibold
                         )
                     )
-                    .foregroundStyle(.white.opacity(0.78))
+                    .foregroundStyle(Color.appTextSecondary)
                     .frame(width: 40, height: 40)
                     // .background(.white.opacity(0.18), in: Circle())
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 15)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
         .frame(maxWidth: .infinity)
         .background(
-            .white.opacity(isChild ? 0.035 : 0.055),
+            isChild ? Color.appSecondarySurface : Color.appSurface,
             in: UnevenRoundedRectangle(
-                topLeadingRadius: isChild ? 0 : 20,
-                bottomLeadingRadius: isLast || expandedDeckIDs.contains(deck.id) ? 20 : !isChild && !expandedDeckIDs.contains(deck.id) ? 20 : 0,
-                bottomTrailingRadius: isLast ? 20 : !isChild && !expandedDeckIDs.contains(deck.id) ? 20 : 0,
-                topTrailingRadius: isChild ? 0 : 20
+                topLeadingRadius: isChild ? 0 : 8,
+                bottomLeadingRadius: isLast || expandedDeckIDs.contains(deck.id) ? 8 : !isChild && !expandedDeckIDs.contains(deck.id) ? 8 : 0,
+                bottomTrailingRadius: isLast ? 8 : !isChild && !expandedDeckIDs.contains(deck.id) ? 8 : 0,
+                topTrailingRadius: isChild ? 0 : 8
             )
         )
         .overlay {
             UnevenRoundedRectangle(
-                topLeadingRadius: isChild ? 0 : 20,
-                bottomLeadingRadius: isLast || expandedDeckIDs.contains(deck.id) ? 20 : !isChild && !expandedDeckIDs.contains(deck.id) ? 20 : 0,
-                bottomTrailingRadius: isLast ? 20 : !isChild && !expandedDeckIDs.contains(deck.id) ? 20 : 0,
-                topTrailingRadius: isChild ? 0 : 20
+                topLeadingRadius: isChild ? 0 : 8,
+                bottomLeadingRadius: isLast || expandedDeckIDs.contains(deck.id) ? 8 : !isChild && !expandedDeckIDs.contains(deck.id) ? 8 : 0,
+                bottomTrailingRadius: isLast ? 8 : !isChild && !expandedDeckIDs.contains(deck.id) ? 8 : 0,
+                topTrailingRadius: isChild ? 0 : 8
             )
-            .stroke(.white.opacity(isChild ? 0.08 : 0.12), lineWidth: 1)
+            .stroke(Color.appBorder, lineWidth: 1)
         }
         .padding(.leading, isChild ? 24 : 0)
         .contentShape(Rectangle())
@@ -282,28 +315,13 @@ struct LibraryView: View {
         VStack(spacing: 12) {
             Image(systemName: "books.vertical")
                 .font(.system(size: 40))
-                .foregroundStyle(.white.opacity(0.2))
+                .foregroundStyle(Color.appTextSecondary)
 
             Text("No decks found")
                 .font(.custom("PlusJakartaSans-SemiBold", size: 17))
-                .foregroundStyle(.white.opacity(0.6))
+                .foregroundStyle(Color.appTextSecondary)
         }
         .frame(maxWidth: .infinity)
-    }
-
-    private func color(for deck: StudyDeck) -> Color {
-        guard let index = decks.firstIndex(where: { $0.id == deck.id }) else { return accent }
-        return cardColors[index % cardColors.count]
-    }
-
-    private func dateLabel(for date: Date) -> String {
-        if Calendar.current.isDateInToday(date) {
-            return "Today"
-        }
-
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        return formatter.string(from: date)
     }
 
     private func toggleFavorite(_ deck: StudyDeck) {

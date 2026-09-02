@@ -18,17 +18,13 @@ struct DeckOptionsSheet: View {
     let onGenerateMoreCardsWithAI: () -> Void
     
 
-    private let accent = Color(
-        red: 0.40,
-        green: 0.40,
-        blue: 0.95
-    )
+    private let accent = Color.appAccent
 
     var body: some View {
         VStack(spacing: 0) {
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 8) {
 
                     optionButton(
                         title: "Edit Deck",
@@ -98,19 +94,13 @@ struct DeckOptionsSheet: View {
                         action: onDeleteDeck
                     )
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 24)
             }
 
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            Color(
-                red: 0.035,
-                green: 0.035,
-                blue: 0.16
-            )
-        )
+        .background(Color.appBackground)
         .preferredColorScheme(.dark)
     }
 
@@ -123,10 +113,16 @@ struct DeckOptionsSheet: View {
         Button {
             action()
         } label: {
-            HStack(spacing: 20) {
+            HStack(spacing: 14) {
                 Image(systemName: icon)
-                    .font(.system(size: 20, weight: .medium))
-                    .frame(width: 34)
+                    .font(.system(size: 17, weight: .semibold))
+                    .frame(width: 40, height: 40)
+                    .background(
+                        destructive
+                            ? Color.appSecondarySurface
+                            : Color.appSurface,
+                        in: RoundedRectangle(cornerRadius: 8)
+                    )
 
                 Text(title)
                     .font(
@@ -140,12 +136,26 @@ struct DeckOptionsSheet: View {
             }
             .foregroundStyle(
                 destructive
-                    ? Color.red.opacity(0.9)
-                    : .white.opacity(0.88)
+                    ? Color.appError
+                    : Color.appTextPrimary
             )
+            .padding(.horizontal, 16)
             .frame(maxWidth: .infinity)
-            .frame(height: 74)
+            .frame(height: 64)
             .contentShape(Rectangle())
+            .background(
+                destructive
+                    ? Color.appSecondarySurface
+                    : Color.appSurface,
+                in: RoundedRectangle(cornerRadius: 8)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(
+                        destructive ? Color.appError : Color.appBorder,
+                        lineWidth: 1
+                    )
+            }
         }
         .buttonStyle(.plain)
     }

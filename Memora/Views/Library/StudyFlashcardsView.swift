@@ -664,7 +664,7 @@ private struct FlashcardView: View {
         }
         .frame(maxWidth: .infinity)
         .frame(minHeight: isAnswerRevealed ? 330 : 265)
-        .padding(.horizontal, 24)
+        .padding(.horizontal, 20)
         .padding(.vertical, 24)
         .background(
             Color.white.opacity(0.055),

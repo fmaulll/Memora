@@ -27,8 +27,7 @@ struct DeckDetailsView: View {
     @State private var generationPollingTask: Task<Void, Never>?
     @State private var isPollingGeneration = false
 
-    private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
-    private let cardFill = Color.white.opacity(0.18)
+    private let accent = Color.appAccent
 
     private var totalCards: Int {
         deck.cards.filter { !$0.needsDeletion }.count
@@ -139,7 +138,7 @@ struct DeckDetailsView: View {
                     if isParentDeck {
                         childDeckSection
                             .padding(.top, 20)
-                            .padding(.horizontal, 20)
+                            .padding(.horizontal, 24)
                     } else {
                         flashcardCarousel
                             .padding(.top, 20)
@@ -171,7 +170,7 @@ struct DeckDetailsView: View {
                                             size: 15
                                         )
                                     )
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(Color.appTextPrimary)
 
                                     Spacer()
 
@@ -186,22 +185,15 @@ struct DeckDetailsView: View {
                                             size: 12
                                         )
                                     )
-                                    .foregroundStyle(.white.opacity(0.5))
+                                    .foregroundStyle(Color.appTextSecondary)
                                 }
                                 .padding(.horizontal, 16)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 54)
                                 .contentShape(Rectangle())
                                 .background(
-                                    LinearGradient(
-                                        colors: [
-                                            accent,
-                                            Color(red: 0.55, green: 0.36, blue: 0.96)
-                                        ],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    ),
-                                    in: RoundedRectangle(cornerRadius: 12)
+                                    Color.appAccent,
+                                    in: RoundedRectangle(cornerRadius: 8)
                                 )
                             }
                             .buttonStyle(.plain)
@@ -227,7 +219,7 @@ struct DeckDetailsView: View {
                                 .padding(.top, 28)
                         }
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, 24)
                 }
             }
             .safeAreaInset(edge: .top, spacing: 0) {
@@ -390,7 +382,7 @@ struct DeckDetailsView: View {
                         size: 28
                     )
                 )
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.appTextPrimary)
                 .lineLimit(2)
 
             HStack(spacing: 8) {
@@ -421,7 +413,7 @@ struct DeckDetailsView: View {
                         size: 13
                     )
                 )
-                .foregroundStyle(.white.opacity(0.55))
+                .foregroundStyle(Color.appTextSecondary)
             }
         }
     }
@@ -433,9 +425,12 @@ struct DeckDetailsView: View {
         } label: {
             Image(systemName: "ellipsis")
                 .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(.white.opacity(0.78))
+                .foregroundStyle(Color.appTextPrimary)
                 .frame(width: 40, height: 40)
-                .background(.white.opacity(0.18), in: Circle())
+                .background(Color.appSurface, in: Circle())
+                .overlay {
+                    Circle().stroke(Color.appBorder, lineWidth: 1)
+                }
         }
         .buttonStyle(.plain)
         .accessibilityLabel("More options for deck \(deck.title)")
@@ -715,7 +710,7 @@ struct DeckDetailsView: View {
                             .fill(
                                 index == currentCardIndex
                                     ? accent
-                                    : .white.opacity(0.12)
+                                    : Color.appBorder
                             )
                             .frame(
                                 width: index == currentCardIndex ? 18 : 6,
@@ -752,7 +747,7 @@ struct DeckDetailsView: View {
                         size: 17
                     )
                 )
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.appTextPrimary)
 
             Text("Add some flashcards to start studying this deck.")
                 .font(
@@ -761,7 +756,7 @@ struct DeckDetailsView: View {
                         size: 13
                     )
                 )
-                .foregroundStyle(.white.opacity(0.5))
+                .foregroundStyle(Color.appTextSecondary)
                 .multilineTextAlignment(.center)
 
             Button {
@@ -774,7 +769,7 @@ struct DeckDetailsView: View {
                             size: 13
                         )
                     )
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.appTextPrimary)
                     .padding(.horizontal, 18)
                     .padding(.vertical, 10)
                     .background(
@@ -787,18 +782,12 @@ struct DeckDetailsView: View {
         .frame(maxWidth: .infinity)
         .frame(height: 265)
         .padding(.horizontal, 24)
-        .background(
-            Color.white.opacity(0.055),
-            in: RoundedRectangle(cornerRadius: 24)
-        )
+        .background(Color.appSurface, in: RoundedRectangle(cornerRadius: 8))
         .overlay {
-            RoundedRectangle(cornerRadius: 24)
-                .stroke(
-                    .white.opacity(0.16),
-                    lineWidth: 1
-                )
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.appBorder, lineWidth: 1)
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 24)
     }
 
     private func masteredCount(for deck: StudyDeck) -> Int {
@@ -819,7 +808,7 @@ struct DeckDetailsView: View {
                             size: 17
                         )
                     )
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.appTextPrimary)
 
                 Spacer()
 
@@ -871,7 +860,7 @@ struct DeckDetailsView: View {
                             size: 15
                         )
                     )
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.appTextPrimary)
 
                 generationStatusText(
                     for: childDeck
@@ -890,31 +879,24 @@ struct DeckDetailsView: View {
                         )
                     )
                     .foregroundStyle(
-                        .white.opacity(0.3)
+                        Color.appTextSecondary
                     )
 
             } else {
 
                 ProgressView()
                     .scaleEffect(0.8)
-                    .tint(.white.opacity(0.6))
+                    .tint(Color.appTextSecondary)
             }
         }
         .padding(16)
         .background(
-            Color.white.opacity(0.055),
-            in: RoundedRectangle(
-                cornerRadius: 16
-            )
+            Color.appSurface,
+            in: RoundedRectangle(cornerRadius: 8)
         )
         .overlay {
-            RoundedRectangle(
-                cornerRadius: 16
-            )
-            .stroke(
-                .white.opacity(0.12),
-                lineWidth: 1
-            )
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.appBorder, lineWidth: 1)
         }
     }
 
@@ -940,7 +922,7 @@ struct DeckDetailsView: View {
                     )
                 )
                 .foregroundStyle(
-                    .white.opacity(0.5)
+                    Color.appTextSecondary
                 )
 
             case "generating":
@@ -970,7 +952,7 @@ struct DeckDetailsView: View {
                     )
                 )
                 .foregroundStyle(
-                    .white.opacity(0.5)
+                    Color.appTextSecondary
                 )
             }
         }
@@ -984,20 +966,20 @@ struct DeckDetailsView: View {
 
                 Text(card.front)
                     .font(.custom("PlusJakartaSans-SemiBold", size: 22))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.appTextPrimary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
 
 
                 if isAnswerRevealed {
                     Divider()
-                        .overlay(.white.opacity(0.10))
+                        .overlay(Color.appBorder)
                         .padding(.horizontal, 40)
                         .padding(.vertical, 28)
 
                     Text(card.back)
                         .font(.custom("PlusJakartaSans-Regular", size: 17))
-                        .foregroundStyle(.white.opacity(0.78))
+                        .foregroundStyle(Color.appTextSecondary)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
                         .transition(
@@ -1009,18 +991,15 @@ struct DeckDetailsView: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: 265)
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 20)
             .padding(.vertical, 24)
             .background(
-                Color.white.opacity(0.055),
-                in: RoundedRectangle(cornerRadius: 24)
+                Color.appSurface,
+                in: RoundedRectangle(cornerRadius: 8)
             )
             .overlay {
-                RoundedRectangle(cornerRadius: 24)
-                    .stroke(
-                        .white.opacity(0.16),
-                        lineWidth: 1
-                    )
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.appBorder, lineWidth: 1)
             }
             .overlay(alignment: .bottomTrailing) {
                 Button {
@@ -1048,7 +1027,7 @@ struct DeckDetailsView: View {
                             size: 13
                         )
                     )
-                    .foregroundStyle(.white.opacity(0.55))
+                    .foregroundStyle(Color.appTextSecondary)
 
                 Spacer()
 
@@ -1066,7 +1045,7 @@ struct DeckDetailsView: View {
                 ZStack(alignment: .leading) {
 
                     Capsule()
-                        .fill(.white.opacity(0.08))
+                        .fill(Color.appSecondarySurface)
 
                     Capsule()
                         .fill(accent)
@@ -1082,19 +1061,19 @@ struct DeckDetailsView: View {
                 progressPill(
                     title: "Mastered",
                     count: masteredCards,
-                    color: .green
+                    color: Color.appSuccess
                 )
 
                 progressPill(
                     title: "Learning",
                     count: learningCards,
-                    color: .orange
+                    color: Color.appWarning
                 )
 
                 progressPill(
                     title: "New",
                     count: newCards,
-                    color: .white.opacity(0.35)
+                    color: Color.appTextSecondary
                 )
 
                 Spacer()
@@ -1121,7 +1100,7 @@ struct DeckDetailsView: View {
                         size: 12
                     )
                 )
-                .foregroundStyle(.white.opacity(0.6))
+                .foregroundStyle(Color.appTextSecondary)
 
             Text("\(count)")
                 .font(
@@ -1130,14 +1109,11 @@ struct DeckDetailsView: View {
                         size: 12
                     )
                 )
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.appTextPrimary)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
-        .background(
-            .white.opacity(0.045),
-            in: Capsule()
-        )
+        .background(Color.appSecondarySurface, in: Capsule())
     }
 
     private var studyAllCompletedCards: Int {
@@ -1158,19 +1134,12 @@ struct DeckDetailsView: View {
         } label: {
             Label("Study Flashcards", systemImage: "play.fill")
                 .font(.custom("PlusJakartaSans-SemiBold", size: 15))
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.appTextPrimary)
                 .frame(maxWidth: .infinity)
                 .frame(height: 54)
                 .background(
-                    LinearGradient(
-                        colors: [
-                            accent,
-                            Color(red: 0.55, green: 0.36, blue: 0.96)
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    ),
-                    in: RoundedRectangle(cornerRadius: 12)
+                    Color.appAccent,
+                    in: RoundedRectangle(cornerRadius: 8)
                 )
         }
         .buttonStyle(.plain)
@@ -1187,18 +1156,21 @@ struct DeckDetailsView: View {
 
                 Text(title)
                     .font(.custom("PlusJakartaSans-SemiBold", size: 15))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.appTextPrimary)
 
                 Text(subtitle)
                     .font(.custom("PlusJakartaSans-Regular", size: 12))
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(Color.appTextSecondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
-            .background(cardFill, in: RoundedRectangle(cornerRadius: 18))
+            .background(
+                Color.appSurface,
+                in: RoundedRectangle(cornerRadius: 8)
+            )
             .overlay {
-                RoundedRectangle(cornerRadius: 18)
-                    .stroke(.white.opacity(0.28), lineWidth: 1.5)
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.appBorder, lineWidth: 1)
             }
         }
         .buttonStyle(.plain)
@@ -1226,7 +1198,7 @@ struct DeckDetailsView: View {
                             size: 17
                         )
                     )
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.appTextPrimary)
 
                 Spacer()
 
@@ -1285,7 +1257,7 @@ struct DeckDetailsView: View {
                     )
                 )
                 .foregroundStyle(
-                    .white.opacity(0.35)
+                    Color.appTextSecondary
                 )
                 .frame(width: 28)
 
@@ -1301,7 +1273,7 @@ struct DeckDetailsView: View {
                             size: 15
                         )
                     )
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.appTextPrimary)
                     .lineLimit(2)
 
                 cardStatus(card)
@@ -1312,22 +1284,18 @@ struct DeckDetailsView: View {
             Image(systemName: "chevron.right")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(
-                    .white.opacity(0.25)
+                    Color.appTextSecondary
                 )
         }
         .padding(16)
         .frame(maxWidth: .infinity)
         .background(
-            
-            Color.white.opacity(0.055),
-            in: RoundedRectangle(cornerRadius: 16)
+            Color.appSurface,
+            in: RoundedRectangle(cornerRadius: 8)
         )
         .overlay {
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(
-                    .white.opacity(0.16),
-                    lineWidth: 1
-                )
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.appBorder, lineWidth: 1)
         }
     }
 
@@ -1346,7 +1314,7 @@ struct DeckDetailsView: View {
                     )
                 )
                 .foregroundStyle(
-                    .white.opacity(0.4)
+                    Color.appTextSecondary
                 )
 
         } else if card.interval < 7 {
@@ -1358,7 +1326,7 @@ struct DeckDetailsView: View {
                         size: 11
                     )
                 )
-                .foregroundStyle(.orange)
+                .foregroundStyle(Color.appWarning)
 
         } else {
 
@@ -1369,7 +1337,7 @@ struct DeckDetailsView: View {
                         size: 11
                     )
                 )
-                .foregroundStyle(.green)
+                .foregroundStyle(Color.appSuccess)
         }
     }
 
