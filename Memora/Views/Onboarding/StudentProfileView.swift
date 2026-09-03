@@ -35,10 +35,10 @@ struct StudentProfileView: View {
     // MARK: - Options
 
     private let situationOptions = [
-        "I'm working",
-        "University student",
-        "School student",
-        "Something else"
+        "School Student",
+        "University",
+        "Professional",
+        "Self-taught",
     ]
 
     private let studyReasonOptions = [

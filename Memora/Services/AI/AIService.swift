@@ -29,6 +29,7 @@ final class AIService {
         educationLevel: String,
         studyPurpose: String,
         preparationDetails: String,
+        learningLanguage: String? = nil,
         targetDate: Date?,
         studyMaterialIDs: [String]? = nil
     ) async throws -> DeckPlanResponse {
@@ -47,6 +48,7 @@ final class AIService {
             educationLevel: educationLevel,
             studyPurpose: studyPurpose,
             preparationDetails: preparationDetails,
+            learningLanguage: learningLanguage,
             targetDate: formattedTargetDate,
             studyMaterialIDs: studyMaterialIDs
         )

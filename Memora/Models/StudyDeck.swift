@@ -10,6 +10,7 @@ final class StudyDeck {
     var educationLevel: String
     var createdAt: Date
     var isFavorite: Bool = false
+    var learningLanguage: String?
     var lastRating: String?
 
     // MARK: - Generation
@@ -61,6 +62,7 @@ final class StudyDeck {
         title: String,
         subject: String,
         educationLevel: String,
+        learningLanguage: String? = "English",
         createdAt: Date = .now,
         cards: [StudyFlashcardCard] = [],
         parentDeck: StudyDeck? = nil,

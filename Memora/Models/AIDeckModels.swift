@@ -7,6 +7,7 @@ struct DeckPlanRequest: Encodable {
     let educationLevel: String
     let studyPurpose: String
     let preparationDetails: String
+    let learningLanguage: String?
     let targetDate: String?
     let studyMaterialIDs: [String]?
 
@@ -15,6 +16,7 @@ struct DeckPlanRequest: Encodable {
         case educationLevel = "education_level"
         case studyPurpose = "study_purpose"
         case preparationDetails = "preparation_details"
+        case learningLanguage = "learning_language"
         case targetDate = "target_date"
         case studyMaterialIDs = "study_material_ids"
     }
@@ -37,12 +39,14 @@ struct DeckPlanResponse: Codable {
     let title: String
     let subject: String
     let educationLevel: String
+    let learningLanguage: String?
     let chapters: [ChapterPlan]
 
     enum CodingKeys: String, CodingKey {
         case title
         case subject
         case educationLevel = "education_level"
+        case learningLanguage = "learning_language"
         case chapters
     }
 }
@@ -72,6 +76,8 @@ struct GeneratedDeckResponse: Decodable {
     let title: String
     let subject: String
     let educationLevel: String
+
+    let learningLanguage: String?
     let generationStatus: String
     let chapters: [GeneratedChapter]
 
@@ -80,6 +86,7 @@ struct GeneratedDeckResponse: Decodable {
         case title
         case subject
         case educationLevel = "education_level"
+        case learningLanguage = "learning_language"
         case generationStatus = "generation_status"
         case chapters
     }

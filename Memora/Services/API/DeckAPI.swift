@@ -13,6 +13,7 @@ final class DeckAPI {
         title: String,
         subject: String,
         educationLevel: String,
+        learningLanguage: String? = nil,
         isFavorite: Bool = false,
         parentDeckId: UUID? = nil
     ) async throws -> DeckResponse {
@@ -22,6 +23,7 @@ final class DeckAPI {
             title: title,
             subject: subject,
             educationLevel: educationLevel,
+            learningLanguage: learningLanguage,
             isFavorite: isFavorite,
             parentDeckId: parentDeckId
         )

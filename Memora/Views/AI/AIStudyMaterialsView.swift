@@ -5,6 +5,7 @@ struct AIStudyMaterialsView: View {
 
     let topic: String
     let preparationDetails: String
+    let learningLanguage: String?
     let educationLevel: String
     let studyPurpose: String
     let targetDate: Date?
@@ -276,6 +277,7 @@ struct AIStudyMaterialsView: View {
                     educationLevel: educationLevel,
                     studyPurpose: studyPurpose,
                     preparationDetails: preparationDetails,
+                    learningLanguage: learningLanguage,
                     targetDate: targetDate,
                     studyMaterialIDs: uploadedMaterials.map(\.id)
                 )

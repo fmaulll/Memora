@@ -10,12 +10,13 @@
   "education_level": "University",
   "study_purpose": "Prepare for an Exam",
   "preparation_details": "CCNA exam covering routing, switching, and subnetting.",
+  "learning_language": "Spanish",
   "target_date": "2026-10-01",
   "study_material_ids": ["material-id-1", "material-id-2"]
 }
 ```
 
-`preparation_details`, `target_date`, and `study_material_ids` are optional. The backend must accept `null` or an empty array for `study_material_ids`. When no material IDs are supplied, generate the plan using the topic and other existing fields exactly as before.
+`preparation_details`, `learning_language`, `target_date`, and `study_material_ids` are optional. When `learning_language` is supplied, use it as the language the student wants to learn or practice. When it is `null`, omit language-specific behavior and generate the plan from the topic and other existing fields. The backend must accept `null` or an empty array for `study_material_ids`. When no material IDs are supplied, generate the plan using the topic and other existing fields exactly as before.
 
 ## Learning Depth
 

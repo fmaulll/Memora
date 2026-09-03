@@ -14,18 +14,18 @@ struct AIDeckSetupView: View {
     @State private var educationLevel = "University"
     @State private var studyPurpose = "Learn from Scratch"
     @State private var preparationDetails = ""
+    @State private var learningLanguage: String? = "English"
 
     @State private var hasTargetDate = false
     @State private var targetDate = Date()
 
     @State private var isShowingStudyMaterials = false
+    @State private var isShowingLanguagePicker = false
 
     private let accent = Color.appAccent
 
     private let educationLevels = [
-        "Elementary School",
-        "Middle School",
-        "High School",
+        "School Student",
         "University",
         "Professional",
         "Self-taught",
@@ -33,6 +33,7 @@ struct AIDeckSetupView: View {
 
     private let studyPurposeOptions = [
         "Learn from Scratch",
+        "Career",
         "Expand My Knowledge",
         "Prepare for an Exam",
         "Prepare for a Certification"
@@ -47,6 +48,8 @@ struct AIDeckSetupView: View {
                     header
 
                     topicSection
+
+                    languageSection
 
                     educationSection
 
@@ -69,6 +72,7 @@ struct AIDeckSetupView: View {
                 preparationDetails: preparationDetails.trimmingCharacters(
                     in: .whitespacesAndNewlines
                 ),
+                learningLanguage: learningLanguage,
                 educationLevel: educationLevel,
                 studyPurpose: studyPurpose,
                 targetDate: hasTargetDate ? targetDate : nil,
@@ -104,6 +108,10 @@ struct AIDeckSetupView: View {
             }
         }
         .navigationBarBackButtonHidden()
+        .sheet(isPresented: $isShowingLanguagePicker) {
+            LanguagePickerSheet(selectedLanguage: $learningLanguage)
+                .presentationDetents([.large])
+        }
         .onAppear {
             if let educationLevel = profiles.first?.educationLevel,
                !educationLevel.isEmpty {
@@ -175,6 +183,48 @@ struct AIDeckSetupView: View {
                         lineWidth: 1
                     )
             }
+        }
+    }
+
+    private var languageSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionTitle("LEARNING LANGUAGE (OPTIONAL)")
+
+            Button {
+                isShowingLanguagePicker = true
+            } label: {
+                HStack {
+                    Text(learningLanguage ?? "Choose a language")
+                        .font(
+                            .custom(
+                                "PlusJakartaSans-Regular",
+                                size: 14
+                            )
+                        )
+                        .foregroundStyle(
+                            learningLanguage == nil
+                                ? Color.appTextSecondary
+                                : Color.appTextPrimary
+                        )
+
+                    Spacer()
+
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color.appTextSecondary)
+                }
+                .padding(.horizontal, 16)
+                .frame(height: 56)
+                .background(
+                    Color.appSurface,
+                    in: RoundedRectangle(cornerRadius: 8)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.appBorder, lineWidth: 1)
+                }
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -273,6 +323,12 @@ struct AIDeckSetupView: View {
                     title: "Expand My Knowledge",
                     description: "Deepen your understanding of a subject",
                     icon: "brain.head.profile"
+                )
+
+                studyPurposeOption(
+                    title: "Career Advancement",
+                    description: "Advance your career with relevant knowledge and skills",
+                    icon: "briefcase"
                 )
 
                 studyPurposeOption(

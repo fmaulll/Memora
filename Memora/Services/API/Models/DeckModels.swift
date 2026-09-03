@@ -6,6 +6,7 @@ struct DeckResponse: Decodable {
     let title: String
     let subject: String
     let educationLevel: String
+    let learningLanguage: String?
     let isFavorite: Bool
 
     let generationStatus: String
@@ -20,6 +21,7 @@ struct DeckResponse: Decodable {
         case title
         case subject
         case educationLevel = "education_level"
+        case learningLanguage = "learning_language"
         case isFavorite = "is_favorite"
 
         case generationStatus = "generation_status"
@@ -35,6 +37,7 @@ struct DeckCreateRequest: Encodable {
     let title: String
     let subject: String
     let educationLevel: String
+    let learningLanguage: String?
     let isFavorite: Bool
     let parentDeckId: UUID?
 
@@ -43,6 +46,7 @@ struct DeckCreateRequest: Encodable {
         case title
         case subject
         case educationLevel = "education_level"
+        case learningLanguage = "learning_language"
         case isFavorite = "is_favorite"
         case parentDeckId = "parent_deck_id"
     }
