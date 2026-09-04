@@ -7,6 +7,7 @@ enum APIError: LocalizedError {
     case decodingError(Error)
     case encodingError(Error)
     case networkError(Error)
+    case noRefreshToken
     case unauthorized
 
     var errorDescription: String? {
@@ -34,7 +35,11 @@ enum APIError: LocalizedError {
             return "Network error: \(error.localizedDescription)"
 
         case .unauthorized:
-            return "Your session has expired. Please log in again."
+            return "Unauthorized access. Please log in again."
+
+        case .noRefreshToken:
+            return "No refresh token available. Please log in again."
+
         }
     }
 }

@@ -9,45 +9,75 @@ final class KeychainService {
 
     private let service = "com.memora.app"
     private let accessTokenKey = "access_token"
+    private let refreshTokenKey = "refresh_token"
 
     // MARK: - Access Token
 
     func saveAccessToken(_ token: String) throws {
-        guard let data = token.data(using: .utf8) else {
-            throw KeychainError.invalidData
-        }
+        try saveToken(token, key: accessTokenKey)
+    }
 
-        // Remove existing token first
-        deleteAccessToken()
+    func getAccessToken() throws -> String? {
+        try getToken(key: accessTokenKey)
+    }
+
+    func deleteAccessToken() {
+        deleteToken(key: accessTokenKey)
+    }
+
+    func hasAccessToken() -> Bool {
+        (try? getAccessToken()) != nil
+    }
+
+    // MARK: - Refresh Token
+
+    func saveRefreshToken(_ token: String) throws {
+        try saveToken(token, key: refreshTokenKey)
+    }
+
+    func getRefreshToken() throws -> String? {
+        try getToken(key: refreshTokenKey)
+    }
+
+    func deleteRefreshToken() {
+        deleteToken(key: refreshTokenKey)
+    }
+
+    func hasRefreshToken() -> Bool {
+        (try? getRefreshToken()) != nil
+    }
+
+    // MARK: - Generic Keychain Methods
+
+    private func saveToken(_ token: String, key: String) throws {
+        let data = Data(token.utf8)
 
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: accessTokenKey,
+            kSecAttrAccount as String: key,
             kSecValueData as String: data
         ]
 
-        let status = SecItemAdd(
-            query as CFDictionary,
-            nil
-        )
+        SecItemDelete(query as CFDictionary)
+
+        let status = SecItemAdd(query as CFDictionary, nil)
 
         guard status == errSecSuccess else {
             throw KeychainError.saveFailed(status)
         }
     }
 
-    func getAccessToken() throws -> String? {
+    private func getToken(key: String) throws -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: accessTokenKey,
+            kSecAttrAccount as String: key,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
 
         var result: AnyObject?
-
         let status = SecItemCopyMatching(
             query as CFDictionary,
             &result
@@ -57,35 +87,24 @@ final class KeychainService {
             return nil
         }
 
-        guard status == errSecSuccess else {
-            throw KeychainError.readFailed(status)
-        }
-
-        guard let data = result as? Data,
-              let token = String(data: data, encoding: .utf8)
+        guard status == errSecSuccess,
+            let data = result as? Data,
+            let token = String(data: data, encoding: .utf8)
         else {
-            throw KeychainError.invalidData
+            throw KeychainError.readFailed(status)
         }
 
         return token
     }
 
-    func deleteAccessToken() {
+    private func deleteToken(key: String) {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: accessTokenKey
+            kSecAttrAccount as String: key
         ]
 
         SecItemDelete(query as CFDictionary)
-    }
-
-    func hasAccessToken() -> Bool {
-        do {
-            return try getAccessToken() != nil
-        } catch {
-            return false
-        }
     }
 }
 

@@ -18,10 +18,12 @@ struct UserUpdateRequest: Encodable {
 
 struct TokenResponse: Decodable {
     let accessToken: String
+    let refreshToken: String
     let tokenType: String
 
     enum CodingKeys: String, CodingKey {
         case accessToken = "access_token"
+        case refreshToken = "refresh_token"
         case tokenType = "token_type"
     }
 }
@@ -48,11 +50,21 @@ struct AnonymousUserRequest: Encodable {
 struct AuthResponse: Decodable {
     let user: UserResponse
     let accessToken: String
+    let refreshToken: String
     let tokenType: String
 
     enum CodingKeys: String, CodingKey {
         case user
         case accessToken = "access_token"
+        case refreshToken = "refresh_token"
         case tokenType = "token_type"
+    }
+}
+
+struct RefreshTokenRequest: Encodable {
+    let refreshToken: String
+
+    enum CodingKeys: String, CodingKey {
+        case refreshToken = "refresh_token"
     }
 }

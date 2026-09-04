@@ -64,23 +64,28 @@ final class AuthManager {
 
     func logout() {
         KeychainService.shared.deleteAccessToken()
+        KeychainService.shared.deleteRefreshToken()
 
         currentUser = nil
         isAuthenticated = false
-    }   
+    }
 
     func restoreSession(
         modelContext: ModelContext
     ) async {
 
+        defer {
+            isRestoringSession = false
+        }
+
         guard KeychainService.shared.hasAccessToken() else {
             isAuthenticated = false
             currentUser = nil
-            isRestoringSession = false
             return
         }
 
         do {
+            // First, try the existing access token
             let user = try await AuthAPI.shared.me()
 
             currentUser = user
@@ -95,41 +100,38 @@ final class AuthManager {
 
         } catch {
 
-            print("SESSION RESTORE FAILED:", error)
+            print("ACCESS TOKEN FAILED:", error)
 
-            let localUser = loadUserLocally(
-                modelContext: modelContext
-            )
+            do {
+                // Access token may be expired.
+                // Try to obtain a new one using the refresh token.
+                try await AuthAPI.shared.refreshAccessToken()
 
-            if let localUser {
+                // Retry /auth/me using the new access token
+                let user = try await AuthAPI.shared.me()
 
-                print("LOCAL USER FOUND")
-                print("LOCAL ID:", localUser.id)
-                print("LOCAL NAME:", localUser.name)
-                print(
-                    "LOCAL EMAIL:",
-                    localUser.email ?? "No email"
-                )
-
-                currentUser = UserResponse(
-                    id: localUser.userId ?? localUser.id,
-                    name: localUser.name,
-                    email: localUser.email ?? "",
-                    createdAt: localUser.createdAt
-                )
-
+                currentUser = user
                 isAuthenticated = true
 
-            } else {
+                saveUserLocally(
+                    user,
+                    modelContext: modelContext
+                )
 
-                print("❌ NO LOCAL USER PROFILE FOUND")
+                print("SESSION RESTORED AFTER REFRESH:", user.name)
+
+            } catch {
+
+                print("REFRESH TOKEN FAILED:", error)
+
+                // Both tokens failed. The session is no longer valid.
+                KeychainService.shared.deleteAccessToken()
+                KeychainService.shared.deleteRefreshToken()
 
                 currentUser = nil
                 isAuthenticated = false
             }
         }
-
-        isRestoringSession = false
     }
 
     private func saveUserLocally(
@@ -258,8 +260,14 @@ final class AuthManager {
             )
 
         // Save JWT
+        // Save access token
         try KeychainService.shared.saveAccessToken(
             response.accessToken
+        )
+
+        // Save refresh token
+        try KeychainService.shared.saveRefreshToken(
+            response.refreshToken
         )
 
         // Update app authentication state

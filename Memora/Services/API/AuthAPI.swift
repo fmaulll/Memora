@@ -51,6 +51,10 @@ final class AuthAPI {
             response.accessToken
         )
 
+        try KeychainService.shared.saveRefreshToken(
+            response.refreshToken
+        )
+
         return try await me()
     }
 
@@ -87,7 +91,10 @@ final class AuthAPI {
 
     func logout() {
         KeychainService.shared.deleteAccessToken()
+        KeychainService.shared.deleteRefreshToken()
     }
+
+    // MARK: - Anonymous User
 
     func createAnonymousUser(
         name: String
@@ -97,10 +104,50 @@ final class AuthAPI {
             name: name
         )
 
-        return try await APIClient.shared.request(
+        let response: AuthResponse = try await APIClient.shared.request(
             endpoint: "/auth/anonymous",
             method: .post,
             body: requestBody
         )
+
+        try KeychainService.shared.saveAccessToken(
+            response.accessToken
+        )
+
+        try KeychainService.shared.saveRefreshToken(
+            response.refreshToken
+        )
+
+        return response
+    }
+
+    // MARK: - Refresh Token
+
+    func refreshAccessToken() async throws -> TokenResponse {
+
+        guard let refreshToken = try KeychainService.shared.getRefreshToken() else {
+            throw APIError.noRefreshToken
+        }
+
+        let request = RefreshTokenRequest(
+            refreshToken: refreshToken
+        )
+
+        let response: TokenResponse = try await APIClient.shared.request(
+            endpoint: "/auth/refresh",
+            method: .post,
+            body: request,
+            authenticated: false
+        )
+
+        try KeychainService.shared.saveAccessToken(
+            response.accessToken
+        )
+
+        try KeychainService.shared.saveRefreshToken(
+            response.refreshToken
+        )
+
+        return response
     }
 }
