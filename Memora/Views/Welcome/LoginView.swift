@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct LoginView: View {
-    private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
+    private let accent = Color.appAccent
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -71,16 +71,7 @@ struct LoginView: View {
                         AppButton(
                             title: isLoggingIn ? "Logging in..." : "Log In",
                             foreground: canLogin ? .white : .white.opacity(0.45),
-                            background: AnyShapeStyle(
-                                LinearGradient(
-                                    colors: [
-                                        accent,
-                                        Color(red: 0.55, green: 0.36, blue: 0.96)
-                                    ],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
+                            background: Color.appAccent
                         ) {
                             login()
                         }
@@ -284,9 +275,8 @@ struct LoginView: View {
 
                 await MainActor.run {
                     isLoggingIn = false
+                    dismiss()
                 }
-
-                // Navigate to your main app here.
 
             } catch {
                 await MainActor.run {
