@@ -6,6 +6,14 @@ enum AIDeckAction {
     case generateMoreCards
 }
 
+private enum ExamFeatureError: LocalizedError {
+    case emptyQuestions
+
+    var errorDescription: String? {
+        "This exam did not return any questions. Please try again."
+    }
+}
+
 struct DeckDetailsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -26,6 +34,15 @@ struct DeckDetailsView: View {
 
     @State private var generationPollingTask: Task<Void, Never>?
     @State private var isPollingGeneration = false
+    @State private var isRetryingGeneration = false
+    @State private var retryErrorMessage: String?
+    @State private var examProgression: ExamProgressionResponse?
+    @State private var isLoadingExams = false
+    @State private var examErrorMessage: String?
+    @State private var isGeneratingExam = false
+    @State private var generatingExamType: ExamType?
+    @State private var examQuestionsResponse: ExamQuestionsResponse?
+    @State private var isShowingExam = false
 
     private let accent = Color.appAccent
 
@@ -81,6 +98,11 @@ struct DeckDetailsView: View {
 
     private var isParentDeck: Bool {
         !childDecks.isEmpty
+    }
+
+    private var isDeckGenerationInProgress: Bool {
+        deck.generationStatus == "generating" ||
+        childDecks.contains { $0.generationStatus == "generating" }
     }
 
     private var hasCards: Bool {
@@ -139,6 +161,10 @@ struct DeckDetailsView: View {
                         childDeckSection
                             .padding(.top, 20)
                             .padding(.horizontal, 24)
+
+                            examSection
+                                .padding(.top, 28)
+                                .padding(.horizontal, 24)
                     } else {
                         flashcardCarousel
                             .padding(.top, 20)
@@ -216,6 +242,11 @@ struct DeckDetailsView: View {
 
                         if !isParentDeck {
                             cardsSection
+                                .padding(.top, 28)
+                        }
+
+                        if isFailedGeneration {
+                            retryGenerationSection
                                 .padding(.top, 28)
                         }
                     }
@@ -364,8 +395,21 @@ struct DeckDetailsView: View {
                 existingDeck: deck
             )
         }
+        .navigationDestination(isPresented: $isShowingExam) {
+            if let examQuestionsResponse {
+                ExamTakingView(
+                    questionsResponse: examQuestionsResponse,
+                    onFinished: {
+                        Task {
+                            await loadExamProgression()
+                        }
+                    }
+                )
+            }
+        }
         .task {
             startGenerationPollingIfNeeded()
+            await loadExamProgressionIfNeeded()
         }
         .onDisappear {
             stopGenerationPolling()
@@ -414,6 +458,108 @@ struct DeckDetailsView: View {
                     )
                 )
                 .foregroundStyle(Color.appTextSecondary)
+            }
+        }
+    }
+
+    private var isFailedGeneration: Bool {
+        deck.parentDeck == nil && deck.generationStatus == "failed"
+    }
+
+    private var retryPlan: DeckPlanResponse {
+        DeckPlanResponse(
+            title: deck.title,
+            subject: deck.subject,
+            educationLevel: deck.educationLevel,
+            learningLanguage: deck.learningLanguage ?? "English",
+            chapters: childDecks.map { childDeck in
+                ChapterPlan(
+                    title: childDeck.title,
+                    description: "",
+                    keyConcepts: [],
+                    cardCount: childDeck.totalCardCount
+                )
+            }
+        )
+    }
+
+    private var retryGenerationSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("GENERATION FAILED")
+                .font(.custom("PlusJakartaSans-Bold", size: 11))
+                .foregroundStyle(Color.appError)
+
+            Text("Mr. Ed can try generating the unfinished chapters again.")
+                .font(.custom("PlusJakartaSans-Regular", size: 13))
+                .foregroundStyle(Color.appTextSecondary)
+
+            if let retryErrorMessage {
+                Text(retryErrorMessage)
+                    .font(.custom("PlusJakartaSans-Regular", size: 13))
+                    .foregroundStyle(Color.appError)
+            }
+
+            Button {
+                retryGeneration()
+            } label: {
+                HStack(spacing: 10) {
+                    if isRetryingGeneration {
+                        ProgressView()
+                            .tint(Color.appTextPrimary)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                    }
+
+                    Text(isRetryingGeneration ? "Retrying..." : "Retry generation")
+                        .font(.custom("PlusJakartaSans-SemiBold", size: 15))
+
+                    Spacer()
+                }
+                .foregroundStyle(Color.appTextPrimary)
+                .padding(.horizontal, 16)
+                .frame(height: 54)
+                .background(Color.appAccent, in: RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
+            .disabled(isRetryingGeneration)
+            .opacity(isRetryingGeneration ? 0.6 : 1)
+        }
+        .padding(16)
+        .background(Color.appSurface, in: RoundedRectangle(cornerRadius: 8))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.appBorder, lineWidth: 1)
+        }
+    }
+
+    private func retryGeneration() {
+        guard !isRetryingGeneration else {
+            return
+        }
+
+        isRetryingGeneration = true
+        retryErrorMessage = nil
+
+        Task { @MainActor in
+            do {
+                try await AIService.shared.retryDeck(
+                    deckID: deck.id,
+                    plan: retryPlan
+                )
+
+                deck.generationStatus = "generating"
+                for childDeck in childDecks {
+                    if childDeck.generationStatus != "completed" {
+                        childDeck.generationStatus = "generating"
+                    }
+                }
+
+                isRetryingGeneration = false
+                startGenerationPollingIfNeeded()
+
+            } catch {
+                retryErrorMessage = error.localizedDescription
+                isRetryingGeneration = false
             }
         }
     }
@@ -838,6 +984,331 @@ struct DeckDetailsView: View {
                     childDeckRow(childDeck)
                         .opacity(0.6)
                 }
+            }
+        }
+    }
+
+    private var examSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("EXAMS")
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Bold",
+                        size: 11
+                    )
+                )
+                .foregroundStyle(Color.appTextSecondary)
+
+            if isDeckGenerationInProgress {
+                Label(
+                    "Cards are still generating. Exams will be available when they're ready.",
+                    systemImage: "hourglass"
+                )
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Regular",
+                        size: 13
+                    )
+                )
+                .foregroundStyle(Color.appWarning)
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    Color.appSurface,
+                    in: RoundedRectangle(cornerRadius: 8)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.appBorder, lineWidth: 1)
+                }
+            }
+
+            if isLoadingExams && examProgression == nil {
+                HStack(spacing: 10) {
+                    ProgressView()
+                        .tint(Color.appAccent)
+
+                    Text("Loading exam status...")
+                        .font(
+                            .custom(
+                                "PlusJakartaSans-Regular",
+                                size: 13
+                            )
+                        )
+                        .foregroundStyle(Color.appTextSecondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .background(
+                    Color.appSurface,
+                    in: RoundedRectangle(cornerRadius: 8)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.appBorder, lineWidth: 1)
+                }
+            } else if let examErrorMessage {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(examErrorMessage)
+                        .font(
+                            .custom(
+                                "PlusJakartaSans-Regular",
+                                size: 13
+                            )
+                        )
+                        .foregroundStyle(Color.appError)
+
+                    Button("Try again") {
+                        Task {
+                            await loadExamProgression()
+                        }
+                    }
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-SemiBold",
+                            size: 13
+                        )
+                    )
+                    .foregroundStyle(Color.appAccent)
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    Color.appSurface,
+                    in: RoundedRectangle(cornerRadius: 8)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.appBorder, lineWidth: 1)
+                }
+            } else if let exams = examProgression?.exams, !exams.isEmpty {
+                ForEach(exams) { exam in
+                    examStatusCard(exam)
+                }
+            } else {
+                Text("No exams are available for this deck yet.")
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-Regular",
+                            size: 13
+                        )
+                    )
+                    .foregroundStyle(Color.appTextSecondary)
+            }
+        }
+    }
+
+    private func examStatusCard(
+        _ exam: ExamStatusResponse
+    ) -> some View {
+        let isAvailable = exam.status != .locked &&
+            !isDeckGenerationInProgress
+        let isThisExamGenerating = isGeneratingExam &&
+            generatingExamType == exam.examType
+        let statusColor = exam.passed
+            ? Color.appSuccess
+            : isAvailable
+                ? Color.appAccent
+                : Color.appTextSecondary
+
+        return Button {
+            generateExam(exam)
+        } label: {
+            HStack(spacing: 14) {
+            Image(systemName: examIcon(for: exam.examType))
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(statusColor)
+                .frame(width: 40, height: 40)
+                .background(
+                    Color.appSecondarySurface,
+                    in: RoundedRectangle(cornerRadius: 8)
+                )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(examTitle(for: exam.examType))
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-SemiBold",
+                            size: 15
+                        )
+                    )
+                    .foregroundStyle(Color.appTextPrimary)
+
+                Text(
+                    isDeckGenerationInProgress
+                        ? "Waiting for cards"
+                        : examStatusLabel(exam)
+                )
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-Regular",
+                            size: 12
+                        )
+                    )
+                    .foregroundStyle(statusColor)
+            }
+
+            Spacer()
+
+            if isThisExamGenerating {
+                ProgressView()
+                    .tint(Color.appAccent)
+            } else if let bestScore = exam.bestScore {
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("\(bestScore)%")
+                        .font(
+                            .custom(
+                                "PlusJakartaSans-Bold",
+                                size: 16
+                            )
+                        )
+                        .foregroundStyle(Color.appTextPrimary)
+
+                    Text("Best")
+                        .font(
+                            .custom(
+                                "PlusJakartaSans-Regular",
+                                size: 10
+                            )
+                        )
+                        .foregroundStyle(Color.appTextSecondary)
+                }
+            } else if exam.attemptCount > 0 {
+                Text("\(exam.attemptCount) attempt\(exam.attemptCount == 1 ? "" : "s")")
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-Regular",
+                            size: 11
+                        )
+                    )
+                    .foregroundStyle(Color.appTextSecondary)
+            }
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                Color.appSurface,
+                in: RoundedRectangle(cornerRadius: 8)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.appBorder, lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(!isAvailable || isGeneratingExam)
+        .opacity(isAvailable ? 1 : 0.65)
+        .accessibilityLabel(
+            "\(examTitle(for: exam.examType)), \(examAccessibilityStatus(exam))"
+        )
+    }
+
+    private func examAccessibilityStatus(
+        _ exam: ExamStatusResponse
+    ) -> String {
+        if isDeckGenerationInProgress {
+            return "Waiting for cards to finish generating"
+        }
+
+        return examStatusLabel(exam)
+    }
+
+    private func examTitle(for type: ExamType) -> String {
+        switch type {
+        case .firstHalf:
+            return "First Half Exam"
+        case .secondHalf:
+            return "Second Half Exam"
+        case .final:
+            return "Final Exam"
+        }
+    }
+
+    private func examIcon(for type: ExamType) -> String {
+        switch type {
+        case .firstHalf:
+            return "1.circle"
+        case .secondHalf:
+            return "2.circle"
+        case .final:
+            return "flag.checkered"
+        }
+    }
+
+    private func examStatusLabel(
+        _ exam: ExamStatusResponse
+    ) -> String {
+        if exam.status == .locked {
+            return "Locked"
+        }
+
+        if exam.status == .completed {
+            return exam.passed ? "Passed" : "Not passed"
+        }
+
+        return "Available"
+    }
+
+    private func loadExamProgressionIfNeeded() async {
+        guard isParentDeck, examProgression == nil else {
+            return
+        }
+
+        await loadExamProgression()
+    }
+
+    private func loadExamProgression() async {
+        guard !isLoadingExams else {
+            return
+        }
+
+        isLoadingExams = true
+        examErrorMessage = nil
+
+        do {
+            let progression = try await ExamAPI.shared.getExams(
+                parentDeckID: deck.id
+            )
+
+            examProgression = progression
+            isLoadingExams = false
+
+        } catch {
+            examErrorMessage = error.localizedDescription
+            isLoadingExams = false
+        }
+    }
+
+    private func generateExam(_ exam: ExamStatusResponse) {
+        guard exam.status != .locked,
+              !isGeneratingExam else {
+            return
+        }
+
+        isGeneratingExam = true
+        generatingExamType = exam.examType
+        examErrorMessage = nil
+
+        Task { @MainActor in
+            do {
+                let response = try await ExamAPI.shared.generateExam(
+                    parentDeckID: deck.id,
+                    examType: exam.examType
+                )
+
+                guard !response.questions.isEmpty else {
+                    throw ExamFeatureError.emptyQuestions
+                }
+
+                examQuestionsResponse = response
+                isGeneratingExam = false
+                generatingExamType = nil
+                isShowingExam = true
+
+            } catch {
+                examErrorMessage = error.localizedDescription
+                isGeneratingExam = false
+                generatingExamType = nil
             }
         }
     }
