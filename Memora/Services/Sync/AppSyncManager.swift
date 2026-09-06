@@ -14,6 +14,22 @@ final class AppSyncManager {
     @AppStorage("hasCompletedInitialSync")
     private var hasCompletedInitialSync = false
 
+    @AppStorage("lastSuccessfulSync")
+    private var lastSuccessfulSync = 0.0
+
+    private let automaticSyncInterval: TimeInterval = 15 * 60
+
+    func syncIfStale(
+        modelContext: ModelContext
+    ) async {
+        guard shouldRunAutomaticSync else {
+            print("⚠️ AUTOMATIC SYNC SKIPPED — RECENT SYNC EXISTS")
+            return
+        }
+
+        await sync(modelContext: modelContext)
+    }
+
     func sync(
         modelContext: ModelContext
     ) async {
@@ -46,6 +62,7 @@ final class AppSyncManager {
                 )
 
                 hasCompletedInitialSync = true
+                lastSuccessfulSync = Date().timeIntervalSince1970
 
                 print("✅ INITIAL DOWNLOAD COMPLETE")
                 print("LOCAL DATABASE INITIALIZED")
@@ -64,6 +81,7 @@ final class AppSyncManager {
                 modelContext: modelContext
             )
 
+            lastSuccessfulSync = Date().timeIntervalSince1970
             print("✅ APP SYNC SUCCESS")
 
         } catch {
@@ -71,5 +89,16 @@ final class AppSyncManager {
             print("❌ APP SYNC FAILED:", error)
 
         }
+    }
+
+    private var shouldRunAutomaticSync: Bool {
+        guard hasCompletedInitialSync else {
+            return true
+        }
+
+        let secondsSinceLastSync =
+            Date().timeIntervalSince1970 - lastSuccessfulSync
+
+        return secondsSinceLastSync >= automaticSyncInterval
     }
 }

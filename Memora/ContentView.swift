@@ -54,7 +54,7 @@ struct ContentView: View {
             }
 
             Task {
-                await AppSyncManager.shared.sync(
+                await AppSyncManager.shared.syncIfStale(
                     modelContext: modelContext
                 )
             }
@@ -68,7 +68,7 @@ struct ContentView: View {
             }
 
             Task {
-                await AppSyncManager.shared.sync(
+                await AppSyncManager.shared.syncIfStale(
                     modelContext: modelContext
                 )
             }
