@@ -95,6 +95,32 @@ final class AIService {
         return response
     }
 
+    // MARK: - Retry Failed Deck
+
+    func retryDeck(
+        deckID: UUID,
+        plan: DeckPlanResponse,
+        studyPurpose: String = "Learn from Scratch",
+        targetDate: Date? = nil
+    ) async throws {
+        let dateFormatter = DateFormatter()
+        dateFormatter.calendar = Calendar(identifier: .iso8601)
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+
+        let request = GenerateDeckRequest(
+            plan: plan,
+            studyPurpose: studyPurpose,
+            targetDate: targetDate.map { dateFormatter.string(from: $0) }
+        )
+
+        try await APIClient.shared.requestWithoutResponse(
+            endpoint: "/ai/decks/\(deckID.uuidString)/retry",
+            method: .post,
+            body: request
+        )
+    }
+
     // MARK: - Generation Status
 
     func fetchGenerationStatus(
