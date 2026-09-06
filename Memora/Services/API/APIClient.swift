@@ -232,7 +232,7 @@ final class APIClient {
         )
 
         do {
-            let (_, response) = try await session.data(
+            let (responseData, response) = try await session.data(
                 for: request
             )
 
@@ -242,7 +242,7 @@ final class APIClient {
 
             try validateResponse(
                 httpResponse,
-                data: nil
+                data: responseData
             )
 
         } catch let error as APIError {
