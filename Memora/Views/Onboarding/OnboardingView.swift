@@ -18,10 +18,8 @@ struct OnboardingView: View {
 
     @State private var authManager = AuthManager.shared
 
-    @State private var currentPage = 0
     @State private var isDialogueFinished = false
     @State private var isShowingFirstDeckSetup = false
-    @State private var shouldCreateFirstDeck = false
 
     @State private var onboardingStep: OnboardingStep = .introduction
 
@@ -38,27 +36,13 @@ struct OnboardingView: View {
                 "I'm Mr. Ed.",
                 "Your new study coach.",
                 "I don't care about excuses.",
-                "I care about results."
-            ],
-            imageName: "MrEdLeaning",
-            buttonTitle: "Continue"
-        ),
-
-        OnboardingPage(
-            dialogue: [
+                "I care about results.",
                 "Give me a goal.",
                 "I'll help you build a plan.",
                 "Create your study decks.",
-                "And test what you know."
-            ],
-            imageName: "MrEdReady",
-            buttonTitle: "Continue"
-        ),
-
-        OnboardingPage(
-            dialogue: [
-                "So tell me.",
-                "Are you actually serious about studying?"
+                "And test what you know.",
+                "Now...",
+                "Let's get started.",
             ],
             imageName: "MrEdJudging",
             buttonTitle: "I'm serious"
@@ -119,7 +103,6 @@ struct OnboardingView: View {
                 PaywallView(
                     onSubscribed: {
 
-                        shouldCreateFirstDeck = true
                         onboardingStep = .subscribed
                     },
                     onContinueFree: {
@@ -133,8 +116,7 @@ struct OnboardingView: View {
 
                 MrEdGoodbyeView {
 
-                    shouldCreateFirstDeck = false
-                    onboardingStep = .studySetup
+                    hasCompletedOnboarding = true
                 }
 
 
@@ -142,7 +124,7 @@ struct OnboardingView: View {
 
                 MrEdSubscribedView {
 
-                    onboardingStep = .studySetup
+                    isShowingFirstDeckSetup = true
                 }
 
 
@@ -152,6 +134,8 @@ struct OnboardingView: View {
                     name,
                     educationLevel,
                     studyReason in
+
+                    onboardingStep = .paywall
 
                     Task {
 
@@ -174,12 +158,6 @@ struct OnboardingView: View {
                                     modelContext: modelContext
                                 )
 
-
-                            if shouldCreateFirstDeck {
-                                isShowingFirstDeckSetup = true
-                            } else {
-                                hasCompletedOnboarding = true
-                            }
 
                         } catch {
 
@@ -214,108 +192,19 @@ struct OnboardingView: View {
     // MARK: - Introduction
 
     private var introductionView: some View {
-
         ZStack {
-
             Color.appBackground
                 .ignoresSafeArea()
 
-
-            VStack(spacing: 0) {
-
-                TabView(
-                    selection: $currentPage
-                ) {
-
-                    ForEach(
-                        Array(
-                            pages.enumerated()
-                        ),
-                        id: \.offset
-                    ) { index, page in
-
-                        OnboardingPageView(
-                            page: page,
-                            onDialogueFinished: {
-
-                                isDialogueFinished = true
-                            }
-                        )
-                        .tag(index)
-                    }
+            OnboardingPageView(
+                page: pages[0],
+                onDialogueFinished: {
+                    isDialogueFinished = true
+                },
+                onContinue: {
+                    onboardingStep = .studySetup
                 }
-                .tabViewStyle(
-                    .page(
-                        indexDisplayMode: .never
-                    )
-                )
-                .onChange(
-                    of: currentPage
-                ) { _, _ in
-
-                    isDialogueFinished = false
-                }
-
-
-                // MARK: Bottom Controls
-
-                VStack(spacing: 18) {
-
-                    PageIndicator(
-                        numberOfPages: pages.count,
-                        currentPage: currentPage
-                    )
-
-
-                    AppButton(
-                        title: pages[
-                            currentPage
-                        ].buttonTitle,
-                        icon: .sf(
-                            currentPage ==
-                            pages.count - 1
-                            ? "checkmark"
-                            : "arrow.right"
-                        ),
-                        iconPosition: .right,
-                        foreground: Color.appBackground,
-                        background: Color.appAccent
-                    ) {
-
-                        withAnimation(
-                            .easeInOut(
-                                duration: 0.3
-                            )
-                        ) {
-
-                            if currentPage <
-                                pages.count - 1 {
-
-                                currentPage += 1
-
-                            } else {
-
-                                onboardingStep =
-                                    .paywall
-                            }
-                        }
-                    }
-                    .disabled(
-                        !isDialogueFinished
-                    )
-                    .opacity(
-                        isDialogueFinished
-                        ? 1
-                        : 0.45
-                    )
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 20)
-                .background(
-                    Color.appBackground
-                )
-            }
+            )
         }
     }
 }
@@ -335,47 +224,6 @@ private struct OnboardingPage {
 
 // MARK: - Page Indicator
 
-private struct PageIndicator: View {
-
-    let numberOfPages: Int
-
-    let currentPage: Int
-
-
-    var body: some View {
-
-        HStack(spacing: 8) {
-
-            ForEach(
-                0..<numberOfPages,
-                id: \.self
-            ) { index in
-
-                Capsule()
-                    .fill(
-                        index == currentPage
-                        ? Color.appAccent
-                        : Color.appBorder
-                    )
-                    .frame(
-                        width:
-                            index == currentPage
-                            ? 26
-                            : 8,
-                        height: 8
-                    )
-                    .animation(
-                        .easeInOut(
-                            duration: 0.25
-                        ),
-                        value: currentPage
-                    )
-            }
-        }
-    }
-}
-
-
 // MARK: - Onboarding Page
 
 private struct OnboardingPageView: View {
@@ -383,105 +231,92 @@ private struct OnboardingPageView: View {
     let page: OnboardingPage
 
     let onDialogueFinished: () -> Void
+    let onContinue: () -> Void
 
 
     @State private var displayedText = ""
 
     @State private var dialogueIndex = 0
+    @State private var isDialogueFinished = false
 
 
     var body: some View {
-
-        VStack(spacing: 0) {
-
-            // MARK: - Mr. Ed
-
+        VStack(spacing: 18) {
             Spacer()
 
             Image(page.imageName)
                 .resizable()
                 .scaledToFit()
-                .frame(
-                    maxWidth: 300,
-                    maxHeight: 340
+                .frame(maxWidth: 200, maxHeight: 240)
+
+            Text(displayedText)
+                .font(.custom("PlusJakartaSans-Bold", size: 14))
+                .foregroundStyle(Color.appTextPrimary)
+                .multilineTextAlignment(.center)
+                .frame(minWidth: 50, minHeight: 54)
+                .padding(.horizontal, 20)
+                .background(
+                    Color.appSurface,
+                    in: RoundedRectangle(cornerRadius: 8)
                 )
-                .padding(
-                    .horizontal,
-                    32
-                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.appBorder, lineWidth: 1)
+                }
 
             Spacer()
-                .frame(height: 20)
 
+            // MARK: Bottom Controls
 
-            // MARK: - Dialogue
+            VStack(spacing: 18) {
 
-            VStack(spacing: 0) {
+                Button {
+                    guard isDialogueFinished else { return }
+                    onContinue()
+                } label: {
+                    HStack {
+                        Text("Continue")
 
-                Text(displayedText)
+                        Spacer()
+
+                        Image(systemName: "arrow.right")
+                    }
                     .font(
                         .custom(
                             "PlusJakartaSans-Bold",
-                            size: 26
+                            size: 16
                         )
                     )
                     .foregroundStyle(
-                        Color.appTextPrimary
+                        isDialogueFinished
+                            ? Color.appBackground
+                            : Color.appTextSecondary
                     )
-                    .multilineTextAlignment(
-                        .center
+                    .padding(.horizontal, 20)
+                    .frame(height: 54)
+                    .background(
+                        isDialogueFinished
+                            ? Color.appAccent
+                            : Color.appSecondarySurface
                     )
-                    .frame(
-                        maxWidth: .infinity,
-                        minHeight: 120
+                    .clipShape(
+                        RoundedRectangle(
+                            cornerRadius: 8,
+                            style: .continuous
+                        )
                     )
-                    .padding(
-                        .horizontal,
-                        28
-                    )
-                    .padding(
-                        .vertical,
-                        30
-                    )
+                }
+                .disabled(
+                    !isDialogueFinished
+                )
             }
-            .frame(
-                maxWidth: .infinity
-            )
+            .padding(.bottom, 20)
             .background(
-                Color.appSurface
+                Color.appBackground
             )
-            .clipShape(
-                UnevenRoundedRectangle(
-                    topLeadingRadius: 30,
-                    bottomLeadingRadius: 0,
-                    bottomTrailingRadius: 0,
-                    topTrailingRadius: 30
-                )
-            )
-            .overlay(
-                alignment: .top
-            ) {
-
-                UnevenRoundedRectangle(
-                    topLeadingRadius: 30,
-                    bottomLeadingRadius: 0,
-                    bottomTrailingRadius: 0,
-                    topTrailingRadius: 30
-                )
-                .stroke(
-                    Color.appBorder,
-                    lineWidth: 1
-                )
-            }
         }
-        .frame(
-            maxWidth: .infinity,
-            maxHeight: .infinity
-        )
-        .task {
-
-            await playDialogue()
-        }
+        .padding(.horizontal, 20)
+        .task { await playDialogue() }
     }
 
 
@@ -583,7 +418,7 @@ private struct OnboardingPageView: View {
             return
         }
 
-
+        isDialogueFinished = true
         onDialogueFinished()
     }
 }

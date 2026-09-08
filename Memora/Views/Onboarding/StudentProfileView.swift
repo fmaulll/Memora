@@ -457,15 +457,12 @@ struct StudentProfileView: View {
 
             HStack {
 
-                Text(buttonTitle)
+                Text("Continue")
 
                 Spacer()
 
                 Image(
-                    systemName:
-                        step == .finished
-                        ? "sparkles"
-                        : "arrow.right"
+                    systemName: "arrow.right"
                 )
             }
             .font(
@@ -480,7 +477,7 @@ struct StudentProfileView: View {
                 : Color.appTextSecondary
             )
             .padding(.horizontal, 20)
-            .frame(height: 58)
+            .frame(height: 54)
             .background(
                 stepIsValid
                 ? Color.appAccent
@@ -540,19 +537,6 @@ struct StudentProfileView: View {
 
         case .finished:
             return "Let's build something worth studying."
-        }
-    }
-
-
-    private var buttonTitle: String {
-
-        switch step {
-
-        case .finished:
-            return "Let's go"
-
-        default:
-            return "Continue"
         }
     }
 
