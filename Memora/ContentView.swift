@@ -12,6 +12,15 @@ struct ContentView: View {
     @AppStorage("hasCompletedOnboarding")
     private var hasCompletedOnboarding = false
 
+    @AppStorage("hasStartedOnboarding")
+    private var hasStartedOnboarding = false
+
+    private var rootRoute: String {
+        if isShowingSplash || authManager.isRestoringSession { return "loading" }
+        if !hasCompletedOnboarding && hasStartedOnboarding { return "onboarding" }
+        return authManager.isAuthenticated && hasCompletedOnboarding ? "home" : "welcome"
+    }
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
 
@@ -27,21 +36,35 @@ struct ContentView: View {
                     }
                 }
 
-            } else if !hasCompletedOnboarding {
+            } else if authManager.isRestoringSession {
+
+                ProgressView("Restoring session…")
+
+            } else if !hasCompletedOnboarding && hasStartedOnboarding {
 
                 OnboardingView { createdDeck in
                     firstCreatedDeck = createdDeck
                 }
 
-            } else if authManager.isAuthenticated {
+            } else if authManager.isAuthenticated && hasCompletedOnboarding {
 
                 HomeView(initialDeck: firstCreatedDeck)
 
             } else {
 
-                WelcomeView()
+                WelcomeView(
+                    onGetStarted: {
+                        hasCompletedOnboarding = false
+                        hasStartedOnboarding = true
+                    },
+                    onLoggedIn: {
+                        hasCompletedOnboarding = true
+                        hasStartedOnboarding = false
+                    }
+                )
             }
         }
+        .id(rootRoute)
         .onChange(of: scenePhase) { _, newPhase in
 
             guard newPhase == .active else {

@@ -14,6 +14,7 @@ final class AuthManager {
 
     private init() {
         isAuthenticated = KeychainService.shared.hasAccessToken()
+            || KeychainService.shared.hasRefreshToken()
     }
 
     func login(
@@ -74,63 +75,52 @@ final class AuthManager {
         modelContext: ModelContext
     ) async {
 
+        isRestoringSession = true
+
         defer {
             isRestoringSession = false
         }
 
-        guard KeychainService.shared.hasAccessToken() else {
+        guard KeychainService.shared.hasAccessToken()
+                || KeychainService.shared.hasRefreshToken() else {
             isAuthenticated = false
             currentUser = nil
             return
         }
 
+        // Stored credentials keep the local session available while we validate
+        // them. Connectivity failures do not mean the user has signed out.
+        isAuthenticated = true
+
         do {
-            // First, try the existing access token
-            let user = try await AuthAPI.shared.me()
+            let user: UserResponse
+
+            if try KeychainService.shared.getAccessToken() == nil {
+                _ = try await AuthAPI.shared.refreshAccessToken()
+                user = try await AuthAPI.shared.me()
+            } else {
+                do {
+                    user = try await AuthAPI.shared.me()
+                } catch APIError.unauthorized {
+                    _ = try await AuthAPI.shared.refreshAccessToken()
+                    user = try await AuthAPI.shared.me()
+                }
+            }
 
             currentUser = user
             isAuthenticated = true
-
-            saveUserLocally(
-                user,
-                modelContext: modelContext
-            )
+            saveUserLocally(user, modelContext: modelContext)
 
             print("SESSION RESTORED ONLINE:", user.name)
-
+        } catch APIError.unauthorized {
+            // The refresh token was rejected, or the refreshed access token
+            // still could not authenticate the user.
+            logout()
+        } catch APIError.noRefreshToken {
+            logout()
         } catch {
-
-            print("ACCESS TOKEN FAILED:", error)
-
-            do {
-                // Access token may be expired.
-                // Try to obtain a new one using the refresh token.
-                try await AuthAPI.shared.refreshAccessToken()
-
-                // Retry /auth/me using the new access token
-                let user = try await AuthAPI.shared.me()
-
-                currentUser = user
-                isAuthenticated = true
-
-                saveUserLocally(
-                    user,
-                    modelContext: modelContext
-                )
-
-                print("SESSION RESTORED AFTER REFRESH:", user.name)
-
-            } catch {
-
-                print("REFRESH TOKEN FAILED:", error)
-
-                // Both tokens failed. The session is no longer valid.
-                KeychainService.shared.deleteAccessToken()
-                KeychainService.shared.deleteRefreshToken()
-
-                currentUser = nil
-                isAuthenticated = false
-            }
+            // Keep credentials for a later retry after network/server failures.
+            print("SESSION RESTORATION DEFERRED:", error)
         }
     }
 
