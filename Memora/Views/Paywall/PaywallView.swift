@@ -4,6 +4,7 @@ struct PaywallView: View {
 
     let onSubscribed: () -> Void
     let onContinueFree: () -> Void
+    var deckTitle: String? = nil
 
     @State private var subscriptionManager =
         SubscriptionManager.shared
@@ -29,7 +30,7 @@ struct PaywallView: View {
 
                 // MARK: - Title
 
-                Text("A simple deal.")
+                Text(deckTitle == nil ? "A simple deal." : "Your deck is ready.")
                     .font(
                         .custom(
                             "PlusJakartaSans-Bold",
@@ -42,7 +43,9 @@ struct PaywallView: View {
                     .padding(.top, 12)
 
 
-                Text("You give. You receive.")
+                Text(deckTitle.map { "Unlock \($0) and put it to work." } ?? "You give. You receive.")
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20)
                     .font(
                         .custom(
                             "PlusJakartaSans-Regular",
@@ -203,7 +206,7 @@ struct PaywallView: View {
 
                 } label: {
 
-                    Text("Maybe later")
+                    Text(deckTitle == nil ? "Maybe later" : "Keep my deck locked for now")
                         .font(
                             .custom(
                                 "PlusJakartaSans-SemiBold",

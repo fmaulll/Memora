@@ -12,7 +12,8 @@ final class AIDeckCreationService {
     func createDeck(
         from generatedDeck: GeneratedDeckResponse,
         existingDeck: StudyDeck?,
-        modelContext: ModelContext
+        modelContext: ModelContext,
+        requiresSubscription: Bool = false
     ) throws -> StudyDeck {
         let rootDeck: StudyDeck
 
@@ -45,6 +46,8 @@ final class AIDeckCreationService {
             modelContext.insert(rootDeck)
         }
 
+        rootDeck.requiresSubscription = rootDeck.requiresSubscription || requiresSubscription
+
         for chapter in generatedDeck.chapters {
             let chapterDeck = StudyDeck(
                 id: chapter.id,
@@ -55,6 +58,7 @@ final class AIDeckCreationService {
                 generationStatus: chapter.generationStatus
             )
 
+            chapterDeck.requiresSubscription = rootDeck.requiresSubscription
             chapterDeck.isSynced = false
             modelContext.insert(chapterDeck)
         }

@@ -11,6 +11,7 @@ struct AIStudyMaterialsView: View {
     let targetDate: Date?
     let onDeckCreated: (StudyDeck) -> Void
     let existingDeck: StudyDeck?
+    var requiresSubscription: Bool = false
 
     @State private var selectedMaterialURLs: [URL] = []
     @State private var isShowingFileImporter = false
@@ -104,7 +105,8 @@ struct AIStudyMaterialsView: View {
                     studyPurpose: studyPurpose,
                     targetDate: targetDate,
                     onDeckCreated: onDeckCreated,
-                    existingDeck: existingDeck
+                    existingDeck: existingDeck,
+                    requiresSubscription: requiresSubscription
                 )
             }
         }

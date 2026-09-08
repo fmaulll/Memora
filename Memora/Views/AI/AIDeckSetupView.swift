@@ -9,6 +9,7 @@ struct AIDeckSetupView: View {
 
     let onDeckCreated: (StudyDeck) -> Void
     let existingDeck: StudyDeck?
+    var requiresSubscription: Bool = false
 
     @State private var topic = ""
     @State private var educationLevel = "University"
@@ -77,7 +78,8 @@ struct AIDeckSetupView: View {
                 studyPurpose: studyPurpose,
                 targetDate: hasTargetDate ? targetDate : nil,
                 onDeckCreated: onDeckCreated,
-                existingDeck: existingDeck
+                existingDeck: existingDeck,
+                requiresSubscription: requiresSubscription
             )
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {

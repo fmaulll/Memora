@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct LoginView: View {
+    var onLoggedIn: (() -> Void)? = nil
     private let accent = Color.appAccent
 
     @Environment(\.dismiss) private var dismiss
@@ -275,7 +276,11 @@ struct LoginView: View {
 
                 await MainActor.run {
                     isLoggingIn = false
-                    dismiss()
+                    if let onLoggedIn {
+                        onLoggedIn()
+                    } else {
+                        dismiss()
+                    }
                 }
 
             } catch {

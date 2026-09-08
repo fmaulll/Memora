@@ -16,6 +16,13 @@ final class StudyDeck {
     // MARK: - Generation
     var generationStatus: String = "completed"
 
+    // Persist the first-deck gate across launches, including its chapters.
+    var requiresSubscription: Bool = false
+
+    var needsSubscription: Bool {
+        requiresSubscription || parentDeck?.needsSubscription == true
+    }
+
     var studyQueueIDs: [UUID] = []
     var learningQueueIDs: [UUID] = []
     var studyCompletedCount: Int = 0

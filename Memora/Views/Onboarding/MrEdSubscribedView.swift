@@ -1,16 +1,28 @@
 import SwiftUI
 
-struct MrEdSubscribedView: View {
+struct MrEdOutcomeView: View {
+    let isSubscribed: Bool
     let onContinue: () -> Void
     @State private var displayedText = ""
     @State private var dialogueFinished = false
 
-    private let dialogue = [
-        "Good.",
-        "Now we're getting somewhere.",
-        "If I'm going to help you succeed...",
-        "...I need to know who I'm dealing with."
-    ]
+    private var dialogue: [String] {
+        if isSubscribed {
+            return [
+                "Good. Your deck is unlocked.",
+                "You paid for a study coach. Not a miracle.",
+                "I'll bring the plan. You bring the effort.",
+                "Now go make me annoyingly proud."
+            ]
+        }
+        return [
+            "Fine. Keep your money. Lose the excuses.",
+            "Your AI deck stays here, locked until you subscribe.",
+            "You can still make your own decks and study for free.",
+            "I'm saying goodbye to the deal. Not your potential.",
+            "Go study. I'm still rooting for you. Unfortunately."
+        ]
+    }
 
     var body: some View {
         VStack(spacing: 18) {
@@ -40,7 +52,7 @@ struct MrEdSubscribedView: View {
                 onContinue()
             } label: {
                 HStack {
-                    Text("Continue")
+                    Text(isSubscribed ? "Open my deck" : "Go to Home")
                     Spacer()
                     Image(systemName: "arrow.right")
                 }
@@ -103,6 +115,14 @@ struct MrEdSubscribedView: View {
 
         guard !Task.isCancelled else { return }
         dialogueFinished = true
+    }
+}
+
+struct MrEdSubscribedView: View {
+    let onContinue: () -> Void
+
+    var body: some View {
+        MrEdOutcomeView(isSubscribed: true, onContinue: onContinue)
     }
 }
 

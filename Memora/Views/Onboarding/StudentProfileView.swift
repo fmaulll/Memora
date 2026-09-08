@@ -2,6 +2,8 @@ import SwiftUI
 
 struct StudentProfileView: View {
 
+    var isSubmitting: Bool = false
+
     // MARK: - Callback
 
     let onComplete: (
@@ -84,7 +86,9 @@ struct StudentProfileView: View {
 
             VStack(spacing: 20) {
 
-                stepHeader
+                if step != .finished {
+                    stepHeader
+                }
 
                 stepContent
             }
@@ -332,31 +336,31 @@ struct StudentProfileView: View {
 
         case .finished:
 
-            VStack(spacing: 16) {
+            VStack(spacing: 20) {
+                Image("MrEdReady")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: 200, maxHeight: 220)
+                    .accessibilityLabel("Mr. Ed is ready to help you study")
 
-                Text("Alright, \(name).")
-                    .font(
-                        .custom(
-                            "PlusJakartaSans-Bold",
-                            size: 26
-                        )
-                    )
-                    .foregroundStyle(
-                        Color.appTextPrimary
-                    )
+                VStack(spacing: 12) {
+                    Text("Alright, \(name).")
+                        .font(.custom("PlusJakartaSans-Bold", size: 24))
+                        .foregroundStyle(Color.appTextPrimary)
 
-                Text(
-                    "I know enough to get started."
-                )
-                .font(
-                    .custom(
-                        "PlusJakartaSans-Regular",
-                        size: 16
-                    )
-                )
-                .foregroundStyle(
-                    Color.appTextSecondary
-                )
+                    Text("I know enough. No more introductions.\nGive me a topic. Let's make you harder to fail.")
+                        .font(.custom("PlusJakartaSans-Regular", size: 15))
+                        .foregroundStyle(Color.appTextSecondary)
+                        .lineSpacing(4)
+                }
+                .multilineTextAlignment(.center)
+                .padding(20)
+                .frame(maxWidth: .infinity)
+                .background(Color.appSurface, in: RoundedRectangle(cornerRadius: 12))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.appBorder, lineWidth: 1)
+                }
             }
         }
     }
@@ -457,13 +461,16 @@ struct StudentProfileView: View {
 
             HStack {
 
-                Text("Continue")
+                Text(isSubmitting ? "Getting your desk ready…" : (step == .finished ? "Let's build my deck" : "Continue"))
 
                 Spacer()
 
-                Image(
-                    systemName: "arrow.right"
-                )
+                if isSubmitting {
+                    ProgressView()
+                        .tint(Color.appBackground)
+                } else {
+                    Image(systemName: "arrow.right")
+                }
             }
             .font(
                 .custom(
@@ -491,7 +498,7 @@ struct StudentProfileView: View {
             )
         }
         .buttonStyle(.plain)
-        .disabled(!stepIsValid)
+        .disabled(!stepIsValid || isSubmitting)
     }
 
 
@@ -575,25 +582,7 @@ struct StudentProfileView: View {
 
         if step == .finished {
 
-            // Map current situation to
-            // the existing educationLevel value.
-
-            let educationLevel: String
-
-            switch currentSituation {
-
-            case "I'm working":
-                educationLevel = "Working Professional"
-
-            case "University student":
-                educationLevel = "University"
-
-            case "School student":
-                educationLevel = "School"
-
-            default:
-                educationLevel = "Other"
-            }
+            let educationLevel = currentSituation
 
             onComplete(
                 name,

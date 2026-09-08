@@ -11,6 +11,8 @@ struct AIDeckPreviewView: View {
 
     let onDeckCreated: (StudyDeck) -> Void
     let existingDeck: StudyDeck?
+    var requiresSubscription: Bool = false
+    var preparedDeck: StudyDeck? = nil
 
     @State private var isCreating = false
     @State private var errorMessage: String?
@@ -400,18 +402,24 @@ struct AIDeckPreviewView: View {
         AppButton(
             title: isCreating
                 ? "Creating..."
-                : "Create Deck",
+                : (requiresSubscription ? "Continue to unlock" : "Create Deck"),
             foreground: Color.appTextPrimary
         ) {
             guard !isCreating else { return }
 
             isCreating = true
 
+            if let preparedDeck {
+                onDeckCreated(preparedDeck)
+                return
+            }
+
             do {
                 let createdDeck = try AIDeckCreationService.shared.createDeck(
                     from: deck,
                     existingDeck: existingDeck,
-                    modelContext: modelContext
+                    modelContext: modelContext,
+                    requiresSubscription: requiresSubscription
                 )
 
                 onDeckCreated(createdDeck)

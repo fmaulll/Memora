@@ -14,7 +14,57 @@ private enum ExamFeatureError: LocalizedError {
     }
 }
 
+// Gate both the root deck and direct chapter navigation before exposing cards,
+// exams, editing, moving, or study actions.
 struct DeckDetailsView: View {
+    let deck: StudyDeck
+    @State private var subscriptionManager = SubscriptionManager.shared
+    @State private var isShowingPaywall = false
+
+    var body: some View {
+        Group {
+            if deck.needsSubscription && !subscriptionManager.isSubscribed {
+                AppBackground {
+                    VStack(spacing: 24) {
+                        Spacer()
+                        Image("MrEdJudging")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(height: 200)
+                        Image(systemName: "lock.fill")
+                            .font(.largeTitle)
+                            .foregroundStyle(Color.appAccent)
+                        Text(deck.title)
+                            .font(.custom("PlusJakartaSans-Bold", size: 28))
+                        Text("Your deck is saved. Subscribe to unlock its flashcards and exams. Mr. Ed already did his part.")
+                            .foregroundStyle(Color.appTextSecondary)
+                        AppButton(title: "Unlock my deck") {
+                            isShowingPaywall = true
+                        }
+                        Spacer()
+                    }
+                    .multilineTextAlignment(.center)
+                    .padding(24)
+                    .safeAreaInset(edge: .top, spacing: 0) {
+                        BackNavigationBar { EmptyView() }
+                    }
+                }
+                .navigationBarBackButtonHidden()
+            } else {
+                UnlockedDeckDetailsView(deck: deck)
+            }
+        }
+        .sheet(isPresented: $isShowingPaywall) {
+            PaywallView(
+                onSubscribed: { isShowingPaywall = false },
+                onContinueFree: { isShowingPaywall = false },
+                deckTitle: deck.title
+            )
+        }
+    }
+}
+
+private struct UnlockedDeckDetailsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 

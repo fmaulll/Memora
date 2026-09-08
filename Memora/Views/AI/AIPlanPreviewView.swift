@@ -11,9 +11,11 @@ struct AIPlanPreviewView: View {
 
     let onDeckCreated: (StudyDeck) -> Void
     let existingDeck: StudyDeck?
+    var requiresSubscription: Bool = false
 
     @State private var isGenerating = false
     @State private var generatedDeck: GeneratedDeckResponse?
+    @State private var preparedDeck: StudyDeck?
     @State private var generatedTimeline: StudyTimelineResponse?
     @State private var isShowingDeckPreview = false
     @State private var errorMessage: String?
@@ -81,7 +83,9 @@ struct AIPlanPreviewView: View {
                     timeline: generatedTimeline,
                     targetDate: targetDate,
                     onDeckCreated: onDeckCreated,
-                    existingDeck: existingDeck
+                    existingDeck: existingDeck,
+                    requiresSubscription: requiresSubscription,
+                    preparedDeck: preparedDeck
                 )
             }
         }
@@ -316,6 +320,11 @@ struct AIPlanPreviewView: View {
             return
         }
 
+        if let generatedDeck {
+            finishGeneration(generatedDeck)
+            return
+        }
+
         isGenerating = true
         errorMessage = nil
 
@@ -335,11 +344,7 @@ struct AIPlanPreviewView: View {
 
                     isGenerating = false
 
-                    if targetDate != nil {
-                        isShowingDeckPreview = true
-                    } else {
-                        createDeck(response.deck)
-                    }
+                    finishGeneration(response.deck)
                 }
 
             } catch {
@@ -354,12 +359,38 @@ struct AIPlanPreviewView: View {
         }
     }
 
+    private func finishGeneration(_ generatedDeck: GeneratedDeckResponse) {
+        do {
+            // Save the gated first deck before the timeline preview so leaving
+            // this screen or relaunching cannot lose its subscription gate.
+            if requiresSubscription && preparedDeck == nil {
+                preparedDeck = try AIDeckCreationService.shared.createDeck(
+                    from: generatedDeck,
+                    existingDeck: existingDeck,
+                    modelContext: modelContext,
+                    requiresSubscription: true
+                )
+            }
+
+            if targetDate != nil {
+                isShowingDeckPreview = true
+            } else if let preparedDeck {
+                onDeckCreated(preparedDeck)
+            } else {
+                createDeck(generatedDeck)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     private func createDeck(_ generatedDeck: GeneratedDeckResponse) {
         do {
             let createdDeck = try AIDeckCreationService.shared.createDeck(
                 from: generatedDeck,
                 existingDeck: existingDeck,
-                modelContext: modelContext
+                modelContext: modelContext,
+                requiresSubscription: requiresSubscription
             )
 
             onDeckCreated(createdDeck)

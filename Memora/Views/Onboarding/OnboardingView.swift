@@ -3,212 +3,146 @@ import SwiftData
 
 private enum OnboardingStep {
     case introduction
+    case profile
     case paywall
-    case freeGoodbye
-    case subscribed
-    case studySetup
+    case outcome
 }
 
 struct OnboardingView: View {
-
     let onFirstDeckCreated: (StudyDeck) -> Void
 
-    @Environment(\.modelContext)
-    private var modelContext
-
+    @Environment(\.modelContext) private var modelContext
+    @Query private var decks: [StudyDeck]
     @State private var authManager = AuthManager.shared
-
-    @State private var isDialogueFinished = false
-    @State private var isShowingFirstDeckSetup = false
-
     @State private var onboardingStep: OnboardingStep = .introduction
+    @State private var isShowingFirstDeckSetup = false
+    @State private var isCreatingAccount = false
+    @State private var didCheckSavedDeck = false
+    @State private var errorMessage: String?
+    @State private var firstDeck: StudyDeck?
+    @State private var subscribed = false
 
-    @AppStorage("hasCompletedOnboarding")
-    private var hasCompletedOnboarding = false
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
 
-
-    // MARK: - Pages
-
-    private let pages = [
-
-        OnboardingPage(
-            dialogue: [
-                "I'm Mr. Ed.",
-                "Your new study coach.",
-                "I don't care about excuses.",
-                "I care about results.",
-                "Give me a goal.",
-                "I'll help you build a plan.",
-                "Create your study decks.",
-                "And test what you know.",
-                "Now...",
-                "Let's get started.",
-            ],
-            imageName: "MrEdJudging",
-            buttonTitle: "I'm serious"
-        )
-    ]
-
-
-    // MARK: - Save Local Profile
-
-    private func saveLocalProfile(
-        name: String,
-        educationLevel: String,
-        studyReason: String
-    ) {
-
-        let profile = LocalUserProfile(
-            id: UUID(),
-            name: name,
-            email: "",
-            educationLevel: educationLevel,
-            studyReason: studyReason,
-            createdAt: Date()
-        )
-
-        modelContext.insert(profile)
-
-        do {
-
-            try modelContext.save()
-
-            print("LOCAL PROFILE SAVED")
-
-        } catch {
-
-            print(
-                "FAILED TO SAVE LOCAL PROFILE:",
-                error.localizedDescription
-            )
-        }
-    }
-
-
-    // MARK: - Body
+    private let introduction = OnboardingPage(
+        dialogue: [
+            "I'm Mr. Ed. Your study coach.",
+            "I care about results. Yours, unfortunately.",
+            "Give me a goal. I'll build your first deck.",
+            "Preview it free. Subscribe when you're ready to study it.",
+            "Now. Let's see what we're working with."
+        ],
+        imageName: "MrEdJudging",
+        buttonTitle: "I'm serious"
+    )
 
     var body: some View {
-
         Group {
-
             switch onboardingStep {
-
             case .introduction:
+                OnboardingPageView(
+                    page: introduction,
+                    onDialogueFinished: {},
+                    onContinue: { onboardingStep = .profile }
+                )
+                .background(Color.appBackground.ignoresSafeArea())
 
-                introductionView
-
+            case .profile:
+                StudentProfileView(isSubmitting: isCreatingAccount) { name, educationLevel, studyReason in
+                    createProfile(name: name, educationLevel: educationLevel, studyReason: studyReason)
+                }
 
             case .paywall:
-
                 PaywallView(
                     onSubscribed: {
-
-                        onboardingStep = .subscribed
+                        subscribed = true
+                        onboardingStep = .outcome
                     },
                     onContinueFree: {
-
-                        onboardingStep = .freeGoodbye
-                    }
+                        subscribed = false
+                        onboardingStep = .outcome
+                    },
+                    deckTitle: firstDeck?.title
                 )
 
-
-            case .freeGoodbye:
-
-                MrEdGoodbyeView {
-
-                    hasCompletedOnboarding = true
-                }
-
-
-            case .subscribed:
-
-                MrEdSubscribedView {
-
-                    isShowingFirstDeckSetup = true
-                }
-
-
-            case .studySetup:
-
-                StudentProfileView {
-                    name,
-                    educationLevel,
-                    studyReason in
-
-                    onboardingStep = .paywall
-
-                    Task {
-
-                        do {
-
-                            // Save profile locally
-
-                            saveLocalProfile(
-                                name: name,
-                                educationLevel: educationLevel,
-                                studyReason: studyReason
-                            )
-
-
-                            // Create anonymous backend user
-
-                            try await authManager
-                                .createAnonymousUser(
-                                    name: name,
-                                    modelContext: modelContext
-                                )
-
-
-                        } catch {
-
-                            print(
-                                "FAILED TO CREATE ANONYMOUS USER:",
-                                error
-                            )
-                        }
+            case .outcome:
+                MrEdOutcomeView(isSubscribed: subscribed) {
+                    if subscribed, let firstDeck {
+                        onFirstDeckCreated(firstDeck)
                     }
+                    hasCompletedOnboarding = true
                 }
             }
         }
-        .navigationDestination(
-            isPresented: $isShowingFirstDeckSetup
-        ) {
-
+        .navigationBarBackButtonHidden()
+        .background(Color.appBackground.ignoresSafeArea())
+        .navigationDestination(isPresented: $isShowingFirstDeckSetup) {
             AIDeckSetupView(
-                onDeckCreated: { createdDeck in
-
-                    onFirstDeckCreated(
-                        createdDeck
-                    )
-
-                    hasCompletedOnboarding = true
+                onDeckCreated: { deck in
+                    firstDeck = deck
+                    onboardingStep = .paywall
+                    isShowingFirstDeckSetup = false
                 },
-                existingDeck: nil
+                existingDeck: nil,
+                requiresSubscription: true
             )
+        }
+        .alert("Couldn't get things ready", isPresented: Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { errorMessage = nil }
+        } message: {
+            Text(errorMessage ?? "Please try again.")
+        }
+        .onAppear {
+            guard !didCheckSavedDeck else { return }
+            didCheckSavedDeck = true
+
+            // A generated deck remains available if the app closes at the paywall.
+            if let savedDeck = decks.first(where: {
+                $0.requiresSubscription && $0.parentDeck == nil && !$0.needsDeletion
+            }) {
+                firstDeck = savedDeck
+                onboardingStep = .paywall
+            }
         }
     }
 
+    private func createProfile(name: String, educationLevel: String, studyReason: String) {
+        guard !isCreatingAccount else { return }
+        isCreatingAccount = true
 
-    // MARK: - Introduction
-
-    private var introductionView: some View {
-        ZStack {
-            Color.appBackground
-                .ignoresSafeArea()
-
-            OnboardingPageView(
-                page: pages[0],
-                onDialogueFinished: {
-                    isDialogueFinished = true
-                },
-                onContinue: {
-                    onboardingStep = .studySetup
+        Task { @MainActor in
+            defer { isCreatingAccount = false }
+            do {
+                // Retrying onboarding must not create another anonymous account.
+                if !authManager.isAuthenticated {
+                    try await authManager.createAnonymousUser(name: name, modelContext: modelContext)
                 }
-            )
+
+                if authManager.currentUser == nil {
+                    authManager.currentUser = try await AuthAPI.shared.me()
+                }
+
+                let profiles = try modelContext.fetch(FetchDescriptor<LocalUserProfile>())
+                let userID = authManager.currentUser?.id
+                let profile = profiles.first(where: { $0.userId == userID })
+                    ?? LocalUserProfile(name: name, createdAt: Date())
+                if profile.modelContext == nil { modelContext.insert(profile) }
+                profile.userId = userID ?? profile.userId
+                profile.name = name
+                profile.educationLevel = educationLevel
+                profile.studyReason = studyReason
+                try modelContext.save()
+
+                isShowingFirstDeckSetup = true
+            } catch {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 }
-
 
 // MARK: - Page Model
 
