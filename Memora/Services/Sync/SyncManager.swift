@@ -80,6 +80,7 @@ final class SyncManager {
         )
         try LocalAccountStore.shared.validate(session)
 
+        deck.position = response.position
         print("Created deck:", response.id)
     }
 
@@ -101,6 +102,7 @@ final class SyncManager {
         )
         try LocalAccountStore.shared.validate(session)
 
+        deck.position = response.position
         print("Updated deck:", response.id)
     }
 
@@ -220,6 +222,8 @@ final class SyncManager {
                 modelContext.insert(deck)
             }
 
+            deck.position = serverDeck.position
+            deck.generationStatus = serverDeck.generationStatus
             localDecksByID[serverDeck.id] = deck
         }
 
@@ -462,6 +466,7 @@ final class SyncManager {
                 return
             }
 
+            deck.position = serverDeck.position
             deck.isSynced = true
 
             print("✅ DECK SYNCED:", deck.id)
@@ -930,6 +935,7 @@ final class SyncManager {
         localDeck.subject = serverDeck.subject
         localDeck.educationLevel = serverDeck.educationLevel
         localDeck.isFavorite = serverDeck.isFavorite
+        localDeck.position = serverDeck.position
         localDeck.generationStatus = serverDeck.generationStatus
 
         // =====================================================

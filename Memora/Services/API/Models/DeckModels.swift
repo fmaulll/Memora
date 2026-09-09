@@ -3,6 +3,7 @@ import Foundation
 struct DeckResponse: Decodable {
     let id: UUID
     let userId: UUID
+    let position: Int
     let title: String
     let subject: String
     let educationLevel: String
@@ -18,6 +19,7 @@ struct DeckResponse: Decodable {
     enum CodingKeys: String, CodingKey {
         case id
         case userId = "user_id"
+        case position
         case title
         case subject
         case educationLevel = "education_level"

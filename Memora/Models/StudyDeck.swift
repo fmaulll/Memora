@@ -5,6 +5,8 @@ import SwiftData
 final class StudyDeck {
     var id: UUID
 
+    var position: Int = 0
+
     var title: String
     var subject: String
     var educationLevel: String
@@ -75,9 +77,11 @@ final class StudyDeck {
         createdAt: Date = .now,
         cards: [StudyFlashcardCard] = [],
         parentDeck: StudyDeck? = nil,
-        generationStatus: String = "completed"
+        generationStatus: String = "completed",
+        position: Int = 0
     ) {
         self.id = id
+        self.position = position
         self.title = title
         self.subject = subject
         self.educationLevel = educationLevel
@@ -90,6 +94,13 @@ final class StudyDeck {
         for card in cards {
             card.deck = self
         }
+    }
+}
+
+extension StudyDeck {
+    static func chapterOrder(_ lhs: StudyDeck, _ rhs: StudyDeck) -> Bool {
+        if lhs.position != rhs.position { return lhs.position < rhs.position }
+        return lhs.id.uuidString < rhs.id.uuidString
     }
 }
 

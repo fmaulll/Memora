@@ -48,14 +48,15 @@ final class AIDeckCreationService {
 
         rootDeck.requiresSubscription = rootDeck.requiresSubscription || requiresSubscription
 
-        for chapter in generatedDeck.chapters {
+        for (index, chapter) in generatedDeck.chapters.enumerated() {
             let chapterDeck = StudyDeck(
                 id: chapter.id,
                 title: chapter.title,
                 subject: generatedDeck.subject,
                 educationLevel: generatedDeck.educationLevel,
                 parentDeck: rootDeck,
-                generationStatus: chapter.generationStatus
+                generationStatus: chapter.generationStatus,
+                position: chapter.position ?? (index + 1)
             )
 
             chapterDeck.requiresSubscription = rootDeck.requiresSubscription

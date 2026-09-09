@@ -56,8 +56,7 @@ struct LibraryCatalog {
 
     func children(of entry: LibraryEntry) -> [LibraryEntry] {
         entries.filter { $0.deck.parentDeck?.id == entry.id }.sorted {
-            if $0.deck.createdAt != $1.deck.createdAt { return $0.deck.createdAt < $1.deck.createdAt }
-            return $0.id.uuidString < $1.id.uuidString
+            StudyDeck.chapterOrder($0.deck, $1.deck)
         }
     }
 

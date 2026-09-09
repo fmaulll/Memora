@@ -40,7 +40,7 @@ struct DeckProgressSummary: Identifiable {
             cards.append(contentsOf: current.cards.filter {
                 !$0.needsDeletion && visitedCards.insert($0.id).inserted
             })
-            for child in current.childDecks { visit(child) }
+            for child in current.childDecks.sorted(by: StudyDeck.chapterOrder) { visit(child) }
         }
         visit(deck)
         self.cards = cards

@@ -96,9 +96,11 @@ struct GeneratedChapter: Decodable, Identifiable {
     let id: UUID
     let title: String
     let generationStatus: String
+    var position: Int? = nil
 
     enum CodingKeys: String, CodingKey {
         case id
+        case position
         case title
         case generationStatus = "generation_status"
     }

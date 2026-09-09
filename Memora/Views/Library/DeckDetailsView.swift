@@ -79,13 +79,11 @@ private struct UnlockedDeckDetailsView: View {
     @State private var isShowingDeleteConfirmation = false
     @State private var isShowingCreateWithAI = false
 
-    @State private var isAnswerRevealed = false
-    @State private var currentCardIndex = 0
-
     @State private var generationPollingTask: Task<Void, Never>?
     @State private var isPollingGeneration = false
     @State private var isRetryingGeneration = false
     @State private var retryErrorMessage: String?
+    @State private var showingExams = false
     @State private var examProgression: ExamProgressionResponse?
     @State private var isLoadingExams = false
     @State private var examErrorMessage: String?
@@ -100,20 +98,12 @@ private struct UnlockedDeckDetailsView: View {
         deck.cards.filter { !$0.needsDeletion }.count
     }
 
-    private var masteredCards: Int {
-        deck.cards.filter {
-            !$0.needsDeletion &&
-            $0.correctCount > 0
-        }.count
+    private var studyProgress: DeckProgressSummary {
+        DeckProgressSummary(deck: deck, isSubscribed: true, now: .now)
     }
 
-    private var learningCards: Int {
-        deck.cards.filter {
-            !$0.needsDeletion &&
-            $0.reviewCount > 0 &&
-            $0.correctCount == 0
-        }.count
-    }
+    private var masteredCards: Int { studyProgress.confirmedCount }
+    private var learningCards: Int { studyProgress.learningCount }
 
     private var newCards: Int {
         deck.cards.filter {
@@ -135,9 +125,7 @@ private struct UnlockedDeckDetailsView: View {
     private var childDecks: [StudyDeck] {
         deck.childDecks
             .filter { !$0.needsDeletion }
-            .sorted {
-                $0.createdAt < $1.createdAt
-            }
+            .sorted(by: StudyDeck.chapterOrder)
     }
 
     private var allChildCards: [StudyFlashcardCard] {
@@ -201,107 +189,38 @@ private struct UnlockedDeckDetailsView: View {
     var body: some View {
         AppBackground {
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 0) {
-
-                    // MARK: Flashcard Carousel
-
-                    // MARK: Main Content
-
+                VStack(alignment: .leading, spacing: 24) {
+                    header
                     if isParentDeck {
-                        childDeckSection
-                            .padding(.top, 20)
-                            .padding(.horizontal, 24)
-
-                            examSection
-                                .padding(.top, 28)
-                                .padding(.horizontal, 24)
-                    } else {
-                        flashcardCarousel
-                            .padding(.top, 20)
-                    }
-
-                    // MARK: Deck Information
-
-                    VStack(alignment: .leading, spacing: 0) {
-
-                        // MARK: Study All Button
-
-                        if isParentDeck && !allChildCards.isEmpty {
+                        parentOverview
+                        if !allChildCards.isEmpty {
                             NavigationLink {
                                 StudyFlashcardsView(decks: childDecks)
                             } label: {
-                                HStack(spacing: 10) {
-
-                                    Image(systemName: "play.fill")
-                                        .font(.system(size: 15, weight: .bold))
-
-                                    Text(
-                                        hasStudyAllProgress
-                                            ? "Continue Study"
-                                            : "Study All"
-                                    )
-                                    .font(
-                                        .custom(
-                                            "PlusJakartaSans-SemiBold",
-                                            size: 15
-                                        )
-                                    )
-                                    .foregroundStyle(Color.appTextPrimary)
-
-                                    Spacer()
-
-                                    Text(
-                                        hasStudyAllProgress
-                                            ? "\(studyAllCompletedCards) / \(allChildCards.count)"
-                                            : "\(allChildCards.count) cards"
-                                    )
-                                    .font(
-                                        .custom(
-                                            "PlusJakartaSans-Regular",
-                                            size: 12
-                                        )
-                                    )
-                                    .foregroundStyle(Color.appTextSecondary)
-                                }
-                                .padding(.horizontal, 16)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 54)
-                                .contentShape(Rectangle())
-                                .background(
-                                    Color.appAccent,
-                                    in: RoundedRectangle(cornerRadius: 8)
-                                )
+                                Label(hasStudyAllProgress ? "Continue studying chapters" : "Study all chapters", systemImage: "play.fill")
+                                    .font(.custom("PlusJakartaSans-Bold", size: 15))
+                                    .foregroundStyle(Color.appBackground)
+                                    .frame(maxWidth: .infinity).frame(height: 54)
+                                    .background(Color.appAccent, in: RoundedRectangle(cornerRadius: 8))
                             }
                             .buttonStyle(.plain)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 28)
                         }
-
-                        header
-                            .padding(.top, 28)
-
-                        if !isParentDeck {
-                            progressSummary
-                                .padding(.top, 28)
+                        Picker("Deck section", selection: $showingExams) {
+                            Text("Chapters").tag(false)
+                            Text("Exams").tag(true)
                         }
-
-                        if !isParentDeck {
-                            studyButton
-                                .padding(.top, 24)
-                        }
-
-                        if !isParentDeck {
-                            cardsSection
-                                .padding(.top, 28)
-                        }
-
-                        if isFailedGeneration {
-                            retryGenerationSection
-                                .padding(.top, 28)
-                        }
+                        .pickerStyle(.segmented)
+                        if showingExams { examSection } else { childDeckSection }
+                    } else {
+                        progressSummary
+                        studyButton
+                        cardsSection
                     }
-                    .padding(.horizontal, 24)
+                    if isFailedGeneration { retryGenerationSection }
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 32)
             }
             .safeAreaInset(edge: .top, spacing: 0) {
                 BackNavigationBar {
@@ -459,7 +378,10 @@ private struct UnlockedDeckDetailsView: View {
         }
         .task {
             startGenerationPollingIfNeeded()
-            await loadExamProgressionIfNeeded()
+            if isParentDeck { await loadExamProgression() }
+        }
+        .refreshable {
+            if isParentDeck { await loadExamProgression() }
         }
         .onDisappear {
             stopGenerationPolling()
@@ -477,9 +399,9 @@ private struct UnlockedDeckDetailsView: View {
                     )
                 )
                 .foregroundStyle(Color.appTextPrimary)
-                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
 
-            HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 8) {
 
                 Text(deck.subject.uppercased())
                     .font(
@@ -498,7 +420,7 @@ private struct UnlockedDeckDetailsView: View {
 
                 Text(
                     isParentDeck
-                        ? "\(deck.educationLevel) • \(childDecks.count) decks • \(totalStudyCards) cards"
+                        ? "\(deck.educationLevel) · \(childDecks.count) chapters · \(totalStudyCards) cards"
                         : "\(deck.educationLevel) • \(totalStudyCards) card\(totalStudyCards == 1 ? "" : "s")"
                 )
                 .font(
@@ -848,421 +770,139 @@ private struct UnlockedDeckDetailsView: View {
 
     // MARK: Reveal
 
-    private func revealAnswer() {
-        guard !isAnswerRevealed else {
-            withAnimation(.easeInOut(duration: 0.25)) {
-                isAnswerRevealed = false
-            }
-            return
-        }
-
-        withAnimation(.easeInOut(duration: 0.25)) {
-            isAnswerRevealed = true
-        }
-    }
-
-    private var flashcardCarousel: some View {
-        VStack(spacing: 12) {
-
-            if hasCards {
-
-                TabView(selection: $currentCardIndex) {
-                    ForEach(
-                        Array(availableCards.enumerated()),
-                        id: \.element.persistentModelID
-                    ) { index, card in
-
-                        FlashcardView(
-                            card: card,
-                            isAnswerRevealed: isAnswerRevealed
-                        )
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            revealAnswer()
-                        }
-                        .tag(index)
-                        .padding(.horizontal, 20)
-                    }
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .frame(height: 315)
-                .onChange(of: availableCards.count) {
-                    if availableCards.isEmpty {
-                        currentCardIndex = 0
-                        isAnswerRevealed = false
-                    } else if currentCardIndex >= availableCards.count {
-                        currentCardIndex = max(
-                            availableCards.count - 1,
-                            0
-                        )
-                    }
-                }
-
-                HStack(spacing: 6) {
-                    ForEach(
-                        0..<availableCards.count,
-                        id: \.self
-                    ) { index in
-
-                        Capsule()
-                            .fill(
-                                index == currentCardIndex
-                                    ? accent
-                                    : Color.appBorder
-                            )
-                            .frame(
-                                width: index == currentCardIndex ? 18 : 6,
-                                height: 6
-                            )
-                            .animation(
-                                .easeInOut(duration: 0.2),
-                                value: currentCardIndex
-                            )
-                    }
-                }
-                .frame(maxWidth: .infinity)
-
-            } else {
-                emptyFlashcardState
-            }
-        }
-        .onChange(of: currentCardIndex) {
-            isAnswerRevealed = false
-        }
-    }
-
-    private var emptyFlashcardState: some View {
-        VStack(spacing: 14) {
-
-            Image(systemName: "rectangle.on.rectangle.slash")
-                .font(.system(size: 30, weight: .medium))
-                .foregroundStyle(accent)
-
-            Text("No flashcards yet")
-                .font(
-                    .custom(
-                        "PlusJakartaSans-SemiBold",
-                        size: 17
-                    )
-                )
-                .foregroundStyle(Color.appTextPrimary)
-
-            Text("Add some flashcards to start studying this deck.")
-                .font(
-                    .custom(
-                        "PlusJakartaSans-Regular",
-                        size: 13
-                    )
-                )
+    private var parentOverview: some View {
+        let progress = studyProgress
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("YOUR STUDY PATH")
+                .font(.custom("PlusJakartaSans-Bold", size: 11))
                 .foregroundStyle(Color.appTextSecondary)
-                .multilineTextAlignment(.center)
-
-            Button {
-                isShowingEditCards = true
-            } label: {
-                Text("Add Flashcards")
-                    .font(
-                        .custom(
-                            "PlusJakartaSans-SemiBold",
-                            size: 13
-                        )
-                    )
-                    .foregroundStyle(Color.appTextPrimary)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 10)
-                    .background(
-                        accent,
-                        in: Capsule()
-                    )
-            }
-            .buttonStyle(.plain)
+            Text("\(progress.confirmedCount) of \(progress.totalCount) cards confirmed")
+                .font(.custom("PlusJakartaSans-Bold", size: 18))
+                .foregroundStyle(Color.appTextPrimary)
+            ProgressView(value: progress.confirmedFraction).tint(Color.appAccent)
+            Text("Learn the chapters, then prove it in three exams. Open Exams to see what's next.")
+                .font(.custom("PlusJakartaSans-Regular", size: 13))
+                .foregroundStyle(Color.appTextSecondary)
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 265)
-        .padding(.horizontal, 24)
+        .padding(16)
         .background(Color.appSurface, in: RoundedRectangle(cornerRadius: 8))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.appBorder, lineWidth: 1)
-        }
-        .padding(.horizontal, 24)
-    }
-
-    private func masteredCount(for deck: StudyDeck) -> Int {
-        deck.cards.filter {
-            !$0.needsDeletion &&
-            $0.correctCount > 0
-        }.count
+        .overlay { RoundedRectangle(cornerRadius: 8).stroke(Color.appBorder, lineWidth: 1) }
     }
 
     private var childDeckSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-
-            HStack {
-                Text("Study Decks")
-                    .font(
-                        .custom(
-                            "PlusJakartaSans-Bold",
-                            size: 17
-                        )
-                    )
-                    .foregroundStyle(Color.appTextPrimary)
-
-                Spacer()
-
-                Text("\(childDecks.count)")
-                    .font(
-                        .custom(
-                            "PlusJakartaSans-SemiBold",
-                            size: 13
-                        )
-                    )
-                    .foregroundStyle(accent)
-            }
-
-            ForEach(childDecks) { childDeck in
-
-                if childDeck.generationStatus == "completed" {
-
-                    NavigationLink {
-                        DeckDetailsView(deck: childDeck)
-                    } label: {
-                        childDeckRow(childDeck)
-                    }
-                    .buttonStyle(.plain)
-
-                } else {
-
-                    childDeckRow(childDeck)
-                        .opacity(0.6)
+        VStack(alignment: .leading, spacing: 12) {
+            Text("CHAPTERS · \(childDecks.count)")
+                .font(.custom("PlusJakartaSans-Bold", size: 11))
+                .foregroundStyle(Color.appTextSecondary)
+            Text("Follow the numbered chapters. Your exam requirements are shown in the Exams tab.")
+                .font(.custom("PlusJakartaSans-Regular", size: 13))
+                .foregroundStyle(Color.appTextSecondary)
+            ForEach(childDecks) { child in
+                NavigationLink { DeckDetailsView(deck: child) } label: {
+                    childDeckRow(child)
                 }
+                .buttonStyle(.plain)
             }
         }
+    }
+
+    private var chapterExamProgress: ChapterExamProgress {
+        ChapterExamProgress(chapters: childDecks)
+    }
+
+    private func canStartExam(_ type: ExamType, exams: [ExamStatusResponse]) -> Bool {
+        let progress = chapterExamProgress
+        return ExamAccessPolicy.canStart(type, exams: exams, isGenerating: isDeckGenerationInProgress,
+                                         firstHalfComplete: progress.firstHalfComplete,
+                                         secondHalfComplete: progress.secondHalfComplete)
     }
 
     private var examSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("EXAMS")
-                .font(
-                    .custom(
-                        "PlusJakartaSans-Bold",
-                        size: 11
-                    )
-                )
-                .foregroundStyle(Color.appTextSecondary)
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("EXAM MILESTONES")
+                    .font(.custom("PlusJakartaSans-Bold", size: 11))
+                    .foregroundStyle(Color.appTextSecondary)
+                Spacer()
+                Button { Task { await loadExamProgression() } } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                        .font(.custom("PlusJakartaSans-SemiBold", size: 12))
+                        .foregroundStyle(Color.appAccent)
+                }
+                .disabled(isLoadingExams || isGeneratingExam)
+            }
+            if isLoadingExams {
+                ProgressView("Checking exam eligibility…")
+                    .font(.custom("PlusJakartaSans-Regular", size: 13))
+                    .tint(Color.appAccent)
+            }
+            if let examErrorMessage {
+                Text(examErrorMessage)
+                    .font(.custom("PlusJakartaSans-Regular", size: 13))
+                    .foregroundStyle(Color.appError)
+            }
+            ForEach(ExamType.allCases) { type in
+                examMilestone(type)
+            }
+        }
+    }
 
-            if isDeckGenerationInProgress {
-                Label(
-                    "Cards are still generating. Exams will be available when they're ready.",
-                    systemImage: "hourglass"
-                )
-                .font(
-                    .custom(
-                        "PlusJakartaSans-Regular",
-                        size: 13
-                    )
-                )
-                .foregroundStyle(Color.appWarning)
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    Color.appSurface,
-                    in: RoundedRectangle(cornerRadius: 8)
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.appBorder, lineWidth: 1)
+    private func examMilestone(_ type: ExamType) -> some View {
+        let exams = examProgression?.exams ?? []
+        let exam = exams.first { $0.examType == type }
+        let available = canStartExam(type, exams: exams)
+            && !isLoadingExams && examErrorMessage == nil
+        let generating = isGeneratingExam && generatingExamType == type
+        let color: Color = exam?.passed == true ? .appSuccess : available ? .appAccent : .appTextSecondary
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: exam?.passed == true ? "checkmark.circle.fill" : examIcon(for: type))
+                    .font(.system(size: 24)).foregroundStyle(color)
+                Text(examTitle(for: type))
+                    .font(.custom("PlusJakartaSans-Bold", size: 17))
+                    .foregroundStyle(Color.appTextPrimary)
+                Spacer()
+                if !available && exam?.passed != true {
+                    Image(systemName: "lock.fill").foregroundStyle(Color.appTextSecondary)
                 }
             }
-
-            if isLoadingExams && examProgression == nil {
-                HStack(spacing: 10) {
-                    ProgressView()
-                        .tint(Color.appAccent)
-
-                    Text("Loading exam status...")
-                        .font(
-                            .custom(
-                                "PlusJakartaSans-Regular",
-                                size: 13
-                            )
-                        )
-                        .foregroundStyle(Color.appTextSecondary)
+            Text(chapterExamProgress.coverage(for: type) + " · " + chapterExamProgress.completionLabel(for: type))
+                .font(.custom("PlusJakartaSans-SemiBold", size: 12))
+                .foregroundStyle(Color.appAccent)
+            Text(ExamAccessPolicy.requirement(for: type))
+                .font(.custom("PlusJakartaSans-Regular", size: 13))
+                .foregroundStyle(Color.appTextSecondary)
+            if let exam {
+                HStack {
+                    Text(exam.passed ? "Passed" : available ? "Ready to take" : "Locked")
+                        .foregroundStyle(color)
+                    Spacer()
+                    if let score = exam.bestScore { Text("Best: \(score)%") }
+                    if exam.attemptCount > 0 { Text("\(exam.attemptCount) attempts") }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(16)
-                .background(
-                    Color.appSurface,
-                    in: RoundedRectangle(cornerRadius: 8)
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.appBorder, lineWidth: 1)
-                }
-            } else if let examErrorMessage {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(examErrorMessage)
-                        .font(
-                            .custom(
-                                "PlusJakartaSans-Regular",
-                                size: 13
-                            )
-                        )
-                        .foregroundStyle(Color.appError)
-
-                    Button("Try again") {
-                        Task {
-                            await loadExamProgression()
-                        }
+                .font(.custom("PlusJakartaSans-SemiBold", size: 12))
+                .foregroundStyle(Color.appTextSecondary)
+                if available || generating {
+                    AppButton(title: generating ? "Preparing exam…" : exam.attemptCount > 0 ? "Retake exam" : "Start exam",
+                              foreground: Color.appBackground, background: Color.appAccent) {
+                        generateExam(exam)
                     }
-                    .font(
-                        .custom(
-                            "PlusJakartaSans-SemiBold",
-                            size: 13
-                        )
-                    )
-                    .foregroundStyle(Color.appAccent)
-                }
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    Color.appSurface,
-                    in: RoundedRectangle(cornerRadius: 8)
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.appBorder, lineWidth: 1)
-                }
-            } else if let exams = examProgression?.exams, !exams.isEmpty {
-                ForEach(exams) { exam in
-                    examStatusCard(exam)
+                    .disabled(isGeneratingExam)
                 }
             } else {
-                Text("No exams are available for this deck yet.")
-                    .font(
-                        .custom(
-                            "PlusJakartaSans-Regular",
-                            size: 13
-                        )
-                    )
+                Text(isLoadingExams ? "Checking status…" : "Availability not confirmed. Refresh to check.")
+                    .font(.custom("PlusJakartaSans-Regular", size: 12))
                     .foregroundStyle(Color.appTextSecondary)
             }
-        }
-    }
-
-    private func examStatusCard(
-        _ exam: ExamStatusResponse
-    ) -> some View {
-        let isAvailable = exam.status != .locked &&
-            !isDeckGenerationInProgress
-        let isThisExamGenerating = isGeneratingExam &&
-            generatingExamType == exam.examType
-        let statusColor = exam.passed
-            ? Color.appSuccess
-            : isAvailable
-                ? Color.appAccent
-                : Color.appTextSecondary
-
-        return Button {
-            generateExam(exam)
-        } label: {
-            HStack(spacing: 14) {
-            Image(systemName: examIcon(for: exam.examType))
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(statusColor)
-                .frame(width: 40, height: 40)
-                .background(
-                    Color.appSecondarySurface,
-                    in: RoundedRectangle(cornerRadius: 8)
-                )
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(examTitle(for: exam.examType))
-                    .font(
-                        .custom(
-                            "PlusJakartaSans-SemiBold",
-                            size: 15
-                        )
-                    )
-                    .foregroundStyle(Color.appTextPrimary)
-
-                Text(
-                    isDeckGenerationInProgress
-                        ? "Waiting for cards"
-                        : examStatusLabel(exam)
-                )
-                    .font(
-                        .custom(
-                            "PlusJakartaSans-Regular",
-                            size: 12
-                        )
-                    )
-                    .foregroundStyle(statusColor)
-            }
-
-            Spacer()
-
-            if isThisExamGenerating {
-                ProgressView()
-                    .tint(Color.appAccent)
-            } else if let bestScore = exam.bestScore {
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(bestScore)%")
-                        .font(
-                            .custom(
-                                "PlusJakartaSans-Bold",
-                                size: 16
-                            )
-                        )
-                        .foregroundStyle(Color.appTextPrimary)
-
-                    Text("Best")
-                        .font(
-                            .custom(
-                                "PlusJakartaSans-Regular",
-                                size: 10
-                            )
-                        )
-                        .foregroundStyle(Color.appTextSecondary)
-                }
-            } else if exam.attemptCount > 0 {
-                Text("\(exam.attemptCount) attempt\(exam.attemptCount == 1 ? "" : "s")")
-                    .font(
-                        .custom(
-                            "PlusJakartaSans-Regular",
-                            size: 11
-                        )
-                    )
-                    .foregroundStyle(Color.appTextSecondary)
-            }
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                Color.appSurface,
-                in: RoundedRectangle(cornerRadius: 8)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.appBorder, lineWidth: 1)
+            if isDeckGenerationInProgress {
+                Text("Waiting for cards to finish generating.")
+                    .font(.custom("PlusJakartaSans-Regular", size: 12))
+                    .foregroundStyle(Color.appWarning)
             }
         }
-        .buttonStyle(.plain)
-        .disabled(!isAvailable || isGeneratingExam)
-        .opacity(isAvailable ? 1 : 0.65)
-        .accessibilityLabel(
-            "\(examTitle(for: exam.examType)), \(examAccessibilityStatus(exam))"
-        )
-    }
-
-    private func examAccessibilityStatus(
-        _ exam: ExamStatusResponse
-    ) -> String {
-        if isDeckGenerationInProgress {
-            return "Waiting for cards to finish generating"
-        }
-
-        return examStatusLabel(exam)
+        .padding(16)
+        .background(Color.appSurface, in: RoundedRectangle(cornerRadius: 8))
+        .overlay { RoundedRectangle(cornerRadius: 8).stroke(Color.appBorder, lineWidth: 1) }
     }
 
     private func examTitle(for type: ExamType) -> String {
@@ -1287,30 +927,8 @@ private struct UnlockedDeckDetailsView: View {
         }
     }
 
-    private func examStatusLabel(
-        _ exam: ExamStatusResponse
-    ) -> String {
-        if exam.status == .locked {
-            return "Locked"
-        }
-
-        if exam.status == .completed {
-            return exam.passed ? "Passed" : "Not passed"
-        }
-
-        return "Available"
-    }
-
-    private func loadExamProgressionIfNeeded() async {
-        guard isParentDeck, examProgression == nil else {
-            return
-        }
-
-        await loadExamProgression()
-    }
-
     private func loadExamProgression() async {
-        guard !isLoadingExams else {
+        guard isParentDeck, !isLoadingExams else {
             return
         }
 
@@ -1326,14 +944,15 @@ private struct UnlockedDeckDetailsView: View {
             isLoadingExams = false
 
         } catch {
+            examProgression = nil
             examErrorMessage = error.localizedDescription
             isLoadingExams = false
         }
     }
 
     private func generateExam(_ exam: ExamStatusResponse) {
-        guard exam.status != .locked,
-              !isGeneratingExam else {
+        guard canStartExam(exam.examType, exams: examProgression?.exams ?? []),
+              !isLoadingExams, !isGeneratingExam else {
             return
         }
 
@@ -1343,6 +962,14 @@ private struct UnlockedDeckDetailsView: View {
 
         Task { @MainActor in
             do {
+                // Recheck immediately before generation; a stale UI cannot grant access.
+                let latest = try await ExamAPI.shared.getExams(parentDeckID: deck.id)
+                examProgression = latest
+                guard canStartExam(exam.examType, exams: latest.exams) else {
+                    isGeneratingExam = false
+                    generatingExamType = nil
+                    return
+                }
                 let response = try await ExamAPI.shared.generateExam(
                     parentDeckID: deck.id,
                     examType: exam.examType
@@ -1365,62 +992,42 @@ private struct UnlockedDeckDetailsView: View {
         }
     }
 
-    private func childDeckRow(
-        _ childDeck: StudyDeck
-    ) -> some View {
-
-        HStack(spacing: 14) {
-
-            VStack(
-                alignment: .leading,
-                spacing: 5
-            ) {
-
+    private func childDeckRow(_ childDeck: StudyDeck) -> some View {
+        let progress = DeckProgressSummary(deck: childDeck, isSubscribed: true, now: .now)
+        return HStack(alignment: .top, spacing: 14) {
+            Text(String(format: "%02d", (childDecks.firstIndex { $0.id == childDeck.id } ?? 0) + 1))
+                .font(.custom("PlusJakartaSans-Bold", size: 16))
+                .foregroundStyle(Color.appAccent)
+                .frame(width: 40, height: 40)
+                .background(Color.appSecondarySurface, in: RoundedRectangle(cornerRadius: 8))
+            VStack(alignment: .leading, spacing: 8) {
                 Text(childDeck.title)
-                    .font(
-                        .custom(
-                            "PlusJakartaSans-SemiBold",
-                            size: 15
-                        )
-                    )
+                    .font(.custom("PlusJakartaSans-SemiBold", size: 15))
                     .foregroundStyle(Color.appTextPrimary)
-
-                generationStatusText(
-                    for: childDeck
-                )
+                if childDeck.generationStatus == "completed" {
+                    Text("\(progress.confirmedCount)/\(progress.totalCount) cards confirmed")
+                        .font(.custom("PlusJakartaSans-Regular", size: 12))
+                        .foregroundStyle(Color.appTextSecondary)
+                    ProgressView(value: progress.confirmedFraction).tint(Color.appAccent)
+                    if progress.hasActiveSession {
+                        Text("Continue · \(progress.sessionRemaining) cards left")
+                            .font(.custom("PlusJakartaSans-SemiBold", size: 12))
+                            .foregroundStyle(Color.appInfo)
+                    }
+                } else if childDeck.generationStatus == "failed" {
+                    Text("Generation failed · open chapter")
+                        .font(.custom("PlusJakartaSans-Regular", size: 12))
+                        .foregroundStyle(Color.appError)
+                } else {
+                    generationStatusText(for: childDeck)
+                }
             }
-
-            Spacer()
-
-            if childDeck.generationStatus == "completed" {
-
-                Image(systemName: "chevron.right")
-                    .font(
-                        .system(
-                            size: 12,
-                            weight: .semibold
-                        )
-                    )
-                    .foregroundStyle(
-                        Color.appTextSecondary
-                    )
-
-            } else {
-
-                ProgressView()
-                    .scaleEffect(0.8)
-                    .tint(Color.appTextSecondary)
-            }
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right").foregroundStyle(Color.appTextSecondary)
         }
         .padding(16)
-        .background(
-            Color.appSurface,
-            in: RoundedRectangle(cornerRadius: 8)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.appBorder, lineWidth: 1)
-        }
+        .background(Color.appSurface, in: RoundedRectangle(cornerRadius: 8))
+        .overlay { RoundedRectangle(cornerRadius: 8).stroke(Color.appBorder, lineWidth: 1) }
     }
 
     @ViewBuilder
@@ -1434,8 +1041,8 @@ private struct UnlockedDeckDetailsView: View {
 
                 Text(
                     "\(childDeck.totalCardCount) cards"
-                    + (masteredCount(for: childDeck) > 0
-                        ? " · \(masteredCount(for: childDeck)) mastered"
+                    + (DeckProgressSummary(deck: childDeck, isSubscribed: true, now: .now).confirmedCount > 0
+                        ? " · \(DeckProgressSummary(deck: childDeck, isSubscribed: true, now: .now).confirmedCount) mastered"
                         : "")
                 )
                 .font(
@@ -1480,70 +1087,12 @@ private struct UnlockedDeckDetailsView: View {
             }
         }
     
-    private struct FlashcardView: View {
-        let card: StudyFlashcardCard
-        let isAnswerRevealed: Bool
-
-        var body: some View {
-            VStack(spacing: 0) {
-
-                Text(card.front)
-                    .font(.custom("PlusJakartaSans-SemiBold", size: 22))
-                    .foregroundStyle(Color.appTextPrimary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-
-
-                if isAnswerRevealed {
-                    Divider()
-                        .overlay(Color.appBorder)
-                        .padding(.horizontal, 40)
-                        .padding(.vertical, 28)
-
-                    Text(card.back)
-                        .font(.custom("PlusJakartaSans-Regular", size: 17))
-                        .foregroundStyle(Color.appTextSecondary)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                        .transition(
-                            .opacity
-                            .combined(with: .move(edge: .bottom))
-                        )
-                }
-
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 265)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 24)
-            .background(
-                Color.appSurface,
-                in: RoundedRectangle(cornerRadius: 8)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.appBorder, lineWidth: 1)
-            }
-            .overlay(alignment: .bottomTrailing) {
-                Button {
-                    
-                } label: {
-                    Image(systemName: "viewfinder")
-                        .font(.system(size: 24, weight: .medium))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("View card \(card.front) in deck")
-                .padding(20)
-            }
-        }
-    }
-
     private var progressSummary: some View {
         VStack(alignment: .leading, spacing: 12) {
 
             HStack {
 
-                Text("Mastery completed")
+                Text("Recall progress")
                     .font(
                         .custom(
                             "PlusJakartaSans-Regular",
@@ -1554,7 +1103,7 @@ private struct UnlockedDeckDetailsView: View {
 
                 Spacer()
 
-                Text("\(masteredCards) / \(totalCards) Mastered")
+                Text("\(masteredCards) / \(totalCards) confirmed")
                     .font(
                         .custom(
                             "PlusJakartaSans-Bold",
@@ -1582,7 +1131,7 @@ private struct UnlockedDeckDetailsView: View {
             HStack(spacing: 8) {
 
                 progressPill(
-                    title: "Mastered",
+                    title: "Confirmed",
                     count: masteredCards,
                     color: Color.appSuccess
                 )
@@ -1636,7 +1185,7 @@ private struct UnlockedDeckDetailsView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
-        .background(Color.appSecondarySurface, in: Capsule())
+        .background(Color.appSecondarySurface, in: RoundedRectangle(cornerRadius: 8))
     }
 
     private var studyAllCompletedCards: Int {
@@ -1675,7 +1224,7 @@ private struct UnlockedDeckDetailsView: View {
                     .foregroundStyle(color)
                     .font(.system(size: 18))
                     .frame(width: 40, height: 40)
-                    .background(color.opacity(0.18), in: RoundedRectangle(cornerRadius: 12))
+                    .background(color.opacity(0.18), in: RoundedRectangle(cornerRadius: 8))
 
                 Text(title)
                     .font(.custom("PlusJakartaSans-SemiBold", size: 15))
@@ -1765,61 +1314,38 @@ private struct UnlockedDeckDetailsView: View {
         }
     }
 
-    private func flashcardRow(
-        number: Int,
-        card: StudyFlashcardCard
-    ) -> some View {
-
-        HStack(spacing: 14) {
-
-            Text(String(format: "%02d", number))
-                .font(
-                    .custom(
-                        "PlusJakartaSans-Bold",
-                        size: 13
-                    )
-                )
-                .foregroundStyle(
-                    Color.appTextSecondary
-                )
-                .frame(width: 28)
-
-            VStack(
-                alignment: .leading,
-                spacing: 6
-            ) {
-
-                Text(card.front)
-                    .font(
-                        .custom(
-                            "PlusJakartaSans-SemiBold",
-                            size: 15
-                        )
-                    )
+    private func flashcardRow(number: Int, card: StudyFlashcardCard) -> some View {
+        DisclosureGroup {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(card.back)
+                    .font(.custom("PlusJakartaSans-Regular", size: 15))
                     .foregroundStyle(Color.appTextPrimary)
-                    .lineLimit(2)
-
-                cardStatus(card)
+                    .padding(.top, 12)
+                if let data = card.backImageData, let image = UIImage(data: data) {
+                    Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 220)
+                }
             }
-
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(
-                    Color.appTextSecondary
-                )
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } label: {
+            HStack(alignment: .top, spacing: 12) {
+                Text(String(format: "%02d", number))
+                    .font(.custom("PlusJakartaSans-Bold", size: 13))
+                    .foregroundStyle(Color.appTextSecondary)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(card.front)
+                        .font(.custom("PlusJakartaSans-SemiBold", size: 15))
+                        .foregroundStyle(Color.appTextPrimary)
+                    if let data = card.frontImageData, let image = UIImage(data: data) {
+                        Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 180)
+                    }
+                    cardStatus(card)
+                }
+            }
         }
+        .tint(Color.appAccent)
         .padding(16)
-        .frame(maxWidth: .infinity)
-        .background(
-            Color.appSurface,
-            in: RoundedRectangle(cornerRadius: 8)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.appBorder, lineWidth: 1)
-        }
+        .background(Color.appSurface, in: RoundedRectangle(cornerRadius: 8))
+        .overlay { RoundedRectangle(cornerRadius: 8).stroke(Color.appBorder, lineWidth: 1) }
     }
 
     @ViewBuilder
@@ -1840,7 +1366,9 @@ private struct UnlockedDeckDetailsView: View {
                     Color.appTextSecondary
                 )
 
-        } else if card.interval < 7 {
+        } else if card.interval <= 0 || card.correctCount == 0
+            || (deck.isStudySessionActive && deck.studyConfirmationIDs.contains(card.id))
+            || (deck.isStudyAllSessionActive && deck.studyAllConfirmationIDs.contains(card.id)) {
 
             Label("Learning", systemImage: "arrow.triangle.2.circlepath")
                 .font(
@@ -1853,7 +1381,7 @@ private struct UnlockedDeckDetailsView: View {
 
         } else {
 
-            Label("Mastered", systemImage: "checkmark.circle.fill")
+            Label("Confirmed", systemImage: "checkmark.circle.fill")
                 .font(
                     .custom(
                         "PlusJakartaSans-SemiBold",
