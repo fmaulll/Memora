@@ -173,8 +173,7 @@ final class AuthManager {
             let user: UserResponse
 
             if try KeychainService.shared.getAccessToken() == nil {
-                _ = try await AuthAPI.shared.refreshAccessToken()
-                user = try await AuthAPI.shared.me()
+                user = try await AuthAPI.shared.refreshAccessToken().user
             } else {
                 do {
                     user = try await AuthAPI.shared.me()
@@ -330,6 +329,10 @@ final class AuthManager {
         name: String,
         modelContext: ModelContext
     ) async throws {
+
+        // A server outage must never turn an existing session into a new guest.
+        guard try KeychainService.shared.getAccessToken() == nil,
+              try KeychainService.shared.getRefreshToken() == nil else { throw APIError.existingSession }
 
         try prepareForSignIn(modelContext: modelContext)
         let revision = LocalAccountStore.shared.revision

@@ -102,6 +102,8 @@ final class AuthAPI {
     func createAnonymousUser(
         name: String
     ) async throws -> AuthResponse {
+        guard try keychain.getAccessToken() == nil,
+              try keychain.getRefreshToken() == nil else { throw APIError.existingSession }
         let revision = LocalAccountStore.shared.revision
 
         let requestBody = AnonymousUserRequest(
