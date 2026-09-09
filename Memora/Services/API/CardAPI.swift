@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 final class CardAPI {
 
     static let shared = CardAPI()

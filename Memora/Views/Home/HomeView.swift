@@ -8,6 +8,7 @@ struct HomeView: View {
     @State private var isShowingNewStudyDeck = false
     @State private var selectedDeck: StudyDeck?
     @State private var authManager = AuthManager.shared
+    @Environment(\.modelContext) private var modelContext
 
     @AppStorage("hasCompletedOnboarding")
     private var hasCompletedOnboarding = false
@@ -179,8 +180,14 @@ struct HomeView: View {
 
     private var developerMenu: some View {
         Menu {
-            Button("Logout / Clear Token") {
-                KeychainService.shared.deleteAccessToken()
+            Button("Log out") {
+                // Even if local cleanup fails, logout hides the account. The
+                // next sign-in retries cleanup before it can expose Home.
+                do {
+                    try authManager.logout(modelContext: modelContext)
+                } catch {
+                    print("LOCAL LOGOUT CLEANUP FAILED:", error)
+                }
             }
 
             Button("Reset Onboarding", role: .destructive) {

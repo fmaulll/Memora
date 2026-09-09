@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 final class DeckAPI {
 
     static let shared = DeckAPI()

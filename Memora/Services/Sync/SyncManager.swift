@@ -20,18 +20,24 @@ final class SyncManager {
 
     func syncDeck(_ deck: StudyDeck) async throws {
 
+        let session = try LocalAccountStore.shared.session()
+
         let exists = try await deckExists(deck.id)
+        try LocalAccountStore.shared.validate(session)
 
         if exists {
             try await updateDeck(deck)
+            try LocalAccountStore.shared.validate(session)
         } else {
             try await createDeck(deck)
+            try LocalAccountStore.shared.validate(session)
         }
 
         try await syncCards(
             deck.cards,
             deckID: deck.id
         )
+        try LocalAccountStore.shared.validate(session)
 
         deck.isSynced = true
 
@@ -62,6 +68,8 @@ final class SyncManager {
         _ deck: StudyDeck
     ) async throws {
 
+        let session = try LocalAccountStore.shared.session()
+
         let response = try await DeckAPI.shared.create(
             id: deck.id,
             title: deck.title,
@@ -70,6 +78,7 @@ final class SyncManager {
             isFavorite: deck.isFavorite,
             parentDeckId: deck.parentDeck?.id
         )
+        try LocalAccountStore.shared.validate(session)
 
         print("Created deck:", response.id)
     }
@@ -80,6 +89,8 @@ final class SyncManager {
         _ deck: StudyDeck
     ) async throws {
 
+        let session = try LocalAccountStore.shared.session()
+
         let response = try await DeckAPI.shared.update(
             id: deck.id,
             title: deck.title,
@@ -88,6 +99,7 @@ final class SyncManager {
             isFavorite: deck.isFavorite,
             parentDeckId: deck.parentDeck?.id
         )
+        try LocalAccountStore.shared.validate(session)
 
         print("Updated deck:", response.id)
     }
@@ -98,11 +110,15 @@ final class SyncManager {
         _ id: UUID
     ) async throws -> Bool {
 
+        let session = try LocalAccountStore.shared.session()
+
         do {
             _ = try await DeckAPI.shared.get(id: id)
+            try LocalAccountStore.shared.validate(session)
             return true
 
         } catch APIError.httpError(let statusCode, _) {
+            try LocalAccountStore.shared.validate(session)
 
             if statusCode == 404 {
                 return false
@@ -122,6 +138,8 @@ final class SyncManager {
         deckID: UUID
     ) async throws {
 
+        let session = try LocalAccountStore.shared.session()
+
         let requests = cards.map { card in
 
             CardCreateRequest(
@@ -137,6 +155,7 @@ final class SyncManager {
             deckID: deckID,
             cards: requests
         )
+        try LocalAccountStore.shared.validate(session)
 
         print("Synced cards:", response.count)
     }
@@ -147,7 +166,10 @@ final class SyncManager {
         modelContext: ModelContext
     ) async throws {
 
+        let session = try LocalAccountStore.shared.session()
+
         let serverDecks = try await DeckAPI.shared.getAll()
+        try LocalAccountStore.shared.validate(session)
 
         let serverDeckIDs = Set(
             serverDecks.map { $0.id }
@@ -249,6 +271,7 @@ final class SyncManager {
             let serverCards = try await CardAPI.shared.getAll(
                 deckID: serverDeck.id
             )
+            try LocalAccountStore.shared.validate(session)
 
             let existingCards = deck.cards
 
@@ -323,6 +346,8 @@ final class SyncManager {
         modelContext: ModelContext
     ) async throws {
 
+        let session = try LocalAccountStore.shared.session()
+
         let descriptor = FetchDescriptor<StudyDeck>(
             predicate: #Predicate<StudyDeck> { deck in
                 deck.isSynced == false
@@ -345,7 +370,8 @@ final class SyncManager {
 
         for deck in rootDecks {
 
-            await uploadDeck(deck)
+            try await uploadDeck(deck)
+            try LocalAccountStore.shared.validate(session)
         }
 
         // =====================================================
@@ -376,7 +402,8 @@ final class SyncManager {
                 continue
             }
 
-            await uploadDeck(deck)
+            try await uploadDeck(deck)
+            try LocalAccountStore.shared.validate(session)
         }
 
         try modelContext.save()
@@ -388,13 +415,16 @@ final class SyncManager {
 
     private func uploadDeck(
         _ deck: StudyDeck
-    ) async {
+    ) async throws {
+
+        let session = try LocalAccountStore.shared.session()
 
         print("")
         print("SYNCING DECK:", deck.id, deck.title)
 
         do {
             let exists = try await deckExists(deck.id)
+            try LocalAccountStore.shared.validate(session)
 
             let serverDeck: DeckResponse
 
@@ -409,6 +439,7 @@ final class SyncManager {
                     isFavorite: deck.isFavorite,
                     parentDeckId: deck.parentDeck?.id
                 )
+                try LocalAccountStore.shared.validate(session)
 
             } else {
                 print("CREATING NEW DECK:", deck.id)
@@ -421,6 +452,7 @@ final class SyncManager {
                     isFavorite: deck.isFavorite,
                     parentDeckId: deck.parentDeck?.id
                 )
+                try LocalAccountStore.shared.validate(session)
             }
 
             guard serverDeck.id == deck.id else {
@@ -435,6 +467,7 @@ final class SyncManager {
             print("✅ DECK SYNCED:", deck.id)
 
         } catch {
+            try LocalAccountStore.shared.validate(session)
             print(
                 "❌ FAILED TO SYNC DECK:",
                 deck.id,
@@ -448,6 +481,8 @@ final class SyncManager {
     func uploadUnsyncedCards(
         modelContext: ModelContext
     ) async throws {
+
+        let session = try LocalAccountStore.shared.session()
 
         let descriptor = FetchDescriptor<StudyFlashcardCard>(
             predicate: #Predicate<StudyFlashcardCard> { card in
@@ -494,6 +529,7 @@ final class SyncManager {
                     deckID: deckID,
                     cards: requests
                 )
+                try LocalAccountStore.shared.validate(session)
 
                 print(
                     "SERVER RETURNED:",
@@ -527,6 +563,7 @@ final class SyncManager {
                 }
 
             } catch {
+                try LocalAccountStore.shared.validate(session)
 
                 print(
                     "❌ FAILED TO UPLOAD CARDS FOR DECK:",
@@ -547,6 +584,8 @@ final class SyncManager {
     func uploadUpdatedCards(
         modelContext: ModelContext
     ) async throws {
+
+        let session = try LocalAccountStore.shared.session()
 
         let descriptor = FetchDescriptor<StudyFlashcardCard>(
             predicate: #Predicate<StudyFlashcardCard> { card in
@@ -580,6 +619,7 @@ final class SyncManager {
                     frontImageURL: nil,
                     backImageURL: nil
                 )
+                try LocalAccountStore.shared.validate(session)
 
                 guard serverCard.id == card.id else {
 
@@ -599,6 +639,7 @@ final class SyncManager {
                 )
 
             } catch {
+                try LocalAccountStore.shared.validate(session)
 
                 print(
                     "❌ FAILED TO UPDATE CARD:",
@@ -619,6 +660,8 @@ final class SyncManager {
     func uploadDeletedDecks(
         modelContext: ModelContext
     ) async throws {
+
+        let session = try LocalAccountStore.shared.session()
 
         let descriptor = FetchDescriptor<StudyDeck>(
             predicate: #Predicate<StudyDeck> { deck in
@@ -644,6 +687,7 @@ final class SyncManager {
                 try await DeckAPI.shared.delete(
                     id: deck.id
                 )
+                try LocalAccountStore.shared.validate(session)
 
                 print(
                     "✅ SERVER DELETE SUCCESS:",
@@ -653,6 +697,7 @@ final class SyncManager {
                 modelContext.delete(deck)
 
             } catch APIError.httpError(let statusCode, _) {
+                try LocalAccountStore.shared.validate(session)
 
                 if statusCode == 404 {
                     // Already gone from server.
@@ -674,6 +719,7 @@ final class SyncManager {
                 }
 
             } catch {
+                try LocalAccountStore.shared.validate(session)
                 print(
                     "❌ FAILED TO DELETE DECK:",
                     deck.id,
@@ -706,6 +752,8 @@ final class SyncManager {
         modelContext: ModelContext
     ) async throws {
 
+        let session = try LocalAccountStore.shared.session()
+
         let descriptor = FetchDescriptor<StudyFlashcardCard>(
             predicate: #Predicate<StudyFlashcardCard> { card in
                 card.syncState == 3 &&
@@ -726,6 +774,7 @@ final class SyncManager {
                 try await CardAPI.shared.delete(
                     cardID: card.id
                 )
+                try LocalAccountStore.shared.validate(session)
 
                 print(
                     "✅ SERVER DELETE SUCCESS:",
@@ -735,6 +784,7 @@ final class SyncManager {
                 modelContext.delete(card)
 
             } catch APIError.httpError(let statusCode, _) {
+                try LocalAccountStore.shared.validate(session)
 
                 if statusCode == 404 {
                     // Card is already gone from the server.
@@ -756,6 +806,7 @@ final class SyncManager {
                 }
 
             } catch {
+                try LocalAccountStore.shared.validate(session)
                 print(
                     "❌ FAILED TO DELETE CARD:",
                     card.id,
@@ -776,6 +827,8 @@ final class SyncManager {
         modelContext: ModelContext
     ) async throws {
 
+        let session = try LocalAccountStore.shared.session()
+
         print("")
         print("========== SYNC START ==========")
 
@@ -786,6 +839,7 @@ final class SyncManager {
         try await uploadUnsyncedDecks(
             modelContext: modelContext
         )
+        try LocalAccountStore.shared.validate(session)
 
         // 2. Upload newly created cards
         print("")
@@ -794,6 +848,7 @@ final class SyncManager {
         try await uploadUnsyncedCards(
             modelContext: modelContext
         )
+        try LocalAccountStore.shared.validate(session)
 
         // 3. Upload updated cards
         print("")
@@ -802,6 +857,7 @@ final class SyncManager {
         try await uploadUpdatedCards(
             modelContext: modelContext
         )
+        try LocalAccountStore.shared.validate(session)
 
         // 4. Upload deleted decks
         print("")
@@ -810,6 +866,7 @@ final class SyncManager {
         try await uploadDeletedDecks(
             modelContext: modelContext
         )
+        try LocalAccountStore.shared.validate(session)
 
         // 5. Upload deleted cards
         print("")
@@ -818,6 +875,7 @@ final class SyncManager {
         try await uploadDeletedCards(
             modelContext: modelContext
         )
+        try LocalAccountStore.shared.validate(session)
 
         // 6. Download
         print("")
@@ -826,6 +884,7 @@ final class SyncManager {
         try await downloadAll(
             modelContext: modelContext
         )
+        try LocalAccountStore.shared.validate(session)
 
         print("")
         print("========== SYNC SUCCESS ==========")
@@ -838,15 +897,19 @@ final class SyncManager {
         modelContext: ModelContext
     ) async throws {
 
+        let session = try LocalAccountStore.shared.session()
+
         // Fetch the deck from backend
         let serverDeck = try await DeckAPI.shared.get(
             id: id
         )
+        try LocalAccountStore.shared.validate(session)
 
         // Fetch only this deck's cards
         let serverCards = try await CardAPI.shared.getAll(
             deckID: id
         )
+        try LocalAccountStore.shared.validate(session)
 
         // Find the local deck
         let descriptor = FetchDescriptor<StudyDeck>(

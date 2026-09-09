@@ -68,6 +68,7 @@ final class APIClient {
 
     // MARK: - Request
 
+    @MainActor
     func request<Response: Decodable>(
         endpoint: String,
         method: HTTPMethod = .get,
@@ -76,6 +77,9 @@ final class APIClient {
         timeout: TimeInterval? = nil
     ) async throws -> Response {
 
+        // Build authorization on the same actor as account switching, before
+        // suspending for the network, so an old sync cannot pick up new tokens.
+        let revision = LocalAccountStore.shared.revision
         let builtRequest = try buildRequest(
             endpoint: endpoint,
             method: method,
@@ -96,6 +100,7 @@ final class APIClient {
                 for: request
             )
 
+            try LocalAccountStore.shared.validateRevision(revision)
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw APIError.invalidResponse
             }
@@ -217,6 +222,7 @@ final class APIClient {
 
     // MARK: - Request Without Response Body
 
+    @MainActor
     func requestWithoutResponse(
         endpoint: String,
         method: HTTPMethod = .delete,
@@ -224,6 +230,7 @@ final class APIClient {
         authenticated: Bool = true
     ) async throws {
 
+        let revision = LocalAccountStore.shared.revision
         let request = try buildRequest(
             endpoint: endpoint,
             method: method,
@@ -236,6 +243,7 @@ final class APIClient {
                 for: request
             )
 
+            try LocalAccountStore.shared.validateRevision(revision)
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw APIError.invalidResponse
             }

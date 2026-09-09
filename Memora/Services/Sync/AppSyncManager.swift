@@ -9,7 +9,7 @@ final class AppSyncManager {
 
     private init() {}
 
-    private var isSyncing = false
+    private var syncingSession: UUID?
 
     @AppStorage("hasCompletedInitialSync")
     private var hasCompletedInitialSync = false
@@ -34,15 +34,16 @@ final class AppSyncManager {
         modelContext: ModelContext
     ) async {
 
-        guard !isSyncing else {
+        guard let session = try? LocalAccountStore.shared.session() else { return }
+        guard syncingSession != session else {
             print("⚠️ APP SYNC ALREADY RUNNING")
             return
         }
 
-        isSyncing = true
+        syncingSession = session
 
         defer {
-            isSyncing = false
+            if syncingSession == session { syncingSession = nil }
         }
 
         do {
@@ -61,6 +62,7 @@ final class AppSyncManager {
                     modelContext: modelContext
                 )
 
+                try LocalAccountStore.shared.validate(session)
                 hasCompletedInitialSync = true
                 lastSuccessfulSync = Date().timeIntervalSince1970
 
@@ -81,6 +83,7 @@ final class AppSyncManager {
                 modelContext: modelContext
             )
 
+            try LocalAccountStore.shared.validate(session)
             lastSuccessfulSync = Date().timeIntervalSince1970
             print("✅ APP SYNC SUCCESS")
 
