@@ -8,6 +8,7 @@ struct ContentView: View {
     @State private var isShowingSplash = true
     @State private var authManager = AuthManager.shared
     @State private var firstCreatedDeck: StudyDeck?
+    @State private var didStartRestoringSession = false
 
     @AppStorage("hasCompletedOnboarding")
     private var hasCompletedOnboarding = false
@@ -71,12 +72,15 @@ struct ContentView: View {
                 return
             }
 
-            guard authManager.isAuthenticated else {
+            guard authManager.isAuthenticated, !authManager.isRestoringSession else {
                 print("NOT AUTHENTICATED — SKIPPING APP SYNC")
                 return
             }
 
             Task {
+                if (try? LocalAccountStore.shared.session()) == nil {
+                    await authManager.restoreSession(modelContext: modelContext)
+                }
                 await AppSyncManager.shared.syncIfStale(
                     modelContext: modelContext
                 )
@@ -87,6 +91,7 @@ struct ContentView: View {
         ) { _, isAuthenticated in
 
             guard isAuthenticated else {
+                firstCreatedDeck = nil
                 return
             }
 
@@ -97,9 +102,12 @@ struct ContentView: View {
             }
         }
         .task {
+            guard !didStartRestoringSession else { return }
+            didStartRestoringSession = true
             await authManager.restoreSession(
                 modelContext: modelContext
             )
+            await AppSyncManager.shared.syncIfStale(modelContext: modelContext)
         }
     }
 }

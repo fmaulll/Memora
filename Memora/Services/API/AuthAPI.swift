@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 final class AuthAPI {
 
     static let shared = AuthAPI()
@@ -34,6 +35,7 @@ final class AuthAPI {
         email: String,
         password: String
     ) async throws -> UserResponse {
+        let revision = LocalAccountStore.shared.revision
 
         let request = LoginRequest(
             email: email,
@@ -46,6 +48,8 @@ final class AuthAPI {
             body: request,
             authenticated: false
         )
+
+        try LocalAccountStore.shared.validateRevision(revision)
 
         try KeychainService.shared.saveAccessToken(
             response.accessToken
@@ -87,18 +91,12 @@ final class AuthAPI {
         )
     }
 
-    // MARK: - Logout
-
-    func logout() {
-        KeychainService.shared.deleteAccessToken()
-        KeychainService.shared.deleteRefreshToken()
-    }
-
     // MARK: - Anonymous User
 
     func createAnonymousUser(
         name: String
     ) async throws -> AuthResponse {
+        let revision = LocalAccountStore.shared.revision
 
         let requestBody = AnonymousUserRequest(
             name: name
@@ -109,6 +107,8 @@ final class AuthAPI {
             method: .post,
             body: requestBody
         )
+
+        try LocalAccountStore.shared.validateRevision(revision)
 
         try KeychainService.shared.saveAccessToken(
             response.accessToken
@@ -124,6 +124,7 @@ final class AuthAPI {
     // MARK: - Refresh Token
 
     func refreshAccessToken() async throws -> TokenResponse {
+        let revision = LocalAccountStore.shared.revision
 
         guard let refreshToken = try KeychainService.shared.getRefreshToken() else {
             throw APIError.noRefreshToken
@@ -139,6 +140,8 @@ final class AuthAPI {
             body: request,
             authenticated: false
         )
+
+        try LocalAccountStore.shared.validateRevision(revision)
 
         try KeychainService.shared.saveAccessToken(
             response.accessToken

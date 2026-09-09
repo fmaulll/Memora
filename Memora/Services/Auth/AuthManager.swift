@@ -23,11 +23,16 @@ final class AuthManager {
         modelContext: ModelContext
     ) async throws -> UserResponse {
 
+        try prepareForSignIn(modelContext: modelContext)
+        let revision = LocalAccountStore.shared.revision
+
         let user = try await AuthAPI.shared.login(
             email: email,
             password: password
         )
 
+        try LocalAccountStore.shared.validateRevision(revision)
+        try LocalAccountStore.shared.activate(userID: user.id, modelContext: modelContext)
         currentUser = user
         isAuthenticated = true
 
@@ -46,12 +51,17 @@ final class AuthManager {
         modelContext: ModelContext
     ) async throws -> UserResponse {
 
+        try prepareForSignIn(modelContext: modelContext)
+        let revision = LocalAccountStore.shared.revision
+
         let user = try await AuthAPI.shared.register(
             name: name,
             email: email,
             password: password
         )
 
+        try LocalAccountStore.shared.validateRevision(revision)
+        try LocalAccountStore.shared.activate(userID: user.id, modelContext: modelContext)
         currentUser = user
         isAuthenticated = true
 
@@ -63,12 +73,24 @@ final class AuthManager {
         return user
     }
 
-    func logout() {
+    func logout(modelContext: ModelContext) throws {
+        // Hide account views and invalidate suspended sync work before clearing.
+        isAuthenticated = false
+        currentUser = nil
         KeychainService.shared.deleteAccessToken()
         KeychainService.shared.deleteRefreshToken()
+        SubscriptionManager.shared.isSubscribed = false
+        UserDefaults.standard.set(false, forKey: "hasStartedOnboarding")
+        try LocalAccountStore.shared.clear(modelContext: modelContext)
+    }
 
-        currentUser = nil
+    private func prepareForSignIn(modelContext: ModelContext) throws {
         isAuthenticated = false
+        currentUser = nil
+        KeychainService.shared.deleteAccessToken()
+        KeychainService.shared.deleteRefreshToken()
+        SubscriptionManager.shared.isSubscribed = false
+        try LocalAccountStore.shared.clear(modelContext: modelContext)
     }
 
     func restoreSession(
@@ -83,14 +105,27 @@ final class AuthManager {
 
         guard KeychainService.shared.hasAccessToken()
                 || KeychainService.shared.hasRefreshToken() else {
-            isAuthenticated = false
-            currentUser = nil
+            try? logout(modelContext: modelContext)
             return
         }
 
         // Stored credentials keep the local session available while we validate
         // them. Connectivity failures do not mean the user has signed out.
         isAuthenticated = true
+
+        LocalAccountStore.shared.suspend()
+        // Older installs may contain mixed-account data with no known owner.
+        // Never expose or upload that cache under a new identity.
+        if LocalAccountStore.shared.ownerID == nil {
+            do {
+                try LocalAccountStore.shared.clear(modelContext: modelContext)
+            } catch {
+                isAuthenticated = false
+                print("LOCAL CACHE CLEANUP FAILED:", error)
+                return
+            }
+        }
+        let revision = LocalAccountStore.shared.revision
 
         do {
             let user: UserResponse
@@ -102,23 +137,32 @@ final class AuthManager {
                 do {
                     user = try await AuthAPI.shared.me()
                 } catch APIError.unauthorized {
+                    try LocalAccountStore.shared.validateRevision(revision)
                     _ = try await AuthAPI.shared.refreshAccessToken()
                     user = try await AuthAPI.shared.me()
                 }
             }
 
+            try LocalAccountStore.shared.validateRevision(revision)
+            isAuthenticated = false
+            try LocalAccountStore.shared.activate(userID: user.id, modelContext: modelContext)
             currentUser = user
             isAuthenticated = true
             saveUserLocally(user, modelContext: modelContext)
 
             print("SESSION RESTORED ONLINE:", user.name)
         } catch APIError.unauthorized {
+            guard LocalAccountStore.shared.revision == revision else { return }
             // The refresh token was rejected, or the refreshed access token
             // still could not authenticate the user.
-            logout()
+            try? logout(modelContext: modelContext)
         } catch APIError.noRefreshToken {
-            logout()
+            guard LocalAccountStore.shared.revision == revision else { return }
+            try? logout(modelContext: modelContext)
         } catch {
+            guard LocalAccountStore.shared.revision == revision else { return }
+            // Unowned legacy data must stay hidden if validation/cleanup fails.
+            if LocalAccountStore.shared.ownerID == nil { isAuthenticated = false }
             // Keep credentials for a later retry after network/server failures.
             print("SESSION RESTORATION DEFERRED:", error)
         }
@@ -244,10 +288,15 @@ final class AuthManager {
         modelContext: ModelContext
     ) async throws {
 
+        try prepareForSignIn(modelContext: modelContext)
+        let revision = LocalAccountStore.shared.revision
         let response = try await AuthAPI.shared
             .createAnonymousUser(
                 name: name
             )
+
+        try LocalAccountStore.shared.validateRevision(revision)
+        try LocalAccountStore.shared.activate(userID: response.user.id, modelContext: modelContext)
 
         // Save JWT
         // Save access token
