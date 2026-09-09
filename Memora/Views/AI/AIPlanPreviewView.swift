@@ -13,6 +13,7 @@ struct AIPlanPreviewView: View {
     let existingDeck: StudyDeck?
     var requiresSubscription: Bool = false
 
+    @State private var showingSubscriptionPaywall = false
     @State private var isGenerating = false
     @State private var generatedDeck: GeneratedDeckResponse?
     @State private var preparedDeck: StudyDeck?
@@ -72,6 +73,7 @@ struct AIPlanPreviewView: View {
                 )
             }
         }
+        .subscriptionPaywall(isPresented: $showingSubscriptionPaywall)
         .navigationBarBackButtonHidden()
         .preferredColorScheme(.dark)
         .navigationDestination(
@@ -335,7 +337,8 @@ struct AIPlanPreviewView: View {
                     try await AIService.shared.generateDeck(
                         plan: plan,
                         studyPurpose: studyPurpose,
-                        targetDate: targetDate
+                        targetDate: targetDate,
+                        requiresSubscription: requiresSubscription
                     )
 
                 await MainActor.run {
@@ -350,8 +353,8 @@ struct AIPlanPreviewView: View {
             } catch {
 
                 await MainActor.run {
-                    errorMessage =
-                        error.localizedDescription
+                    showingSubscriptionPaywall = (error as? APIError)?.requiresSubscription == true
+                    errorMessage = error.localizedDescription
 
                     isGenerating = false
                 }
@@ -380,6 +383,7 @@ struct AIPlanPreviewView: View {
                 createDeck(generatedDeck)
             }
         } catch {
+            showingSubscriptionPaywall = (error as? APIError)?.requiresSubscription == true
             errorMessage = error.localizedDescription
         }
     }
@@ -396,6 +400,7 @@ struct AIPlanPreviewView: View {
             onDeckCreated(createdDeck)
 
         } catch {
+            showingSubscriptionPaywall = (error as? APIError)?.requiresSubscription == true
             errorMessage = error.localizedDescription
         }
     }

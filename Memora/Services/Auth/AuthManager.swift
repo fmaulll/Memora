@@ -34,6 +34,7 @@ final class AuthManager {
         try LocalAccountStore.shared.validateRevision(revision)
         try LocalAccountStore.shared.activate(userID: user.id, modelContext: modelContext)
         currentUser = user
+        SubscriptionManager.shared.apply(user: user)
         isAuthenticated = true
 
         saveUserLocally(
@@ -54,15 +55,18 @@ final class AuthManager {
         try prepareForSignIn(modelContext: modelContext)
         let revision = LocalAccountStore.shared.revision
 
-        let user = try await AuthAPI.shared.register(
+        _ = try await AuthAPI.shared.register(
             name: name,
             email: email,
             password: password
         )
 
+        let user = try await AuthAPI.shared.login(email: email, password: password)
+
         try LocalAccountStore.shared.validateRevision(revision)
         try LocalAccountStore.shared.activate(userID: user.id, modelContext: modelContext)
         currentUser = user
+        SubscriptionManager.shared.apply(user: user)
         isAuthenticated = true
 
         saveUserLocally(
@@ -73,13 +77,51 @@ final class AuthManager {
         return user
     }
 
+    func updateProfile(name: String, email: String?, modelContext: ModelContext) async throws {
+        let user = try await AuthAPI.shared.updateProfile(name: name, email: email)
+        currentUser = user
+        SubscriptionManager.shared.apply(user: user)
+        saveUserLocally(user, modelContext: modelContext)
+    }
+
+    func convertGuest(name: String, email: String, password: String, merge: Bool,
+                      modelContext: ModelContext) async throws {
+        guard let guest = currentUser, guest.isAnonymous else { return }
+        let revision = LocalAccountStore.shared.revision
+        let response: AuthResponse
+        if merge {
+            // Upload unsynced local work before moving the server account.
+            try await SyncManager.shared.sync(modelContext: modelContext)
+            try LocalAccountStore.shared.validateRevision(revision)
+            response = try await AuthAPI.shared.merge(email: email, password: password)
+        } else {
+            response = try await AuthAPI.shared.upgrade(name: name, email: email, password: password)
+        }
+        try LocalAccountStore.shared.validateRevision(revision)
+        // Install the new credentials first: the source guest no longer exists.
+        try KeychainService.shared.saveAccessToken(response.accessToken)
+        try KeychainService.shared.saveRefreshToken(response.refreshToken)
+        if merge {
+            try LocalAccountStore.shared.reassignAfterMerge(userID: response.user.id, modelContext: modelContext)
+        }
+        currentUser = response.user
+        isAuthenticated = true
+        SubscriptionManager.shared.apply(user: response.user)
+        saveUserLocally(response.user, modelContext: modelContext)
+        if merge {
+            try GenerationRequestStore.shared.move(from: guest.id, to: response.user.id)
+            try KeychainService.shared.moveAppleVerifications(from: guest.id, to: response.user.id)
+        }
+        await SubscriptionManager.shared.resume()
+    }
+
     func logout(modelContext: ModelContext) throws {
         // Hide account views and invalidate suspended sync work before clearing.
         isAuthenticated = false
         currentUser = nil
         KeychainService.shared.deleteAccessToken()
         KeychainService.shared.deleteRefreshToken()
-        SubscriptionManager.shared.isSubscribed = false
+        SubscriptionManager.shared.reset()
         UserDefaults.standard.set(false, forKey: "hasStartedOnboarding")
         try LocalAccountStore.shared.clear(modelContext: modelContext)
     }
@@ -89,7 +131,7 @@ final class AuthManager {
         currentUser = nil
         KeychainService.shared.deleteAccessToken()
         KeychainService.shared.deleteRefreshToken()
-        SubscriptionManager.shared.isSubscribed = false
+        SubscriptionManager.shared.reset()
         try LocalAccountStore.shared.clear(modelContext: modelContext)
     }
 
@@ -147,6 +189,7 @@ final class AuthManager {
             isAuthenticated = false
             try LocalAccountStore.shared.activate(userID: user.id, modelContext: modelContext)
             currentUser = user
+            SubscriptionManager.shared.apply(user: user)
             isAuthenticated = true
             saveUserLocally(user, modelContext: modelContext)
 
@@ -311,6 +354,7 @@ final class AuthManager {
 
         // Update app authentication state
         currentUser = response.user
+        SubscriptionManager.shared.apply(user: response.user)
         isAuthenticated = true
 
         // Save/connect local profile

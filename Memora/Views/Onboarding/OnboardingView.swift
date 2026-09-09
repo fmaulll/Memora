@@ -99,6 +99,9 @@ struct OnboardingView: View {
             guard !didCheckSavedDeck else { return }
             didCheckSavedDeck = true
 
+            #if DEBUG
+            if UserDefaults.standard.bool(forKey: "developerReplayOnboarding") { return }
+            #endif
             // A generated deck remains available if the app closes at the paywall.
             if let savedDeck = decks.first(where: {
                 $0.requiresSubscription && $0.parentDeck == nil && !$0.needsDeletion
@@ -136,6 +139,13 @@ struct OnboardingView: View {
                 profile.studyReason = studyReason
                 try modelContext.save()
 
+                #if DEBUG
+                if UserDefaults.standard.bool(forKey: "developerReplayOnboarding") {
+                    UserDefaults.standard.removeObject(forKey: "developerReplayOnboarding")
+                    hasCompletedOnboarding = true
+                    return
+                }
+                #endif
                 isShowingFirstDeckSetup = true
             } catch {
                 errorMessage = error.localizedDescription

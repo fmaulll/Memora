@@ -417,7 +417,7 @@ struct HomeView: View {
                         .foregroundStyle(Color.appTextSecondary)
                 }
                 Spacer()
-                developerMenu
+                settingsButton
             } else {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Library")
@@ -443,40 +443,15 @@ struct HomeView: View {
         }
     }
 
-    private var developerMenu: some View {
-        Menu {
-            Button("Log out") {
-                // Even if local cleanup fails, logout hides the account. The
-                // next sign-in retries cleanup before it can expose Home.
-                do {
-                    try authManager.logout(modelContext: modelContext)
-                } catch {
-                    print("LOCAL LOGOUT CLEANUP FAILED:", error)
-                }
-            }
-
-            Button("Reset Onboarding", role: .destructive) {
-                hasCompletedOnboarding = false
-            }
-
-            Button("Fake Subscribe") {
-                SubscriptionManager.shared.isSubscribed = true
-            }
-
-            Button("Fake Unsubscribe") {
-                SubscriptionManager.shared.isSubscribed = false
-            }
-        } label: {
-            Image(systemName: "ellipsis")
-                .font(.system(size: 17, weight: .semibold))
+    private var settingsButton: some View {
+        NavigationLink { SettingsView() } label: {
+            Image(systemName: "gearshape")
+                .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(Color.appTextPrimary)
                 .frame(width: 44, height: 44)
-                .background(Color.appSurface, in: Circle())
-                .overlay {
-                    Circle().stroke(Color.appBorder, lineWidth: 1)
-                }
+                .settingsPanel()
         }
-        .accessibilityLabel("Home options")
+        .accessibilityLabel("Settings")
     }
 
 }

@@ -6,6 +6,7 @@ import SwiftData
 struct ContentView: View {
 
     @State private var isShowingSplash = true
+    @State private var subscriptions = SubscriptionManager.shared
     @State private var authManager = AuthManager.shared
     @State private var firstCreatedDeck: StudyDeck?
     @State private var didStartRestoringSession = false
@@ -81,6 +82,7 @@ struct ContentView: View {
                 if (try? LocalAccountStore.shared.session()) == nil {
                     await authManager.restoreSession(modelContext: modelContext)
                 }
+                await subscriptions.resume()
                 await AppSyncManager.shared.syncIfStale(
                     modelContext: modelContext
                 )
@@ -96,6 +98,7 @@ struct ContentView: View {
             }
 
             Task {
+                await subscriptions.resume()
                 await AppSyncManager.shared.syncIfStale(
                     modelContext: modelContext
                 )
@@ -107,6 +110,7 @@ struct ContentView: View {
             await authManager.restoreSession(
                 modelContext: modelContext
             )
+            await subscriptions.resume()
             await AppSyncManager.shared.syncIfStale(modelContext: modelContext)
         }
     }

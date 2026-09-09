@@ -111,6 +111,7 @@ final class AIService {
             )
         try LocalAccountStore.shared.validateRevision(revision)
         try GenerationRequestStore.shared.record(account: account, intent: intent, deckID: response.deck.id)
+        try? await SubscriptionManager.shared.refresh()
         try LocalAccountStore.shared.validateRevision(revision)
         return response
     }
@@ -118,10 +119,7 @@ final class AIService {
     // MARK: - Retry Failed Deck
 
     func retryDeck(
-        deckID: UUID,
-        plan: DeckPlanResponse,
-        studyPurpose: String = "Learn from Scratch",
-        targetDate: Date? = nil
+        deckID: UUID
     ) async throws {
         try await APIClient.shared.requestWithoutResponse(
             endpoint: "/ai/decks/\(deckID.uuidString)/retry",

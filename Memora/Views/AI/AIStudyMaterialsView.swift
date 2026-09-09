@@ -13,6 +13,7 @@ struct AIStudyMaterialsView: View {
     let existingDeck: StudyDeck?
     var requiresSubscription: Bool = false
 
+    @State private var showingSubscriptionPaywall = false
     @State private var selectedMaterialURLs: [URL] = []
     @State private var isShowingFileImporter = false
     @State private var isGenerating = false
@@ -80,6 +81,7 @@ struct AIStudyMaterialsView: View {
                     .frame(height: 1)
             }
         }
+        .subscriptionPaywall(isPresented: $showingSubscriptionPaywall)
         .navigationBarBackButtonHidden()
         .fileImporter(
             isPresented: $isShowingFileImporter,
@@ -95,7 +97,8 @@ struct AIStudyMaterialsView: View {
                 )
 
             case .failure(let error):
-                errorMessage = error.localizedDescription
+                showingSubscriptionPaywall = (error as? APIError)?.requiresSubscription == true
+                    errorMessage = error.localizedDescription
             }
         }
         .navigationDestination(isPresented: $isShowingPlanPreview) {
@@ -292,6 +295,7 @@ struct AIStudyMaterialsView: View {
 
             } catch {
                 await MainActor.run {
+                    showingSubscriptionPaywall = (error as? APIError)?.requiresSubscription == true
                     errorMessage = error.localizedDescription
                     isGenerating = false
                 }

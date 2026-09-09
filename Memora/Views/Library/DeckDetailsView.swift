@@ -70,6 +70,7 @@ private struct UnlockedDeckDetailsView: View {
 
     let deck: StudyDeck
 
+    @State private var showingSubscriptionPaywall = false
     @State private var isShowingMoveDeck = false
     @State private var isShowingCreateSubDeck = false
     @State private var isShowingEditDeck = false
@@ -149,11 +150,13 @@ private struct UnlockedDeckDetailsView: View {
 
     private var canCreateSubDeck: Bool {
         deck.parentDeck == nil
+        && !deck.isAIGenerated
         && !hasCards
     }
 
     private var canCreateWithAI: Bool {
         deck.parentDeck == nil
+        && !deck.isAIGenerated
         && !hasCards
         && deck.childDecks.isEmpty
     }
@@ -229,6 +232,7 @@ private struct UnlockedDeckDetailsView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .subscriptionPaywall(isPresented: $showingSubscriptionPaywall)
         .navigationBarBackButtonHidden()
 
         .navigationDestination(
@@ -438,23 +442,6 @@ private struct UnlockedDeckDetailsView: View {
         deck.parentDeck == nil && deck.generationStatus == "failed"
     }
 
-    private var retryPlan: DeckPlanResponse {
-        DeckPlanResponse(
-            title: deck.title,
-            subject: deck.subject,
-            educationLevel: deck.educationLevel,
-            learningLanguage: deck.learningLanguage ?? "English",
-            chapters: childDecks.map { childDeck in
-                ChapterPlan(
-                    title: childDeck.title,
-                    description: "",
-                    keyConcepts: [],
-                    cardCount: childDeck.totalCardCount
-                )
-            }
-        )
-    }
-
     private var retryGenerationSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("GENERATION FAILED")
@@ -515,8 +502,7 @@ private struct UnlockedDeckDetailsView: View {
         Task { @MainActor in
             do {
                 try await AIService.shared.retryDeck(
-                    deckID: deck.id,
-                    plan: retryPlan
+                    deckID: deck.id
                 )
 
                 deck.generationStatus = "generating"
@@ -530,6 +516,7 @@ private struct UnlockedDeckDetailsView: View {
                 startGenerationPollingIfNeeded()
 
             } catch {
+                showingSubscriptionPaywall = (error as? APIError)?.requiresSubscription == true
                 retryErrorMessage = error.localizedDescription
                 isRetryingGeneration = false
             }
@@ -945,6 +932,7 @@ private struct UnlockedDeckDetailsView: View {
 
         } catch {
             examProgression = nil
+            showingSubscriptionPaywall = (error as? APIError)?.requiresSubscription == true
             examErrorMessage = error.localizedDescription
             isLoadingExams = false
         }
@@ -985,6 +973,7 @@ private struct UnlockedDeckDetailsView: View {
                 isShowingExam = true
 
             } catch {
+                showingSubscriptionPaywall = (error as? APIError)?.requiresSubscription == true
                 examErrorMessage = error.localizedDescription
                 isGeneratingExam = false
                 generatingExamType = nil

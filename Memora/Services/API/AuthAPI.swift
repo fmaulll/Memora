@@ -5,7 +5,13 @@ final class AuthAPI {
 
     static let shared = AuthAPI()
 
-    private init() {}
+    private let client: APIClient
+    private let keychain: KeychainService
+
+    init(client: APIClient = .shared, keychain: KeychainService = .shared) {
+        self.client = client
+        self.keychain = keychain
+    }
 
     // MARK: - Register
 
@@ -21,7 +27,7 @@ final class AuthAPI {
             password: password
         )
 
-        return try await APIClient.shared.request(
+        return try await client.request(
             endpoint: "/auth/register",
             method: .post,
             body: request,
@@ -42,7 +48,7 @@ final class AuthAPI {
             password: password
         )
 
-        let response: TokenResponse = try await APIClient.shared.request(
+        let response: TokenResponse = try await client.request(
             endpoint: "/auth/login",
             method: .post,
             body: request,
@@ -51,22 +57,22 @@ final class AuthAPI {
 
         try LocalAccountStore.shared.validateRevision(revision)
 
-        try KeychainService.shared.saveAccessToken(
+        try keychain.saveAccessToken(
             response.accessToken
         )
 
-        try KeychainService.shared.saveRefreshToken(
+        try keychain.saveRefreshToken(
             response.refreshToken
         )
 
-        return try await me()
+        return response.user
     }
 
     // MARK: - Current User
 
     func me() async throws -> UserResponse {
 
-        return try await APIClient.shared.request(
+        return try await client.request(
             endpoint: "/auth/me",
             method: .get
         )
@@ -84,7 +90,7 @@ final class AuthAPI {
             email: email
         )
 
-        return try await APIClient.shared.request(
+        return try await client.request(
             endpoint: "/auth/me",
             method: .put,
             body: request
@@ -102,19 +108,20 @@ final class AuthAPI {
             name: name
         )
 
-        let response: AuthResponse = try await APIClient.shared.request(
+        let response: AuthResponse = try await client.request(
             endpoint: "/auth/anonymous",
             method: .post,
-            body: requestBody
+            body: requestBody,
+            authenticated: false
         )
 
         try LocalAccountStore.shared.validateRevision(revision)
 
-        try KeychainService.shared.saveAccessToken(
+        try keychain.saveAccessToken(
             response.accessToken
         )
 
-        try KeychainService.shared.saveRefreshToken(
+        try keychain.saveRefreshToken(
             response.refreshToken
         )
 
@@ -123,10 +130,19 @@ final class AuthAPI {
 
     // MARK: - Refresh Token
 
+    private var refreshTask: Task<TokenResponse, Error>?
     func refreshAccessToken() async throws -> TokenResponse {
+        if let refreshTask { return try await refreshTask.value }
+        let task = Task { try await performRefresh() }
+        refreshTask = task
+        defer { refreshTask = nil }
+        return try await task.value
+    }
+
+    private func performRefresh() async throws -> TokenResponse {
         let revision = LocalAccountStore.shared.revision
 
-        guard let refreshToken = try KeychainService.shared.getRefreshToken() else {
+        guard let refreshToken = try keychain.getRefreshToken() else {
             throw APIError.noRefreshToken
         }
 
@@ -134,7 +150,7 @@ final class AuthAPI {
             refreshToken: refreshToken
         )
 
-        let response: TokenResponse = try await APIClient.shared.request(
+        let response: TokenResponse = try await client.request(
             endpoint: "/auth/refresh",
             method: .post,
             body: request,
@@ -143,14 +159,27 @@ final class AuthAPI {
 
         try LocalAccountStore.shared.validateRevision(revision)
 
-        try KeychainService.shared.saveAccessToken(
+        try keychain.saveAccessToken(
             response.accessToken
         )
 
-        try KeychainService.shared.saveRefreshToken(
+        try keychain.saveRefreshToken(
             response.refreshToken
         )
 
+        if AuthManager.shared.currentUser?.id == response.user.id {
+            AuthManager.shared.currentUser = response.user
+            SubscriptionManager.shared.apply(user: response.user)
+        }
         return response
+    }
+
+    func upgrade(name: String, email: String, password: String) async throws -> AuthResponse {
+        try await client.request(endpoint: "/auth/upgrade", method: .post,
+                                           body: RegisterRequest(name: name, email: email, password: password))
+    }
+    func merge(email: String, password: String) async throws -> AuthResponse {
+        try await client.request(endpoint: "/auth/merge", method: .post,
+                                           body: LoginRequest(email: email, password: password))
     }
 }
