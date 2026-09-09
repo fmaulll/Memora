@@ -98,7 +98,8 @@ final class SyncManager {
             subject: deck.subject,
             educationLevel: deck.educationLevel,
             isFavorite: deck.isFavorite,
-            parentDeckId: deck.parentDeck?.id
+            parentDeckId: deck.parentDeck?.id,
+                    omitParentDeck: deck.isAIGenerated
         )
         try LocalAccountStore.shared.validate(session)
 
@@ -222,6 +223,7 @@ final class SyncManager {
                 modelContext.insert(deck)
             }
 
+            deck.isAIGenerated = deck.isAIGenerated || serverDeck.keyConcepts != nil || serverDeck.generationStatus != "completed"
             deck.position = serverDeck.position
             deck.generationStatus = serverDeck.generationStatus
             localDecksByID[serverDeck.id] = deck
@@ -260,6 +262,7 @@ final class SyncManager {
             }
 
             deck.parentDeck = parentDeck
+            if deck.isAIGenerated { parentDeck.isAIGenerated = true }
         }
 
         // =====================================================
@@ -441,7 +444,8 @@ final class SyncManager {
                     subject: deck.subject,
                     educationLevel: deck.educationLevel,
                     isFavorite: deck.isFavorite,
-                    parentDeckId: deck.parentDeck?.id
+                    parentDeckId: deck.parentDeck?.id,
+                    omitParentDeck: deck.isAIGenerated
                 )
                 try LocalAccountStore.shared.validate(session)
 
@@ -466,6 +470,7 @@ final class SyncManager {
                 return
             }
 
+            deck.isAIGenerated = deck.isAIGenerated || serverDeck.keyConcepts != nil || serverDeck.generationStatus != "completed"
             deck.position = serverDeck.position
             deck.isSynced = true
 
@@ -935,6 +940,7 @@ final class SyncManager {
         localDeck.subject = serverDeck.subject
         localDeck.educationLevel = serverDeck.educationLevel
         localDeck.isFavorite = serverDeck.isFavorite
+        localDeck.isAIGenerated = localDeck.isAIGenerated || serverDeck.keyConcepts != nil || serverDeck.generationStatus != "completed"
         localDeck.position = serverDeck.position
         localDeck.generationStatus = serverDeck.generationStatus
 

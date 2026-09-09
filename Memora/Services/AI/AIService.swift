@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 final class AIService {
 
     static let shared = AIService()
@@ -66,7 +67,8 @@ final class AIService {
     func generateDeck(
         plan: DeckPlanResponse,
         studyPurpose: String,
-        targetDate: Date?
+        targetDate: Date?,
+        requiresSubscription: Bool = false
     ) async throws -> GeneratedDeckWithTimelineResponse {
 
         let dateFormatter = DateFormatter()
@@ -84,14 +86,32 @@ final class AIService {
             targetDate: formattedTargetDate
         )
 
+        guard let account = AuthManager.shared.currentUser?.id else { throw APIError.unauthorized }
+        let intent = try GenerationRequestStore.shared.intent(account: account, request: request, requiresSubscription: requiresSubscription)
+        return try await resumeGeneration(intent)
+    }
+
+    func resumeGeneration(_ intent: GenerationRequestStore.Intent) async throws -> GeneratedDeckWithTimelineResponse {
+        let request = intent.request
+        let plan = request.plan
+        guard !plan.chapters.isEmpty, plan.chapters.count <= 20,
+              plan.chapters.allSatisfy({ (1...100).contains($0.cardCount) }) else {
+            throw APIError.backend(statusCode: 422, code: "invalid_plan",
+                                   message: "A plan needs 1–20 chapters and 1–100 cards per chapter.")
+        }
+        guard let account = AuthManager.shared.currentUser?.id else { throw APIError.unauthorized }
+        let revision = LocalAccountStore.shared.revision
         let response: GeneratedDeckWithTimelineResponse =
             try await APIClient.shared.request(
                 endpoint: "/ai/decks/generate",
                 method: .post,
                 body: request,
-                timeout: 30
+                timeout: 30,
+                headers: ["Idempotency-Key": intent.key.uuidString]
             )
-
+        try LocalAccountStore.shared.validateRevision(revision)
+        try GenerationRequestStore.shared.record(account: account, intent: intent, deckID: response.deck.id)
+        try LocalAccountStore.shared.validateRevision(revision)
         return response
     }
 
@@ -103,21 +123,9 @@ final class AIService {
         studyPurpose: String = "Learn from Scratch",
         targetDate: Date? = nil
     ) async throws {
-        let dateFormatter = DateFormatter()
-        dateFormatter.calendar = Calendar(identifier: .iso8601)
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-
-        let request = GenerateDeckRequest(
-            plan: plan,
-            studyPurpose: studyPurpose,
-            targetDate: targetDate.map { dateFormatter.string(from: $0) }
-        )
-
         try await APIClient.shared.requestWithoutResponse(
             endpoint: "/ai/decks/\(deckID.uuidString)/retry",
-            method: .post,
-            body: request
+            method: .post
         )
     }
 

@@ -66,10 +66,12 @@ final class DeckAPI {
         subject: String? = nil,
         educationLevel: String? = nil,
         isFavorite: Bool? = nil,
-        parentDeckId: UUID? = nil
+        parentDeckId: UUID? = nil,
+        omitParentDeck: Bool = false
     ) async throws -> DeckResponse {
 
         let request = DeckUpdateRequest(
+            omitParentDeck: omitParentDeck,
             title: title,
             subject: subject,
             educationLevel: educationLevel,

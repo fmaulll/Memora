@@ -17,11 +17,13 @@ struct UserUpdateRequest: Encodable {
 }
 
 struct TokenResponse: Decodable {
+    let user: UserResponse
     let accessToken: String
     let refreshToken: String
     let tokenType: String
 
     enum CodingKeys: String, CodingKey {
+        case user
         case accessToken = "access_token"
         case refreshToken = "refresh_token"
         case tokenType = "token_type"
@@ -34,12 +36,20 @@ struct UserResponse: Codable, Identifiable {
     let name: String
     let email: String
     let createdAt: Date
+    let isAnonymous: Bool
+    let appAccountToken: UUID
+    let freeAIDeckAvailable: Bool
+    let entitlement: SubscriptionEntitlement
 
     enum CodingKeys: String, CodingKey {
         case id
         case name
         case email
         case createdAt = "created_at"
+        case isAnonymous = "is_anonymous"
+        case appAccountToken = "app_account_token"
+        case freeAIDeckAvailable = "free_ai_deck_available"
+        case entitlement
     }
 }
 

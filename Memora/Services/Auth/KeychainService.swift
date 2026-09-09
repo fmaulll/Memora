@@ -5,9 +5,9 @@ final class KeychainService {
 
     static let shared = KeychainService()
 
-    private init() {}
+    init(service: String = "com.memora.app") { self.service = service }
 
-    private let service = "com.memora.app"
+    private let service: String
     private let accessTokenKey = "access_token"
     private let refreshTokenKey = "refresh_token"
 
@@ -45,6 +45,27 @@ final class KeychainService {
 
     func hasRefreshToken() -> Bool {
         (try? getRefreshToken()) != nil
+    }
+
+    // Signed restore transactions may already be finished in StoreKit, so keep
+    // an account-scoped retry copy in Keychain as well as StoreKit's queue.
+    func pendingAppleVerifications(userID: UUID) throws -> [String: String] {
+        guard let json = try getToken(key: "apple_pending_\(userID.uuidString)") else { return [:] }
+        return try JSONDecoder().decode([String: String].self, from: Data(json.utf8))
+    }
+
+    func saveAppleVerifications(_ pending: [String: String], userID: UUID) throws {
+        let key = "apple_pending_\(userID.uuidString)"
+        if pending.isEmpty { deleteToken(key: key); return }
+        let data = try JSONEncoder().encode(pending)
+        try saveToken(String(decoding: data, as: UTF8.self), key: key)
+    }
+
+    func moveAppleVerifications(from source: UUID, to destination: UUID) throws {
+        var pending = try pendingAppleVerifications(userID: destination)
+        pending.merge(try pendingAppleVerifications(userID: source)) { existing, _ in existing }
+        try saveAppleVerifications(pending, userID: destination)
+        try saveAppleVerifications([:], userID: source)
     }
 
     // MARK: - Generic Keychain Methods

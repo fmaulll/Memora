@@ -5,6 +5,7 @@ import SwiftData
 final class StudyDeck {
     var id: UUID
 
+    var isAIGenerated: Bool = false
     var position: Int = 0
 
     var title: String

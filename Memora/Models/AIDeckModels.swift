@@ -113,7 +113,7 @@ struct GeneratedCard: Decodable {
     let back: String
 }
 
-struct GenerateDeckRequest: Encodable {
+struct GenerateDeckRequest: Codable {
     let plan: DeckPlanResponse
     let studyPurpose: String
     let targetDate: String?

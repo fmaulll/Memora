@@ -109,7 +109,7 @@ struct MoveDeckView: View {
             }
             .buttonStyle(.plain)
             .disabled(
-                selectedParent?.id == deck.parentDeck?.id ||
+                deck.isAIGenerated || selectedParent?.id == deck.parentDeck?.id ||
                 (selectedParent == nil && deck.parentDeck == nil)
             )
             .opacity(
@@ -146,6 +146,7 @@ struct MoveDeckView: View {
 
         return allDecks.filter { candidate in
             candidate.id != deck.id
+            && !candidate.isAIGenerated
             && candidate.parentDeck == nil
             && candidate.cards.filter { !$0.needsDeletion }.isEmpty
         }
@@ -222,6 +223,7 @@ struct MoveDeckView: View {
     }
 
     private func moveDeck() {
+        guard !deck.isAIGenerated, selectedParent?.isAIGenerated != true else { return }
         deck.parentDeck = selectedParent
         deck.isSynced = false
 

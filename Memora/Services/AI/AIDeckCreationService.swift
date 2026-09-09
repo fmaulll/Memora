@@ -15,36 +15,26 @@ final class AIDeckCreationService {
         modelContext: ModelContext,
         requiresSubscription: Bool = false
     ) throws -> StudyDeck {
-        let rootDeck: StudyDeck
-
-        if let existingDeck {
-            guard existingDeck.parentDeck == nil else {
-                throw AIDeckCreationError.existingDeckMustBeRoot
+        let id = generatedDeck.id
+        if let saved = try modelContext.fetch(FetchDescriptor<StudyDeck>(predicate: #Predicate { $0.id == id })).first {
+            if let account = AuthManager.shared.currentUser?.id {
+                GenerationRequestStore.shared.complete(account: account, deckID: id)
             }
-
-            guard existingDeck.cards.isEmpty else {
-                throw AIDeckCreationError.existingDeckMustBeEmpty
-            }
-
-            guard existingDeck.childDecks.isEmpty else {
-                throw AIDeckCreationError.existingDeckMustHaveNoChildren
-            }
-
-            rootDeck = existingDeck
-            rootDeck.isSynced = false
-
-        } else {
-            rootDeck = StudyDeck(
-                id: generatedDeck.id,
-                title: generatedDeck.title,
-                subject: generatedDeck.subject,
-                educationLevel: generatedDeck.educationLevel,
-                generationStatus: generatedDeck.generationStatus
-            )
-
-            rootDeck.isSynced = false
-            modelContext.insert(rootDeck)
+            return saved
         }
+        if let existingDeck {
+            guard existingDeck.parentDeck == nil else { throw AIDeckCreationError.existingDeckMustBeRoot }
+            guard existingDeck.cards.isEmpty else { throw AIDeckCreationError.existingDeckMustBeEmpty }
+            guard existingDeck.childDecks.isEmpty else { throw AIDeckCreationError.existingDeckMustHaveNoChildren }
+            // The server creates a new parent ID. Retire only the empty placeholder.
+            existingDeck.needsDeletion = true
+        }
+        let rootDeck = StudyDeck(id: generatedDeck.id, title: generatedDeck.title,
+                                 subject: generatedDeck.subject, educationLevel: generatedDeck.educationLevel,
+                                 generationStatus: generatedDeck.generationStatus)
+        rootDeck.isSynced = true
+        rootDeck.isAIGenerated = true
+        modelContext.insert(rootDeck)
 
         rootDeck.requiresSubscription = rootDeck.requiresSubscription || requiresSubscription
 
@@ -60,12 +50,16 @@ final class AIDeckCreationService {
             )
 
             chapterDeck.requiresSubscription = rootDeck.requiresSubscription
-            chapterDeck.isSynced = false
+            chapterDeck.isSynced = true
+            chapterDeck.isAIGenerated = true
             modelContext.insert(chapterDeck)
         }
 
         try modelContext.save()
 
+        if let account = AuthManager.shared.currentUser?.id {
+            GenerationRequestStore.shared.complete(account: account, deckID: rootDeck.id)
+        }
         return rootDeck
     }
 }

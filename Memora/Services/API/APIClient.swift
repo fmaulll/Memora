@@ -4,23 +4,21 @@ final class APIClient {
 
     static let shared = APIClient()
 
-    private init() {}
+    init(baseURL: URL? = nil, session: URLSession? = nil) {
+        self.baseURL = baseURL ?? URL(string: Bundle.main.object(forInfoDictionaryKey: "APIBaseURL") as? String
+                                     ?? "http://192.168.1.3:8000")!
+        if let session {
+            self.session = session
+        } else {
+            let configuration = URLSessionConfiguration.default
+            configuration.timeoutIntervalForRequest = 30
+            configuration.timeoutIntervalForResource = 300
+            self.session = URLSession(configuration: configuration)
+        }
+    }
 
-    // MARK: - Configuration
-
-    private let baseURL = URL(
-        // string: "http://127.0.0.1:8000"
-
-        string: "http://192.168.1.3:8000"
-    )!
-
-    private let session: URLSession = {
-        let configuration = URLSessionConfiguration.default
-        configuration.timeoutIntervalForRequest = 30
-        configuration.timeoutIntervalForResource = 300
-
-        return URLSession(configuration: configuration)
-    }()
+    private let baseURL: URL
+    private let session: URLSession
 
     private let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
@@ -74,7 +72,9 @@ final class APIClient {
         method: HTTPMethod = .get,
         body: (any Encodable)? = nil,
         authenticated: Bool = true,
-        timeout: TimeInterval? = nil
+        timeout: TimeInterval? = nil,
+        headers: [String: String] = [:],
+        retryAfterRefresh: Bool = true
     ) async throws -> Response {
 
         // Build authorization on the same actor as account switching, before
@@ -88,6 +88,7 @@ final class APIClient {
         )
 
         var request = builtRequest
+        for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
 
         if let timeout {
             request.timeoutInterval = timeout
@@ -105,6 +106,11 @@ final class APIClient {
                 throw APIError.invalidResponse
             }
 
+            if httpResponse.statusCode == 401, endpoint == "/auth/merge" {
+                let detail = try? decoder.decode(BackendErrorDetail.self, from: responseData)
+                throw APIError.backend(statusCode: 401, code: detail?.code ?? "invalid_credentials",
+                                       message: detail?.message ?? "The existing account’s email or password was not accepted.")
+            }
             try validateResponse(
                 httpResponse,
                 data: responseData
@@ -112,6 +118,13 @@ final class APIClient {
 
             data = responseData
 
+        } catch APIError.unauthorized where authenticated && retryAfterRefresh && endpoint != "/auth/merge" {
+            try LocalAccountStore.shared.validateRevision(revision)
+            _ = try await AuthAPI.shared.refreshAccessToken()
+            try LocalAccountStore.shared.validateRevision(revision)
+            return try await self.request(endpoint: endpoint, method: method, body: body,
+                                          authenticated: authenticated, timeout: timeout, headers: headers,
+                                          retryAfterRefresh: false)
         } catch let error as APIError {
             throw error
 
@@ -131,13 +144,16 @@ final class APIClient {
 
     // MARK: - Multipart Upload
 
+    @MainActor
     func upload<Response: Decodable>(
         endpoint: String,
         files: [URL],
         fieldName: String,
         authenticated: Bool = true,
-        timeout: TimeInterval? = nil
+        timeout: TimeInterval? = nil,
+        retryAfterRefresh: Bool = true
     ) async throws -> Response {
+        let revision = LocalAccountStore.shared.revision
         let cleanEndpoint = endpoint.hasPrefix("/")
             ? String(endpoint.dropFirst())
             : endpoint
@@ -200,6 +216,7 @@ final class APIClient {
         do {
             let (data, response) = try await session.data(for: request)
 
+            try LocalAccountStore.shared.validateRevision(revision)
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw APIError.invalidResponse
             }
@@ -212,6 +229,12 @@ final class APIClient {
                 throw APIError.decodingError(error)
             }
 
+        } catch APIError.unauthorized where authenticated && retryAfterRefresh {
+            try LocalAccountStore.shared.validateRevision(revision)
+            _ = try await AuthAPI.shared.refreshAccessToken()
+            try LocalAccountStore.shared.validateRevision(revision)
+            return try await upload(endpoint: endpoint, files: files, fieldName: fieldName,
+                                    authenticated: authenticated, timeout: timeout, retryAfterRefresh: false)
         } catch let error as APIError {
             throw error
 
@@ -227,7 +250,8 @@ final class APIClient {
         endpoint: String,
         method: HTTPMethod = .delete,
         body: (any Encodable)? = nil,
-        authenticated: Bool = true
+        authenticated: Bool = true,
+        retryAfterRefresh: Bool = true
     ) async throws {
 
         let revision = LocalAccountStore.shared.revision
@@ -253,6 +277,12 @@ final class APIClient {
                 data: responseData
             )
 
+        } catch APIError.unauthorized where authenticated && retryAfterRefresh {
+            try LocalAccountStore.shared.validateRevision(revision)
+            _ = try await AuthAPI.shared.refreshAccessToken()
+            try LocalAccountStore.shared.validateRevision(revision)
+            try await requestWithoutResponse(endpoint: endpoint, method: method, body: body,
+                                             authenticated: authenticated, retryAfterRefresh: false)
         } catch let error as APIError {
             throw error
 
@@ -331,27 +361,11 @@ final class APIClient {
 
         default:
 
-            var message: String?
-
-            if let data,
-               !data.isEmpty {
-
-                struct ErrorResponse: Decodable {
-                    let detail: String?
-                }
-
-                if let errorResponse = try? decoder.decode(
-                    ErrorResponse.self,
-                    from: data
-                ) {
-                    message = errorResponse.detail
-                }
+            let detail = data.flatMap { try? decoder.decode(BackendErrorDetail.self, from: $0) }
+            if let code = detail?.code {
+                throw APIError.backend(statusCode: response.statusCode, code: code, message: detail!.message)
             }
-
-            throw APIError.httpError(
-                statusCode: response.statusCode,
-                message: message
-            )
+            throw APIError.httpError(statusCode: response.statusCode, message: detail?.message)
         }
     }
 }

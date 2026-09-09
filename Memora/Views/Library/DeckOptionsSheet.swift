@@ -67,11 +67,9 @@ struct DeckOptionsSheet: View {
                         }
                     }
 
-                    optionButton(
-                        title: "Move Deck",
-                        icon: "folder",
-                        action: onMoveDeck
-                    )
+                    if !deck.isAIGenerated {
+                        optionButton(title: "Move Deck", icon: "folder", action: onMoveDeck)
+                    }
 
                     if !isParentDeck {
                         optionButton(

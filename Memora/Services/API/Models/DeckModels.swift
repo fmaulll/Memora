@@ -2,6 +2,7 @@ import Foundation
 
 struct DeckResponse: Decodable {
     let id: UUID
+    let keyConcepts: [String]?
     let userId: UUID
     let position: Int
     let title: String
@@ -18,6 +19,7 @@ struct DeckResponse: Decodable {
 
     enum CodingKeys: String, CodingKey {
         case id
+        case keyConcepts = "key_concepts"
         case userId = "user_id"
         case position
         case title
@@ -55,6 +57,7 @@ struct DeckCreateRequest: Encodable {
 }
 
 struct DeckUpdateRequest: Encodable {
+    var omitParentDeck: Bool = false
     let title: String?
     let subject: String?
     let educationLevel: String?
@@ -85,9 +88,8 @@ struct DeckUpdateRequest: Encodable {
 
         // IMPORTANT:
         // Encode nil as explicit JSON null.
-        try container.encode(
-            parentDeckId,
-            forKey: .parentDeckId
-        )
+        if !omitParentDeck {
+            try container.encode(parentDeckId, forKey: .parentDeckId)
+        }
     }
 }

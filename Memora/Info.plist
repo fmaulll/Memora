@@ -2,6 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>APIBaseURL</key>
+    <string>http://192.168.1.3:8000</string>
+    <key>SubscriptionProductIDs</key>
+    <array/>
+    <key>PrivacyPolicyURL</key>
+    <string></string>
+    <key>TermsOfUseURL</key>
+    <string></string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>PlusJakartaSans-SemiBold.ttf</string>

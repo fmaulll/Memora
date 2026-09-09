@@ -44,6 +44,16 @@ final class LocalAccountStore {
         isActive = true
     }
 
+    func reassignAfterMerge(userID: UUID, modelContext: ModelContext) throws {
+        for profile in try modelContext.fetch(FetchDescriptor<LocalUserProfile>()) {
+            profile.userId = userID
+        }
+        try modelContext.save()
+        suspend()
+        defaults.set(userID.uuidString, forKey: "localCacheOwnerID")
+        isActive = true
+    }
+
     func clear(modelContext: ModelContext) throws {
         suspend()
         // Delete local objects directly; do not mark them for server deletion.
