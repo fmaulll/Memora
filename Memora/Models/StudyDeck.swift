@@ -25,6 +25,7 @@ final class StudyDeck {
 
     var studyQueueIDs: [UUID] = []
     var learningQueueIDs: [UUID] = []
+    var studyConfirmationIDs: [UUID] = []
     var studyCompletedCount: Int = 0
     var isStudySessionActive: Bool = false
 
@@ -33,6 +34,7 @@ final class StudyDeck {
     var studyAllQueueIDs: [UUID] = []
 
     var studyAllLearningQueueIDs: [UUID] = []
+    var studyAllConfirmationIDs: [UUID] = []
 
     var studyAllCompletedCount: Int = 0
 

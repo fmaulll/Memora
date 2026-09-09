@@ -1,849 +1,292 @@
 import SwiftUI
 
-//  StudyFlashcardsView.swift
-//  Memora
-//  Created by fuckdazeshit on 14/08/26.
-
-// StudyFlashcardsView is the main view for studying flashcards in a deck. It manages the study session state, including the current card, progress, and user ratings. It also handles the transition between the initial queue of cards and the learning queue for spaced repetition.
-
-private struct StudySessionSource {
-    enum Kind {
-        case single
-        case combined
-    }
-
-    let kind: Kind
-    let title: String
-    let subject: String
-    let cards: [StudyFlashcardCard]
-    let decks: [StudyDeck]
-
-    init(deck: StudyDeck) {
-        self.kind = .single
-        self.title = deck.title
-        self.subject = deck.subject
-        self.cards = deck.cards.filter {
-            !$0.needsDeletion
-        }
-        self.decks = [deck]
-    }
-
-    init(decks: [StudyDeck]) {
-        self.kind = .combined
-
-        self.title = decks.first?.parentDeck?.title
-            ?? decks.first?.title
-            ?? "Study Session"
-
-        self.subject = decks.first?.subject ?? ""
-
-        self.cards = decks
-            .flatMap(\.cards)
-            .filter {
-                !$0.needsDeletion
-            }
-
-        self.decks = decks
-    }
-
-    var isCombined: Bool {
-        kind == .combined
-    }
-}
-
 struct StudyFlashcardsView: View {
-    private let source: StudySessionSource
-
-    private var deck: StudyDeck? {
-        source.decks.count == 1 ? source.decks.first : nil
-    }
-
-    private var isCombinedSession: Bool {
-        source.kind == .combined
-    }
+    private let decks: [StudyDeck]
+    private let isCombined: Bool
+    private let cards: [StudyFlashcardCard]
+    private let title: String
+    private let subject: String
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-
-    // MARK: Study Session Queues
-    //
-    // `sessionCards` is the initial, one-pass-through queue for this session.
-    // Cards leave it permanently once rated — either into `learningCards`
-    // (Again/Hard) or straight to completion (Good/Easy).
-    //
-    // `learningCards` is the "learning boundary" queue. Once `sessionCards`
-    // is empty, Memora cycles ONLY through `learningCards` until every card
-    // in it has been rated Good or Easy. A card can never re-enter
-    // `learningCards` once it has left via Good/Easy.
-    @State private var sessionCards: [StudyFlashcardCard]
-    @State private var learningCards: [StudyFlashcardCard] = []
-
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var queue: StudySessionQueue
     @State private var isAnswerRevealed = false
-    @State private var isSessionComplete = false
-    @State private var completedCardCount = 0
-
-    private let background = Color(red: 0.04, green: 0.04, blue: 0.13)
-    private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
-    private let subjectColor = Color(red: 0.13, green: 0.77, blue: 0.37)
+    @State private var saveError: String?
 
     private let spacedRepetitionService = SpacedRepetitionService()
 
-    // How many other learning-queue cards a requeued card is reinserted behind.
-    // Again resurfaces sooner than Hard, mirroring Anki's short learning steps.
-    private static let againRequeueDelay = 1
-    private static let hardRequeueDelay = 2
-
     init(deck: StudyDeck) {
-
-        let source = StudySessionSource(deck: deck)
-
-        self.source = source
-
-        let cardsByID = Dictionary(
-                uniqueKeysWithValues: source.cards.map {
-                    ($0.id, $0)
-                }
-            )
-
-        if deck.isStudySessionActive {
-
-            _sessionCards = State(
-                initialValue: deck.studyQueueIDs.compactMap {
-                    cardsByID[$0]
-                }
-            )
-
-            _learningCards = State(
-                initialValue: deck.learningQueueIDs.compactMap {
-                    cardsByID[$0]
-                }
-            )
-
-            _completedCardCount = State(
-                initialValue: deck.studyCompletedCount
-            )
-
-        } else {
-
-            _sessionCards = State(
-                initialValue: source.cards
-            )
-
-            _learningCards = State(
-                initialValue: []
-            )
-
-            _completedCardCount = State(
-                initialValue: 0
-            )
-        }
+        self.init(decks: [deck], isCombined: false)
     }
+
     init(decks: [StudyDeck]) {
-
-        let source = StudySessionSource(decks: decks)
-
-        self.source = source
-
-        let cardsByID = Dictionary(
-            uniqueKeysWithValues: source.cards.map {
-                ($0.id, $0)
-            }
-        )
-
-        let hasActiveStudyAllSession = decks.contains {
-            $0.isStudyAllSessionActive
-        }
-
-        if hasActiveStudyAllSession {
-
-            let queue = decks.flatMap { deck in
-                deck.studyAllQueueIDs.compactMap {
-                    cardsByID[$0]
-                }
-            }
-
-            let learning = decks.flatMap { deck in
-                deck.studyAllLearningQueueIDs.compactMap {
-                    cardsByID[$0]
-                }
-            }
-
-            _sessionCards = State(
-                initialValue: queue
-            )
-
-            _learningCards = State(
-                initialValue: learning
-            )
-
-            _completedCardCount = State(
-                initialValue: decks.reduce(0) {
-                    $0 + $1.studyAllCompletedCount
-                }
-            )
-
-        } else {
-
-            _sessionCards = State(
-                initialValue: source.cards
-            )
-
-            _learningCards = State(
-                initialValue: []
-            )
-
-            _completedCardCount = State(
-                initialValue: 0
-            )
-        }
+        self.init(decks: decks, isCombined: true)
     }
 
-    // The card currently on screen: the initial queue is always shown first,
-    // then the learning queue once the initial queue is exhausted.
+    private init(decks: [StudyDeck], isCombined: Bool) {
+        self.decks = decks
+        self.isCombined = isCombined
+        title = isCombined ? (decks.first?.parentDeck?.title ?? "Study All") : (decks.first?.title ?? "Study")
+        subject = decks.first?.subject ?? ""
+        var seen = Set<UUID>()
+        let cards = decks.flatMap(\.cards).filter { !$0.needsDeletion && seen.insert($0.id).inserted }
+        self.cards = cards
+
+        let isResuming = decks.contains { isCombined ? $0.isStudyAllSessionActive : $0.isStudySessionActive }
+        let ids = isResuming ? decks.flatMap {
+            // Include the old learning queue so existing sessions remain resumable.
+            isCombined
+                ? $0.studyAllQueueIDs + $0.studyAllLearningQueueIDs
+                : $0.studyQueueIDs + $0.learningQueueIDs
+        }.filter { seen.contains($0) } : cards.map(\.id)
+        let confirmations = isResuming ? decks.flatMap {
+            isCombined ? $0.studyAllConfirmationIDs : $0.studyConfirmationIDs
+        } : []
+        _queue = State(initialValue: StudySessionQueue(cardIDs: ids, confirmationIDs: Set(confirmations)))
+    }
+
     private var currentCard: StudyFlashcardCard? {
-        sessionCards.first ?? learningCards.first
+        guard let id = queue.cardIDs.first else { return nil }
+        return cards.first { $0.id == id }
     }
 
     private var progress: Double {
-        guard !source.cards.isEmpty else {
-            return 0
-        }
-
-        return Double(completedCardCount) / Double(source.cards.count)
+        guard !cards.isEmpty else { return 0 }
+        return Double(cards.count - queue.cardIDs.count) / Double(cards.count)
     }
 
     var body: some View {
         AppBackground {
             VStack(spacing: 0) {
+                header
+                ProgressView(value: progress)
+                    .tint(Color.appAccent)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 20)
 
-                // MARK: Top Bar
-
-                HStack {
-                    Button {
-                        saveStudySession()
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.78))
-                            .frame(width: 40, height: 40)
-                            .background(
-                                .white.opacity(0.18),
-                                in: Circle()
-                            )
-                    }
-                    .accessibilityLabel("Close study session")
-
-                    Spacer()
-
-                    Text("\(source.cards.count - completedCardCount) remaining")
-                        .font(.custom("PlusJakartaSans-SemiBold", size: 14))
-                        .foregroundStyle(.white.opacity(0.55))
+                if let saveError {
+                    Text(saveError)
+                        .font(.custom("PlusJakartaSans-Regular", size: 13))
+                        .foregroundStyle(Color.appError)
+                        .padding(.horizontal, 20)
                 }
-                .padding(.horizontal, 20)
-                // .padding(.top, 8)
 
-                // MARK: Progress
-
-                StudyProgressBar(
-                    progress: progress,
-                    accent: accent
-                )
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-
-                if source.cards.isEmpty {
-                    emptyState
-                } else if isSessionComplete {
-                    sessionCompleteView
+                if cards.isEmpty {
+                    completionContent(isEmpty: true)
+                } else if queue.cardIDs.isEmpty {
+                    completionContent(isEmpty: false)
                 } else if let card = currentCard {
-                    studyContent(card: card)
-                }
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text(queue.confirmationIDs.contains(card.id)
+                                 ? "One more time. Recall it without looking."
+                                 : "Recall the answer, then reveal it to check.")
+                                .font(.custom("PlusJakartaSans-Regular", size: 14))
+                                .foregroundStyle(Color.appTextSecondary)
 
-                Spacer(minLength: 0)
-            }
-        }
-        .preferredColorScheme(.dark)
-        .navigationBarBackButtonHidden(true)
-    }
-
-    // MARK: Study Content
-
-    private func studyContent(card: StudyFlashcardCard) -> some View {
-        VStack(spacing: 0) {
-
-            Spacer(minLength: 30)
-
-            // MARK: Flashcard
-
-            Button {
-                revealAnswer()
-            } label: {
-                FlashcardView(
-                    card: card,
-                    subject: source.subject,
-                    isAnswerRevealed: isAnswerRevealed,
-                    subjectColor: subjectColor
-                )
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 18)
-
-            Spacer(minLength: 20)
-
-            // MARK: Bottom Content
-
-            if isAnswerRevealed {
-                RatingControls(
-                    onRate: { rating in
-                        rateCard(rating)
+                            flashcard(card)
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 24)
                     }
-                )
-                .padding(.horizontal, 20)
-                .transition(
-                    .opacity
-                    .combined(with: .move(edge: .bottom))
-                )
-            } else {
-                RevealHint()
-                    .transition(.opacity)
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        studyControls(cardID: card.id)
+                    }
+                }
             }
-
-            Spacer(minLength: 20)
         }
-        .animation(
-            .easeInOut(duration: 0.25),
-            value: isAnswerRevealed
-        )
+        .navigationBarBackButtonHidden()
+        .preferredColorScheme(.dark)
+        .onAppear { saveSession() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { saveSession() }
+        }
     }
 
-    // MARK: Reveal
-
-    private func revealAnswer() {
-        guard !isAnswerRevealed else {
-            return
+    private var header: some View {
+        HStack {
+            Button {
+                if saveSession() { dismiss() }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.78))
+                    .frame(width: 40, height: 40)
+                    .background(.white.opacity(0.18), in: Circle())
+            }
+            .accessibilityLabel("Save and close study session")
+            Spacer()
+            Text("\(queue.cardIDs.count) remaining")
+                .font(.custom("PlusJakartaSans-SemiBold", size: 14))
+                .foregroundStyle(Color.appTextSecondary)
         }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 20)
+    }
 
-        withAnimation(.easeInOut(duration: 0.25)) {
+    private func flashcard(_ card: StudyFlashcardCard) -> some View {
+        Button {
             isAnswerRevealed = true
-        }
-    }
+        } label: {
+            VStack(spacing: 24) {
+                if !subject.isEmpty {
+                    Text(subject.uppercased())
+                        .font(.custom("PlusJakartaSans-Bold", size: 11))
+                        .foregroundStyle(Color.appAccent)
+                }
+                Text(card.front)
+                    .font(.custom("PlusJakartaSans-SemiBold", size: 22))
+                    .foregroundStyle(Color.appTextPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                cardImage(card.frontImageData)
 
-    // MARK: Rating
-    private func rateCard(_ rating: CardRating) {
-        guard let card = currentCard else {
-            return
-        }
-
-        spacedRepetitionService.review(
-            card: card,
-            rating: rating
-        )
-
-        if !sessionCards.isEmpty {
-            handleInitialCardRating(card, rating)
-        } else {
-            handleLearningCardRating(card, rating)
-        }
-
-        isAnswerRevealed = false
-
-        if sessionCards.isEmpty && learningCards.isEmpty {
-            finishStudySession()
-        } else {
-            saveStudySession()
-        }
-
-        withAnimation(.easeInOut(duration: 0.25)) {
-            advanceToNextCard()
-        }
-    }
-
-    /// Handles a rating for a card still in the initial, one-pass-through queue.
-    /// Good/Easy leave the session for good; Again/Hard move into the learning queue.
-    private func handleInitialCardRating(
-        _ card: StudyFlashcardCard,
-        _ rating: CardRating
-    ) {
-        // The initial queue is only ever shown once per card — always dequeue from the front.
-        sessionCards.removeFirst()
-
-        switch rating {
-
-        case .again, .hard:
-            // Card was difficult — it does not count toward completion yet.
-            // It now belongs to the learning queue only.
-            requeueLearningCard(card, rating: rating)
-
-        case .good, .easy:
-            // Card was successfully learned on the first pass.
-            completedCardCount += 1
-        }
-    }
-
-    /// Handles a rating for a card being cycled through the learning queue.
-    /// A card can only leave the learning queue permanently via Good/Easy.
-    private func handleLearningCardRating(
-        _ card: StudyFlashcardCard,
-        _ rating: CardRating
-    ) {
-        // Always dequeue from the front of the learning queue before rescheduling it.
-        learningCards.removeFirst()
-
-        switch rating {
-
-        case .again, .hard:
-            // Still struggling — goes back into the learning queue, never completed.
-            requeueLearningCard(card, rating: rating)
-
-        case .good, .easy:
-            // Finally learned — leaves the learning queue permanently for this session.
-            completedCardCount += 1
-        }
-    }
-
-    /// Reinserts a struggling card into the learning queue at a short delay.
-    /// Again resurfaces sooner than Hard; Good/Easy never call this.
-    private func requeueLearningCard(_ card: StudyFlashcardCard, rating: CardRating) {
-        let requeueDelay: Int
-
-        switch rating {
-        case .again:
-            requeueDelay = Self.againRequeueDelay
-        case .hard:
-            requeueDelay = Self.hardRequeueDelay
-        case .good, .easy:
-            return
-        }
-
-        let insertionIndex = min(requeueDelay, learningCards.count)
-        learningCards.insert(card, at: insertionIndex)
-    }
-
-    private func saveStudySession() {
-        if isCombinedSession {
-            saveCombinedStudySession()
-            return
-        }
-
-        guard let deck else {
-            return
-        }
-
-        deck.studyQueueIDs = sessionCards.map(\.id)
-        deck.learningQueueIDs = learningCards.map(\.id)
-        deck.studyCompletedCount = completedCardCount
-        deck.isStudySessionActive = true
-
-        do {
-            try modelContext.save()
-        } catch {
-            print("❌ Failed to save study session:", error)
-        }
-    }
-
-    private func saveCombinedStudySession() {
-
-        for childDeck in source.decks {
-
-            let childCards = childDeck.cards.filter {
-                !$0.needsDeletion
+                if isAnswerRevealed {
+                    Rectangle().fill(Color.appBorder).frame(height: 1)
+                    Text("ANSWER")
+                        .font(.custom("PlusJakartaSans-Bold", size: 11))
+                        .foregroundStyle(Color.appTextSecondary)
+                    Text(card.back)
+                        .font(.custom("PlusJakartaSans-Regular", size: 18))
+                        .foregroundStyle(Color.appTextPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    cardImage(card.backImageData)
+                }
             }
-
-            let childCardIDs = Set(
-                childCards.map(\.id)
-            )
-
-            let childSessionCards = sessionCards.filter {
-                childCardIDs.contains($0.id)
-            }
-
-            let childLearningCards = learningCards.filter {
-                childCardIDs.contains($0.id)
-            }
-
-            let completedCount =
-                childCards.count
-                - childSessionCards.count
-                - childLearningCards.count
-
-            childDeck.studyAllQueueIDs =
-                childSessionCards.map(\.id)
-
-            childDeck.studyAllLearningQueueIDs =
-                childLearningCards.map(\.id)
-
-            childDeck.studyAllCompletedCount =
-                max(completedCount, 0)
-
-            childDeck.isStudyAllSessionActive =
-                !childSessionCards.isEmpty ||
-                !childLearningCards.isEmpty
+            .multilineTextAlignment(.center)
+            .padding(24)
+            .frame(maxWidth: .infinity, minHeight: 280)
+            .background(Color.appSurface, in: RoundedRectangle(cornerRadius: 8))
+            .overlay { RoundedRectangle(cornerRadius: 8).stroke(Color.appBorder, lineWidth: 1) }
         }
+        .buttonStyle(.plain)
+        .accessibilityHint(isAnswerRevealed ? "Rate your recall using the buttons below." : "Tap to reveal the answer.")
+    }
 
-        do {
-            try modelContext.save()
-        } catch {
-            print(
-                "❌ Failed to save Study All session:",
-                error
-            )
+    @ViewBuilder
+    private func cardImage(_ data: Data?) -> some View {
+        if let data, let image = UIImage(data: data) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(maxHeight: 220)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
         }
     }
 
-    /// The session only completes once both the initial queue and the
-    /// learning queue are empty — never just because `sessionCards` ran out.
-    private func advanceToNextCard() {
-        if sessionCards.isEmpty && learningCards.isEmpty {
-            isSessionComplete = true
-        }
-    }
-
-    private func finishStudySession() {
-
-        if isCombinedSession {
-            finishCombinedStudySession()
-            return
-        }
-
-        guard let deck else {
-            return
-        }
-
-        deck.studyQueueIDs = []
-        deck.learningQueueIDs = []
-        deck.studyCompletedCount = 0
-        deck.isStudySessionActive = false
-
-        do {
-            try modelContext.save()
-        } catch {
-            print(
-                "❌ Failed to finish study session:",
-                error
-            )
-        }
-    }
-
-    private func finishCombinedStudySession() {
-
-        for deck in source.decks {
-
-            deck.studyAllQueueIDs = []
-
-            deck.studyAllLearningQueueIDs = []
-
-            deck.studyAllCompletedCount = 0
-
-            deck.isStudyAllSessionActive = false
-        }
-
-        do {
-            try modelContext.save()
-        } catch {
-            print(
-                "❌ Failed to finish Study All session:",
-                error
-            )
-        }
-    }
-
-    // MARK: Empty State
-
-    private var emptyState: some View {
-        VStack(spacing: 16) {
-            Spacer()
-
-            Image(systemName: "rectangle.on.rectangle.slash")
-                .font(.system(size: 42))
-                .foregroundStyle(.white.opacity(0.4))
-
-            Text("No flashcards yet")
-                .font(.custom("PlusJakartaSans-Bold", size: 22))
-                .foregroundStyle(.white)
-
-            Text("Add some cards to start studying.")
-                .font(.custom("PlusJakartaSans-Regular", size: 15))
-                .foregroundStyle(.white.opacity(0.5))
-
-            Spacer()
-        }
-    }
-
-    // MARK: Complete
-
-    private var sessionCompleteView: some View {
-        VStack(spacing: 20) {
-            Spacer()
-
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [accent, Color(red: 0.55, green: 0.36, blue: 0.96)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 84, height: 84)
-
-                Image(systemName: "checkmark")
-                    .font(.system(size: 32, weight: .bold))
-                    .foregroundStyle(.white)
-            }
-
-            Text("Study Session Complete")
-                .font(.custom("PlusJakartaSans-ExtraBold", size: 26))
-                .foregroundStyle(.white)
+    private func studyControls(cardID: UUID) -> some View {
+        VStack(spacing: 12) {
+            Text(isAnswerRevealed ? "Could you recall it before looking?" : "Think first. No points for guessing.")
+                .font(.custom("PlusJakartaSans-Regular", size: 13))
+                .foregroundStyle(Color.appTextSecondary)
                 .multilineTextAlignment(.center)
-
-            Text(
-                "You reviewed \(source.cards.count) card\(source.cards.count == 1 ? "" : "s")."
-            )
-                .font(.custom("PlusJakartaSans-Regular", size: 16))
-                .foregroundStyle(.white.opacity(0.55))
-
-            AppButton(
-                title: "Done",
-                icon: .sf("checkmark"),
-                iconPosition: .right,
-                background: LinearGradient(
-                    colors: [
-                        accent,
-                        Color(red: 0.55, green: 0.36, blue: 0.96)
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            ) {
-                dismiss()
-            }
-            .padding(.horizontal, 20)
-
-            Spacer()
-        }
-    }
-}
-
-// MARK: - Flashcard
-
-private struct FlashcardView: View {
-    let card: StudyFlashcardCard
-    let subject: String
-    let isAnswerRevealed: Bool
-    let subjectColor: Color
-
-    var body: some View {
-        VStack(spacing: 0) {
-            // Question
-
-            Text(card.front)
-                .font(.custom("PlusJakartaSans-SemiBold", size: 22))
-                .foregroundStyle(.white)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
 
             if isAnswerRevealed {
-                Divider()
-                    .overlay(.white.opacity(0.10))
-                    .padding(.horizontal, 40)
-                    .padding(.vertical, 28)
-
-                Text(card.back)
-                    .font(.custom("PlusJakartaSans-Regular", size: 17))
-                    .foregroundStyle(.white.opacity(0.78))
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                    .transition(
-                        .opacity
-                        .combined(with: .move(edge: .bottom))
-                    )
-            }
-
-            Spacer(minLength: 28)
-        }
-        .frame(maxWidth: .infinity)
-        .frame(minHeight: isAnswerRevealed ? 330 : 265)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 24)
-        .background(
-            Color.white.opacity(0.055),
-            in: RoundedRectangle(cornerRadius: 24)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 24)
-                .stroke(
-                    .white.opacity(0.16),
-                    lineWidth: 1
-                )
-        }
-        .animation(
-            .easeInOut(duration: 0.25),
-            value: isAnswerRevealed
-        )
-    }
-}
-
-// MARK: - Reveal Hint
-
-private struct RevealHint: View {
-    var body: some View {
-        HStack(spacing: 10) {
-            Rectangle()
-                .fill(.white.opacity(0.10))
-                .frame(maxWidth: 28)
-                .frame(height: 1)
-
-            Text("tap to reveal")
-                .font(.custom("PlusJakartaSans-Regular", size: 12))
-                .foregroundStyle(.white.opacity(0.25))
-
-            Rectangle()
-                .fill(.white.opacity(0.10))
-                .frame(maxWidth: 28)
-                .frame(height: 1)
-        }
-    }
-}
-
-// MARK: - Rating Controls
-
-private struct RatingControls: View {
-    let onRate: (CardRating) -> Void
-
-    var body: some View {
-        VStack(spacing: 12) {
-
-            Text("How well did you know this?")
-                .font(.custom("PlusJakartaSans-Regular", size: 12))
-                .foregroundStyle(.white.opacity(0.35))
-
-            HStack(spacing: 10) {
-                RatingButton(
-                    title: "Again",
-                    icon: "arrow.counterclockwise",
-                    color: .red
-                ) {
-                    onRate(.again)
+                HStack(spacing: 12) {
+                    ratingButton("Again", detail: "Try again soon", icon: "arrow.counterclockwise", isPositive: false) {
+                        rateCard(.again, cardID: cardID)
+                    }
+                    ratingButton("Got it", detail: queue.confirmationIDs.contains(cardID) ? "Finish this card" : "Check once more", icon: "checkmark", isPositive: true) {
+                        rateCard(.good, cardID: cardID)
+                    }
                 }
-
-                RatingButton(
-                    title: "Hard",
-                    icon: "exclamationmark",
-                    color: .orange
-                ) {
-                    onRate(.hard)
-                }
-
-                RatingButton(
-                    title: "Good",
-                    icon: "checkmark",
-                    color: .green
-                ) {
-                    onRate(.good)
-                }
-
-                RatingButton(
-                    title: "Easy",
-                    icon: "bolt.fill",
-                    color: .blue
-                ) {
-                    onRate(.easy)
+            } else {
+                AppButton(title: "Reveal answer", foreground: Color.appBackground, background: Color.appAccent) {
+                    isAnswerRevealed = true
                 }
             }
         }
+        .padding(20)
+        .background(Color.appBackground)
+        .overlay(alignment: .top) { Rectangle().fill(Color.appBorder).frame(height: 1) }
     }
-}
 
-// MARK: - Rating Button
-
-private struct RatingButton: View {
-    let title: String
-    let icon: String
-    let color: Color
-    let action: () -> Void
-
-    var body: some View {
+    private func ratingButton(_ title: String, detail: String, icon: String, isPositive: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .semibold))
-
-                Text(title)
-                    .font(.custom("PlusJakartaSans-SemiBold", size: 11))
+            VStack(spacing: 4) {
+                Label(title, systemImage: icon)
+                    .font(.custom("PlusJakartaSans-Bold", size: 16))
+                Text(detail)
+                    .font(.custom("PlusJakartaSans-Regular", size: 11))
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(isPositive ? Color.appBackground : Color.appTextPrimary)
             .frame(maxWidth: .infinity)
-            .frame(height: 58)
-            .background(
-                color.opacity(0.12),
-                in: RoundedRectangle(cornerRadius: 14)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(
-                        color.opacity(0.25),
-                        lineWidth: 1
-                    )
-            }
+            .frame(height: 54)
+            .background(isPositive ? Color.appAccent : Color.appSecondarySurface, in: RoundedRectangle(cornerRadius: 8))
+            .overlay { RoundedRectangle(cornerRadius: 8).stroke(isPositive ? Color.appAccent : Color.appBorder, lineWidth: 1) }
         }
         .buttonStyle(.plain)
     }
-}
 
-// MARK: - Progress Bar
+    private func rateCard(_ rating: CardRating, cardID: UUID) {
+        guard isAnswerRevealed, let card = currentCard, card.id == cardID else { return }
+        let confirmed = queue.rate(rating)
+        spacedRepetitionService.review(card: card, rating: rating, isConfirmed: confirmed)
+        isAnswerRevealed = false
+        saveSession()
+    }
 
-private struct StudyProgressBar: View {
-    let progress: Double
-    let accent: Color
-
-    var body: some View {
-        GeometryReader { geometry in
-            ZStack(alignment: .leading) {
-
-                Capsule()
-                    .fill(.white.opacity(0.08))
-
-                Capsule()
-                    .fill(accent)
-                    .frame(
-                        width: geometry.size.width * progress
-                    )
+    @discardableResult
+    private func saveSession() -> Bool {
+        for deck in decks {
+            let cardIDs = Set(deck.cards.filter { !$0.needsDeletion }.map(\.id))
+            let remaining = queue.cardIDs.filter { cardIDs.contains($0) }
+            let confirmations = queue.confirmationIDs.intersection(cardIDs)
+            let completed = max(0, cardIDs.count - remaining.count)
+            let isActive = !queue.cardIDs.isEmpty
+            if isCombined {
+                deck.studyAllQueueIDs = remaining
+                deck.studyAllLearningQueueIDs = []
+                deck.studyAllConfirmationIDs = Array(confirmations)
+                deck.studyAllCompletedCount = isActive ? completed : 0
+                // Keep completed chapters part of a resumable combined session.
+                deck.isStudyAllSessionActive = isActive
+            } else {
+                deck.studyQueueIDs = remaining
+                deck.learningQueueIDs = []
+                deck.studyConfirmationIDs = Array(confirmations)
+                deck.studyCompletedCount = isActive ? completed : 0
+                deck.isStudySessionActive = isActive
             }
         }
-        .frame(height: 4)
-        .animation(
-            .easeInOut(duration: 0.25),
-            value: progress
-        )
+        do {
+            try modelContext.save()
+            saveError = nil
+            return true
+        } catch {
+            saveError = "Progress couldn't be saved. Try closing the session again."
+            return false
+        }
+    }
+
+    private func completionContent(isEmpty: Bool) -> some View {
+        VStack(spacing: 20) {
+            Spacer()
+            Image(systemName: isEmpty ? "rectangle.on.rectangle.slash" : "checkmark.circle.fill")
+                .font(.system(size: 54))
+                .foregroundStyle(isEmpty ? Color.appTextSecondary : Color.appSuccess)
+            Text(isEmpty ? "No flashcards yet" : "Session complete")
+                .font(.custom("PlusJakartaSans-Bold", size: 26))
+                .foregroundStyle(Color.appTextPrimary)
+            Text(isEmpty ? "Add some cards to start studying." : "Every remaining card passed its recall check. Come back for your next review.")
+                .font(.custom("PlusJakartaSans-Regular", size: 15))
+                .foregroundStyle(Color.appTextSecondary)
+            AppButton(title: "Done", foreground: Color.appBackground, background: Color.appAccent) {
+                if saveSession() { dismiss() }
+            }
+            Spacer()
+        }
+        .multilineTextAlignment(.center)
+        .padding(20)
+        .frame(maxWidth: .infinity)
     }
 }
 
-// MARK: - Preview
-
 #Preview {
-    let deck = StudyDeck(
-        title: "Cell Division & Mitosis",
-        subject: "Biology",
-        educationLevel: "University"
-    )
-
-    deck.cards = [
-        StudyFlashcardCard(
-            front: "What is mitosis?",
-            back: "Cell division producing two genetically identical daughter cells."
-        ),
-        StudyFlashcardCard(
-            front: "What is the purpose of mitosis?",
-            back: "Mitosis is used for growth, tissue repair, and cell replacement."
-        ),
-        StudyFlashcardCard(
-            front: "How many daughter cells are produced?",
-            back: "Two genetically identical daughter cells."
-        )
-    ]
-
-    return NavigationStack {
-        StudyFlashcardsView(deck: deck)
+    NavigationStack {
+        StudyFlashcardsView(deck: StudyDeck(
+            title: "Cell Division", subject: "Biology", educationLevel: "University",
+            cards: [StudyFlashcardCard(front: "What is mitosis?", back: "Cell division producing two genetically identical daughter cells.")]
+        ))
     }
 }

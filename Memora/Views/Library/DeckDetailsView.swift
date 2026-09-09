@@ -822,12 +822,14 @@ private struct UnlockedDeckDetailsView: View {
             // Reset normal study session
             targetDeck.studyQueueIDs = []
             targetDeck.learningQueueIDs = []
+            targetDeck.studyConfirmationIDs = []
             targetDeck.studyCompletedCount = 0
             targetDeck.isStudySessionActive = false
 
             // Reset Study All session
             targetDeck.studyAllQueueIDs = []
             targetDeck.studyAllLearningQueueIDs = []
+            targetDeck.studyAllConfirmationIDs = []
             targetDeck.studyAllCompletedCount = 0
             targetDeck.isStudyAllSessionActive = false
         }
