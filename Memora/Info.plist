@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>APIBaseURL</key>
-    <string>http://192.168.1.3:8000</string>
+    <string>http://192.168.1.7:8000</string>
     <key>SubscriptionProductIDs</key>
     <array/>
     <key>PrivacyPolicyURL</key>

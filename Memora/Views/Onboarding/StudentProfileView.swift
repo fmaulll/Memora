@@ -44,11 +44,11 @@ struct StudentProfileView: View {
     ]
 
     private let studyReasonOptions = [
-        "Pass an exam",
-        "Get certified",
+        "Learn from Scratch",
         "Career",
-        "Learn something",
-        "I have no choice"
+        "Expand My Knowledge",
+        "Prepare for an Exam",
+        "Prepare for a Certification"
     ]
 
     private let intensityOptions = [

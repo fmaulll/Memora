@@ -188,10 +188,10 @@ struct LibraryView: View {
                     }
                     .font(.custom("PlusJakartaSans-SemiBold", size: 12))
                     .foregroundStyle(Color.appAccent)
-                    .frame(minHeight: 44)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(isBrowsing ? "\(expandedDeckIDs.contains(deck.id) ? "Collapse" : "Expand") \(childCount) subdecks in \(deck.title)" : "Open \(childCount) subdecks in \(deck.title)")
+                .padding(.top, 8)
             }
         }
         .padding(16)

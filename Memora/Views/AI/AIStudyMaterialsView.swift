@@ -118,34 +118,18 @@ struct AIStudyMaterialsView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("STUDY MATERIALS")
-                .font(
-                    .custom(
-                        "PlusJakartaSans-Bold",
-                        size: 13
-                    )
-                )
+                .font(.custom("PlusJakartaSans-Bold", size: 11, relativeTo: .caption))
+                .tracking(1.5)
                 .foregroundStyle(Color.appAccent)
 
             Text("Anything Mr. Ed\nshould read?")
-                .font(
-                    .custom(
-                        "PlusJakartaSans-ExtraBold",
-                        size: 38
-                    )
-                )
+                .font(.custom("PlusJakartaSans-ExtraBold", size: 30, relativeTo: .largeTitle))
                 .foregroundStyle(Color.appTextPrimary)
-                .tracking(-1)
-                .lineSpacing(-3)
+                .fixedSize(horizontal: false, vertical: true)
 
             Text("Add notes, documents, or slides for extra context. You can also continue without them.")
-                .font(
-                    .custom(
-                        "PlusJakartaSans-Regular",
-                        size: 14
-                    )
-                )
+                .font(.custom("PlusJakartaSans-Regular", size: 12, relativeTo: .caption))
                 .foregroundStyle(Color.appTextSecondary)
-                .lineSpacing(4)
         }
     }
 

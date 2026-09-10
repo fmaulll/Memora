@@ -6,7 +6,7 @@ final class APIClient {
 
     init(baseURL: URL? = nil, session: URLSession? = nil) {
         self.baseURL = baseURL ?? URL(string: Bundle.main.object(forInfoDictionaryKey: "APIBaseURL") as? String
-                                     ?? "http://192.168.1.3:8000")!
+                                     ?? "http://192.168.1.7:8000")!
         if let session {
             self.session = session
         } else {

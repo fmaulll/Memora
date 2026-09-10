@@ -97,41 +97,23 @@ struct AIPlanPreviewView: View {
     // MARK: - Header
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
 
             Text("AI STUDY PLAN")
-                .font(
-                    .custom(
-                        "PlusJakartaSans-Bold",
-                        size: 13
-                    )
-                )
-                .foregroundStyle(accent)
+                .font(.custom("PlusJakartaSans-Bold", size: 11, relativeTo: .caption))
+                .tracking(1.5)
+                .foregroundStyle(Color.appAccent)
 
             Text(plan.title)
-                .font(
-                    .custom(
-                        "PlusJakartaSans-ExtraBold",
-                        size: 38
-                    )
-                )
-                .foregroundStyle(.white)
-                .tracking(-1)
-                .lineSpacing(-3)
+                .font(.custom("PlusJakartaSans-ExtraBold", size: 30, relativeTo: .largeTitle))
+                .foregroundStyle(Color.appTextPrimary)
+                .fixedSize(horizontal: false, vertical: true)
 
             Text(
                 "Review the learning structure before generating your flashcards."
             )
-            .font(
-                .custom(
-                    "PlusJakartaSans-Regular",
-                    size: 14
-                )
-            )
-            .foregroundStyle(
-                .white.opacity(0.55)
-            )
-            .lineSpacing(4)
+                .font(.custom("PlusJakartaSans-Regular", size: 12, relativeTo: .caption))
+                .foregroundStyle(Color.appTextSecondary)
         }
     }
 
