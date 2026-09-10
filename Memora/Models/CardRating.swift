@@ -1,6 +1,6 @@
 import Foundation
 
-enum CardRating {
+enum CardRating: String {
     case again
     case good
 }

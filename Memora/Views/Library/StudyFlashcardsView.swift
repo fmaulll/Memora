@@ -13,6 +13,7 @@ struct StudyFlashcardsView: View {
     @State private var queue: StudySessionQueue
     @State private var isAnswerRevealed = false
     @State private var saveError: String?
+    @State private var cardShownAt = Date()
 
     private let spacedRepetitionService = SpacedRepetitionService()
 
@@ -98,7 +99,10 @@ struct StudyFlashcardsView: View {
         }
         .navigationBarBackButtonHidden()
         .preferredColorScheme(.dark)
-        .onAppear { saveSession() }
+        .onAppear {
+            saveSession()
+            retryPendingReviews()
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { saveSession() }
         }
@@ -224,6 +228,54 @@ struct StudyFlashcardsView: View {
         spacedRepetitionService.review(card: card, rating: rating, isConfirmed: confirmed)
         isAnswerRevealed = false
         saveSession()
+        cardShownAt = .now
+
+        // A first "Got it" introduces the card to the backend. The immediate
+        // local confirmation is a UX check, not a second spaced-repetition event.
+        guard rating == .again || !confirmed else { return }
+        recordReview(card: card, rating: rating)
+    }
+
+    private func recordReview(card: StudyFlashcardCard, rating: CardRating) {
+        let pending = StudyReviewEventStore.shared.pending(for: card.id)
+        let event = pending ?? StudyReviewRequest(
+            eventID: UUID(), cardID: card.id, rating: rating.rawValue,
+            occurredAt: .now,
+            elapsedMS: max(0, Int(Date().timeIntervalSince(cardShownAt) * 1_000)),
+            expectedRevision: card.studyStateRevision
+        )
+        do { try StudyReviewEventStore.shared.save(event) }
+        catch { saveError = "Progress saved locally, but the review is waiting to sync."; return }
+        Task { @MainActor in
+            do {
+                let receipt = try await AIService.shared.recordReview(event)
+                guard receipt.cardID == card.id else { return }
+                card.studyStateRevision = receipt.stateRevision
+                card.nextReviewAt = receipt.nextDueAt
+                StudyReviewEventStore.shared.clear(cardID: card.id)
+                try? modelContext.save()
+            } catch {
+                // Keep the exact event for retry; never make a new UUID to
+                // bypass a conflict or duplicate-delivery condition.
+                saveError = "Progress saved locally. This review will sync when the connection is back."
+            }
+        }
+    }
+
+    private func retryPendingReviews() {
+        for card in cards {
+            guard let request = StudyReviewEventStore.shared.pending(for: card.id) else { continue }
+            Task { @MainActor in
+                do {
+                    let receipt = try await AIService.shared.recordReview(request)
+                    guard receipt.cardID == card.id else { return }
+                    card.studyStateRevision = receipt.stateRevision
+                    card.nextReviewAt = receipt.nextDueAt
+                    StudyReviewEventStore.shared.clear(cardID: card.id)
+                    try? modelContext.save()
+                } catch { /* Preserve the exact idempotent body for next launch. */ }
+            }
+        }
     }
 
     @discardableResult

@@ -125,6 +125,9 @@ final class StudyFlashcardCard {
     var difficulty: Double = 0.0
 
     var interval: Int = 0
+    // Revision owned by the persisted backend study state. It prevents an old
+    // device from silently overwriting a newer review.
+    var studyStateRevision: Int = 0
 
     var deck: StudyDeck?
 

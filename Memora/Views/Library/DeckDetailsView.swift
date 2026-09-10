@@ -196,6 +196,18 @@ private struct UnlockedDeckDetailsView: View {
                     header
                     if isParentDeck {
                         parentOverview
+                        NavigationLink {
+                            StudyTimelineView(parentDeckID: deck.id, parentTitle: deck.title)
+                        } label: {
+                            Label("Study timeline", systemImage: "point.3.connected.trianglepath.dotted")
+                                .font(.custom("PlusJakartaSans-SemiBold", size: 15))
+                                .foregroundStyle(Color.appTextPrimary)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 52)
+                                .background(Color.appSurface, in: RoundedRectangle(cornerRadius: 8))
+                                .overlay { RoundedRectangle(cornerRadius: 8).stroke(Color.appBorder, lineWidth: 1) }
+                        }
+                        .buttonStyle(.plain)
                         if !allChildCards.isEmpty {
                             NavigationLink {
                                 StudyFlashcardsView(decks: childDecks)

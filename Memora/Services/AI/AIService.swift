@@ -32,7 +32,9 @@ final class AIService {
         preparationDetails: String,
         learningLanguage: String? = nil,
         targetDate: Date?,
-        studyMaterialIDs: [String]? = nil
+        studyMaterialIDs: [String]? = nil,
+        intensity: StudyIntensity = .balanced,
+        timezone: String = TimeZone.current.identifier
     ) async throws -> DeckPlanResponse {
 
         let dateFormatter = DateFormatter()
@@ -51,7 +53,9 @@ final class AIService {
             preparationDetails: preparationDetails,
             learningLanguage: learningLanguage,
             targetDate: formattedTargetDate,
-            studyMaterialIDs: studyMaterialIDs
+            studyMaterialIDs: studyMaterialIDs,
+            intensity: intensity,
+            timezone: timezone
         )
 
         return try await APIClient.shared.request(
@@ -68,7 +72,9 @@ final class AIService {
         plan: DeckPlanResponse,
         studyPurpose: String,
         targetDate: Date?,
-        requiresSubscription: Bool = false
+        requiresSubscription: Bool = false,
+        intensity: StudyIntensity = .balanced,
+        timezone: String = TimeZone.current.identifier
     ) async throws -> GeneratedDeckWithTimelineResponse {
 
         let dateFormatter = DateFormatter()
@@ -83,12 +89,49 @@ final class AIService {
         let request = GenerateDeckRequest(
             plan: plan,
             studyPurpose: studyPurpose,
-            targetDate: formattedTargetDate
+            targetDate: formattedTargetDate,
+            intensity: intensity,
+            timezone: timezone
         )
 
         guard let account = AuthManager.shared.currentUser?.id else { throw APIError.unauthorized }
         let intent = try GenerationRequestStore.shared.intent(account: account, request: request, requiresSubscription: requiresSubscription)
         return try await resumeGeneration(intent)
+    }
+
+    func previewTimeline(
+        request: GenerateDeckRequest,
+        from: String? = nil,
+        to: String? = nil
+    ) async throws -> StudyTimelineResponse {
+        var endpoint = "/study/preview"
+        let items = [from.map { "from=\($0)" }, to.map { "to=\($0)" }].compactMap { $0 }
+        if !items.isEmpty { endpoint += "?" + items.joined(separator: "&") }
+        return try await APIClient.shared.request(endpoint: endpoint, method: .post, body: request)
+    }
+
+    func studyPlan(parentDeckID: UUID, from: String? = nil, to: String? = nil) async throws -> StudyTimelineResponse {
+        var endpoint = "/decks/\(parentDeckID.uuidString)/study-plan"
+        let items = [from.map { "from=\($0)" }, to.map { "to=\($0)" }].compactMap { $0 }
+        if !items.isEmpty { endpoint += "?" + items.joined(separator: "&") }
+        return try await APIClient.shared.request(endpoint: endpoint)
+    }
+
+    func createStudyPlan(parentDeckID: UUID, settings: StudyPlanSettingsRequest) async throws -> StudyTimelineResponse {
+        try await APIClient.shared.request(endpoint: "/decks/\(parentDeckID.uuidString)/study-plan", method: .post, body: settings)
+    }
+
+    func updateStudyPlan(parentDeckID: UUID, request: StudyPlanPatchRequest) async throws -> StudyTimelineResponse {
+        try await APIClient.shared.request(endpoint: "/decks/\(parentDeckID.uuidString)/study-plan", method: .patch, body: request)
+    }
+
+    func dueStudy(date: String? = nil) async throws -> StudyDueResponse {
+        let endpoint = date.map { "/study/due?date=\($0)" } ?? "/study/due"
+        return try await APIClient.shared.request(endpoint: endpoint)
+    }
+
+    func recordReview(_ request: StudyReviewRequest) async throws -> StudyReviewResponse {
+        try await APIClient.shared.request(endpoint: "/study/reviews", method: .post, body: request)
     }
 
     func resumeGeneration(_ intent: GenerationRequestStore.Intent) async throws -> GeneratedDeckWithTimelineResponse {

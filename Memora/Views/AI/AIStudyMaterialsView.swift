@@ -9,6 +9,8 @@ struct AIStudyMaterialsView: View {
     let educationLevel: String
     let studyPurpose: String
     let targetDate: Date?
+    let intensity: StudyIntensity
+    let timezone: String
     let onDeckCreated: (StudyDeck) -> Void
     let existingDeck: StudyDeck?
     var requiresSubscription: Bool = false
@@ -107,6 +109,8 @@ struct AIStudyMaterialsView: View {
                     plan: generatedPlan,
                     studyPurpose: studyPurpose,
                     targetDate: targetDate,
+                    intensity: intensity,
+                    timezone: timezone,
                     onDeckCreated: onDeckCreated,
                     existingDeck: existingDeck,
                     requiresSubscription: requiresSubscription
@@ -268,7 +272,9 @@ struct AIStudyMaterialsView: View {
                     preparationDetails: preparationDetails,
                     learningLanguage: learningLanguage,
                     targetDate: targetDate,
-                    studyMaterialIDs: uploadedMaterials.map(\.id)
+                    studyMaterialIDs: uploadedMaterials.map(\.id),
+                    intensity: intensity,
+                    timezone: timezone
                 )
 
                 await MainActor.run {

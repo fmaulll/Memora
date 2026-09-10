@@ -8,6 +8,8 @@ struct AIPlanPreviewView: View {
     let plan: DeckPlanResponse
     let studyPurpose: String
     let targetDate: Date?
+    let intensity: StudyIntensity
+    let timezone: String
 
     let onDeckCreated: (StudyDeck) -> Void
     let existingDeck: StudyDeck?
@@ -20,6 +22,22 @@ struct AIPlanPreviewView: View {
     @State private var generatedTimeline: StudyTimelineResponse?
     @State private var isShowingDeckPreview = false
     @State private var errorMessage: String?
+    @State private var previewTimeline: StudyTimelineResponse?
+    @State private var previewIntensity: StudyIntensity
+
+    init(plan: DeckPlanResponse, studyPurpose: String, targetDate: Date?, intensity: StudyIntensity, timezone: String,
+         onDeckCreated: @escaping (StudyDeck) -> Void, existingDeck: StudyDeck?, requiresSubscription: Bool = false) {
+        self.plan = plan
+        self.studyPurpose = studyPurpose
+        self.targetDate = targetDate
+        self.intensity = intensity
+        self.timezone = timezone
+        self.onDeckCreated = onDeckCreated
+        self.existingDeck = existingDeck
+        self.requiresSubscription = requiresSubscription
+        _previewIntensity = State(initialValue: intensity)
+        _previewTimeline = State(initialValue: plan.timeline)
+    }
 
     private let accent = Color.appAccent
 
@@ -37,6 +55,8 @@ struct AIPlanPreviewView: View {
                     header
 
                     summary
+
+                    timelinePreview
 
                     chapters
 
@@ -76,6 +96,9 @@ struct AIPlanPreviewView: View {
         .subscriptionPaywall(isPresented: $showingSubscriptionPaywall)
         .navigationBarBackButtonHidden()
         .preferredColorScheme(.dark)
+        .task {
+            if previewTimeline == nil { await refreshPreview() }
+        }
         .navigationDestination(
             isPresented: $isShowingDeckPreview
         ) {
@@ -134,6 +157,31 @@ struct AIPlanPreviewView: View {
                 title: "Cards"
             )
         }
+    }
+
+    private var timelinePreview: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("STUDY TIMELINE").font(.custom("PlusJakartaSans-Bold", size: 11)).tracking(1).foregroundStyle(Color.appTextSecondary)
+            Picker("Daily pace", selection: $previewIntensity) {
+                ForEach(StudyIntensity.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: previewIntensity) { _, _ in Task { await refreshPreview() } }
+            if let timeline = previewTimeline {
+                Text(timeline.targetDate.map { "Goal: \($0)" } ?? "Estimated finish: \(timeline.estimatedFinishDate ?? "Calculating")")
+                    .font(.custom("PlusJakartaSans-Bold", size: 17)).foregroundStyle(Color.appTextPrimary)
+                Text("\(timeline.totalDays) days · \(timeline.dailyMinutesBudget ?? 0) minutes per day")
+                    .font(.custom("PlusJakartaSans-Regular", size: 13)).foregroundStyle(Color.appTextSecondary)
+                if timeline.isOverloaded == true {
+                    Label("This pace cannot fit the full plan before the deadline.", systemImage: "exclamationmark.triangle.fill")
+                        .font(.custom("PlusJakartaSans-Regular", size: 12)).foregroundStyle(Color.appWarning)
+                }
+            } else {
+                ProgressView("Forecasting your schedule…").tint(Color.appAccent)
+            }
+        }
+        .padding(16).background(Color.appSurface, in: RoundedRectangle(cornerRadius: 8))
+        .overlay { RoundedRectangle(cornerRadius: 8).stroke(Color.appBorder, lineWidth: 1) }
     }
 
     private func summaryItem(
@@ -320,7 +368,9 @@ struct AIPlanPreviewView: View {
                         plan: plan,
                         studyPurpose: studyPurpose,
                         targetDate: targetDate,
-                        requiresSubscription: requiresSubscription
+                        requiresSubscription: requiresSubscription,
+                        intensity: previewIntensity,
+                        timezone: timezone
                     )
 
                 await MainActor.run {
@@ -342,6 +392,17 @@ struct AIPlanPreviewView: View {
                 }
             }
         }
+    }
+
+    private func refreshPreview() async {
+        do {
+            let formatter = DateFormatter(); formatter.calendar = Calendar(identifier: .iso8601)
+            formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.dateFormat = "yyyy-MM-dd"
+            let request = GenerateDeckRequest(plan: plan, studyPurpose: studyPurpose,
+                                              targetDate: targetDate.map { formatter.string(from: $0) },
+                                              intensity: previewIntensity, timezone: timezone)
+            previewTimeline = try await AIService.shared.previewTimeline(request: request)
+        } catch { errorMessage = error.localizedDescription }
     }
 
     private func finishGeneration(_ generatedDeck: GeneratedDeckResponse) {
