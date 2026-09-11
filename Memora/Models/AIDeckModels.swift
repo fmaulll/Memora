@@ -1,5 +1,25 @@
 import Foundation
 
+enum StudyIntensity: String, Codable, CaseIterable, Identifiable {
+    case easy, balanced, hard
+
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .easy: "Go easy on me"
+        case .balanced: "Keep me balanced"
+        case .hard: "Push me"
+        }
+    }
+    var subtitle: String {
+        switch self {
+        case .easy: "Keep things comfortable."
+        case .balanced: "Challenge me, but don't destroy me."
+        case .hard: "I can handle it."
+        }
+    }
+}
+
 // MARK: - Plan Request
 
 struct DeckPlanRequest: Encodable {

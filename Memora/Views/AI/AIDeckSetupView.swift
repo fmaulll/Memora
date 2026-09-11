@@ -19,6 +19,7 @@ struct AIDeckSetupView: View {
 
     @State private var hasTargetDate = false
     @State private var targetDate = Date()
+    @State private var intensity: StudyIntensity = .balanced
 
     @State private var isShowingStudyMaterials = false
     @State private var isShowingLanguagePicker = false
@@ -59,6 +60,8 @@ struct AIDeckSetupView: View {
                     preparationDetailsSection
 
                     targetDateSection
+
+                    intensitySection
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
@@ -421,6 +424,34 @@ struct AIDeckSetupView: View {
         .buttonStyle(.plain)
     }
 
+    private var intensitySection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("DAILY STUDY PACE")
+            Text("Mr. Ed will fit the plan to this daily workload. You can change it before creating the deck.")
+                .font(.custom("PlusJakartaSans-Regular", size: 12))
+                .foregroundStyle(Color.appTextSecondary)
+            ForEach(StudyIntensity.allCases) { option in
+                Button { intensity = option } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: intensity == option ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(intensity == option ? Color.appAccent : Color.appTextSecondary)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(option.title).font(.custom("PlusJakartaSans-Bold", size: 14))
+                            Text(option.subtitle).font(.custom("PlusJakartaSans-Regular", size: 12))
+                                .foregroundStyle(Color.appTextSecondary)
+                        }
+                        Spacer()
+                    }
+                    .foregroundStyle(Color.appTextPrimary)
+                    .padding(14)
+                    .background(intensity == option ? Color.appSecondarySurface : Color.appSurface,
+                                in: RoundedRectangle(cornerRadius: 8))
+                    .overlay { RoundedRectangle(cornerRadius: 8).stroke(intensity == option ? Color.appAccent : Color.appBorder, lineWidth: intensity == option ? 2 : 1) }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
     // MARK: - Study Deadline
 
     private var targetDateSection: some View {
