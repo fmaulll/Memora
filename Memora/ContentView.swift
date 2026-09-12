@@ -49,7 +49,7 @@ struct ContentView: View {
 
             } else if authManager.isAuthenticated && hasCompletedOnboarding {
 
-                HomeView(initialDeck: firstCreatedDeck)
+                MainTabView()
 
             } else {
 

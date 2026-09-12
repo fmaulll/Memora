@@ -11,7 +11,6 @@ struct LibraryView: View {
 
     @State private var searchText = ""
     @State private var selectedFilter: LibraryFilter = .all
-    @State private var selectedDeck: StudyDeck?
     @State private var expandedDeckIDs: Set<UUID> = []
 
     private let accent = Color.appAccent
@@ -61,35 +60,59 @@ struct LibraryView: View {
     }
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 0) {
-                searchField
-                    .padding(.top, 20)
+        AppBackground {
+            VStack(spacing: 0) {
 
-                filterRow
-                    .padding(.top, 20)
-
-                if filteredDecks.isEmpty {
-                    emptyState
-                        .padding(.top, 80)
-                } else {
-                    VStack(spacing: 16) {
-                        ForEach(filteredDecks) { deck in
-                            deckSection(for: deck)
-                        }
-                    }
-                    .padding(.top, 24)
+                VStack(spacing: 16) {
+                    searchField
+                    filterRow
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 20)
+                .background(Color.appBackground)
 
-                Color.clear
-                    .frame(height: 120)
+                Rectangle()
+                    .fill(Color.appBorder)
+                    .frame(height: 1)
+
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        if filteredDecks.isEmpty {
+                            emptyState
+                                .padding(.top, 80)
+                        } else {
+                            LazyVStack(spacing: 16) {
+                                ForEach(filteredDecks) { deck in
+                                    deckSection(for: deck)
+                                }
+                            }
+                            .padding(.top, 24)
+                        }
+
+                        Color.clear
+                            .frame(height: 120)
+                    }
+                    .padding(.horizontal, 20)
+                }
             }
-            .padding(.horizontal, 20)
+        }
+        .safeAreaInset(edge: .top, spacing: 0) {
+            header
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
+                .frame(maxWidth: .infinity)
+                .background(
+                    Color.appBackground
+                        .ignoresSafeArea(edges: .top)
+                )
+                .overlay(alignment: .bottom) {
+                    Rectangle()
+                        .fill(Color.appBorder)
+                        .frame(height: 1)
+                }
         }
         .navigationBarBackButtonHidden()
-        .navigationDestination(item: $selectedDeck) { deck in
-            DeckDetailsView(deck: deck)
-        }
     }
 
     private var searchField: some View {
@@ -183,15 +206,25 @@ struct LibraryView: View {
                     $0.createdAt < $1.createdAt
                 }
 
-            deckCard(for: deck)
+            NavigationLink {
+                DeckDetailsView(deck: deck)
+            } label: {
+                deckCard(for: deck)
+            }
+            .buttonStyle(.plain)
 
             if expandedDeckIDs.contains(deck.id) {
                 ForEach(Array(sortedChildren.enumerated()), id: \.element.id) { index, childDeck in
-                    deckCard(
-                        for: childDeck,
-                        isChild: true,
-                        isLast: index == sortedChildren.count - 1
-                    )
+                    NavigationLink {
+                        DeckDetailsView(deck: childDeck)
+                    } label: {
+                        deckCard(
+                            for: childDeck,
+                            isChild: true,
+                            isLast: index == sortedChildren.count - 1
+                        )
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -298,9 +331,6 @@ struct LibraryView: View {
         }
         .padding(.leading, isChild ? 24 : 0)
         .contentShape(Rectangle())
-        .onTapGesture {
-            selectedDeck = deck
-        }
     }
 
     private func toggleExpanded(_ deck: StudyDeck) {
@@ -328,6 +358,22 @@ struct LibraryView: View {
         deck.isFavorite.toggle()
         try? modelContext.save()
     }
+
+    private var header: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Library")
+                    .font(.custom("PlusJakartaSans-ExtraBold", size: 30))
+                    .foregroundStyle(Color.appTextPrimary)
+
+                Text("Your study decks")
+                    .font(.custom("PlusJakartaSans-Regular", size: 14))
+                    .foregroundStyle(Color.appTextSecondary)
+            }
+
+            Spacer()
+        }
+    }
 }
 
 private enum LibraryFilter {
@@ -337,7 +383,5 @@ private enum LibraryFilter {
 }
 
 #Preview {
-    NavigationStack {
-        LibraryView()
-    }
+    LibraryView()
 }

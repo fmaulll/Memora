@@ -424,6 +424,8 @@ struct AIDeckSetupView: View {
         .buttonStyle(.plain)
     }
 
+    //MARK: Intesity
+
     private var intensitySection: some View {
         VStack(alignment: .leading, spacing: 12) {
             sectionTitle("DAILY STUDY PACE")

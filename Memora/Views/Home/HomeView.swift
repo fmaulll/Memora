@@ -4,7 +4,6 @@ import SwiftData
 struct HomeView: View {
 
     @Query(sort: \StudyDeck.createdAt, order: .reverse) private var decks: [StudyDeck]
-    @State private var selectedTab: BottomBar.Tab = .home
     @State private var isShowingNewStudyDeck = false
     @State private var selectedDeck: StudyDeck?
     @State private var authManager = AuthManager.shared
@@ -16,9 +15,6 @@ struct HomeView: View {
     private let accent = Color.appAccent
 
     init(initialDeck: StudyDeck? = nil) {
-        _selectedTab = State(
-            initialValue: initialDeck == nil ? .home : .library
-        )
         _selectedDeck = State(initialValue: initialDeck)
     }
 
@@ -75,13 +71,7 @@ struct HomeView: View {
     var body: some View {
         ZStack {
             AppBackground {
-                Group {
-                    if selectedTab == .home {
-                        homeContent
-                    } else {
-                        LibraryView()
-                    }
-                }
+                homeContent
             }
 
             .safeAreaInset(edge: .top, spacing: 0) {
@@ -99,17 +89,11 @@ struct HomeView: View {
                     }
             }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            BottomBar(selectedTab: $selectedTab) {
-                isShowingNewStudyDeck = true
-            }
-        }
         .navigationBarBackButtonHidden()
         .navigationDestination(isPresented: $isShowingNewStudyDeck) {
             NewStudyDeckView(
                 onFinish: { deck in
                     isShowingNewStudyDeck = false
-                    selectedTab = .library
                     selectedDeck = deck
                 }
             )
@@ -134,47 +118,34 @@ struct HomeView: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.top, 24)
+            .padding(.top, 20)
             .padding(.bottom, 36)
         }
     }
 
     private var header: some View {
         HStack {
-            if selectedTab == .home {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(authManager.currentUser?.name ?? "User")
-                        .font(.custom("PlusJakartaSans-ExtraBold", size: 30))
-                        .foregroundStyle(Color.appTextPrimary)
-                    Text(Date.now, format: .dateTime.weekday(.wide).month(.wide).day().year())
-                        .environment(\.locale, Locale(identifier: "en_US"))
-                        .font(.custom("PlusJakartaSans-Regular", size: 14))
-                        .foregroundStyle(Color.appTextSecondary)
-                }
-                Spacer()
-                developerMenu
-            } else {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Library")
-                        .font(.custom("PlusJakartaSans-ExtraBold", size: 30))
-                        .foregroundStyle(Color.appTextPrimary)
-                    Text("\(decks.count) deck\(decks.count == 1 ? "" : "s") · \(totalCardCount) cards")
-                        .font(.custom("PlusJakartaSans-Regular", size: 14))
-                        .foregroundStyle(Color.appTextSecondary)
-                }
-                Spacer()
-                Button {
-                    isShowingNewStudyDeck = true
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(Color.appBackground)
-                        .frame(width: 52, height: 52)
-                        .background(accent, in: RoundedRectangle(cornerRadius: 8))
-                        .padding(.vertical, 4)
-                }
-                .accessibilityLabel("Create a new study deck")
+            VStack(alignment: .leading, spacing: 6) {
+                Text(authManager.currentUser?.name ?? "User")
+                    .font(.custom("PlusJakartaSans-ExtraBold", size: 30))
+                    .foregroundStyle(Color.appTextPrimary)
+
+                Text(
+                    Date.now,
+                    format: .dateTime
+                        .weekday(.wide)
+                        .month(.wide)
+                        .day()
+                        .year()
+                )
+                .environment(\.locale, Locale(identifier: "en_US"))
+                .font(.custom("PlusJakartaSans-Regular", size: 14))
+                .foregroundStyle(Color.appTextSecondary)
             }
+
+            Spacer()
+
+            developerMenu
         }
     }
 

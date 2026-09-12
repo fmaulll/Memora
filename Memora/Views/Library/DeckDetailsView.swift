@@ -97,27 +97,24 @@ private struct UnlockedDeckDetailsView: View {
     private let accent = Color.appAccent
 
     private var totalCards: Int {
-        deck.cards.filter { !$0.needsDeletion }.count
+        availableCards.count
     }
 
     private var masteredCards: Int {
-        deck.cards.filter {
-            !$0.needsDeletion &&
+        availableCards.filter {
             $0.correctCount > 0
         }.count
     }
 
     private var learningCards: Int {
-        deck.cards.filter {
-            !$0.needsDeletion &&
+        availableCards.filter {
             $0.reviewCount > 0 &&
             $0.correctCount == 0
         }.count
     }
 
     private var newCards: Int {
-        deck.cards.filter {
-            !$0.needsDeletion &&
+        availableCards.filter {
             $0.reviewCount == 0
         }.count
     }
@@ -167,7 +164,7 @@ private struct UnlockedDeckDetailsView: View {
     private var canCreateWithAI: Bool {
         deck.parentDeck == nil
         && !hasCards
-        && deck.childDecks.isEmpty
+        && childDecks.isEmpty
     }
 
     private var totalStudyCards: Int {
@@ -179,9 +176,8 @@ private struct UnlockedDeckDetailsView: View {
     }
 
     private var aiDeckAction: AIDeckAction? {
-        let hasCards = !deck.cards.filter { !$0.needsDeletion }.isEmpty
         let isRoot = deck.parentDeck == nil
-        let hasChildren = !deck.childDecks.isEmpty
+        let hasChildren = !childDecks.isEmpty
 
         if hasCards {
             return .generateMoreCards
@@ -458,6 +454,12 @@ private struct UnlockedDeckDetailsView: View {
             }
         }
         .task {
+            try? await Task.sleep(for: .milliseconds(300))
+
+            guard !Task.isCancelled else {
+                return
+            }
+
             startGenerationPollingIfNeeded()
             await loadExamProgressionIfNeeded()
         }
@@ -1744,13 +1746,11 @@ private struct UnlockedDeckDetailsView: View {
     }
 
     private var flashcardList: some View {
-        VStack(spacing: 12) {
+        LazyVStack(spacing: 12) {
 
             ForEach(
                 Array(
-                    deck.cards
-                        .filter { !$0.needsDeletion }
-                        .enumerated()
+                    availableCards.enumerated()
                 ),
                 id: \.element.persistentModelID
             ) { index, card in
