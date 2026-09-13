@@ -67,9 +67,12 @@ struct AIPlanPreviewView: View {
                 }
                 .padding(.top, 12)
                 .padding(.bottom, 12)
-                .background(
-                    .black.opacity(0.92)
-                )
+                .background(Color.appBackground)
+                .overlay(alignment: .top) {
+                    Rectangle()
+                        .fill(.white.opacity(0.10))
+                        .frame(height: 1)
+                }
             }
         }
         .navigationBarBackButtonHidden()
