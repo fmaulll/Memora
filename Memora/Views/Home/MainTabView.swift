@@ -3,6 +3,7 @@ import SwiftUI
 struct MainTabView: View {
     @State private var selectedTab: BottomBar.Tab = .home
     @State private var isShowingNewStudyDeck = false
+    @State private var createdDeckToOpen: StudyDeck?
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -23,12 +24,16 @@ struct MainTabView: View {
             }
         }
         .navigationDestination(isPresented: $isShowingNewStudyDeck) {
-            NavigationStack {
-                NewStudyDeckView { deck in
-                    isShowingNewStudyDeck = false
-                    selectedTab = .library
+            NewStudyDeckView { deck in
+                isShowingNewStudyDeck = false
+                selectedTab = .library
+                DispatchQueue.main.async {
+                    createdDeckToOpen = deck
                 }
             }
+        }
+        .navigationDestination(item: $createdDeckToOpen) { deck in
+            DeckDetailsView(deck: deck)
         }
     }
 }
