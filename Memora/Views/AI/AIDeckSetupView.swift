@@ -23,6 +23,12 @@ struct AIDeckSetupView: View {
 
     @State private var isShowingStudyMaterials = false
     @State private var isShowingLanguagePicker = false
+    @FocusState private var focusedField: Field?
+
+    private enum Field {
+        case topic
+        case preparationDetails
+    }
 
     private let accent = Color.appAccent
 
@@ -166,28 +172,82 @@ struct AIDeckSetupView: View {
     // MARK: - Topic
 
     private var topicSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionTitle("TOPIC")
+        VStack(alignment: .leading, spacing: 9) {
+            Text("Topic")
+                .font(
+                    .custom(
+                        "PlusJakartaSans-SemiBold",
+                        size: 13
+                    )
+                )
+                .foregroundStyle(
+                    focusedField == .topic
+                        ? Color.appTextPrimary
+                        : Color.appTextSecondary
+                )
 
-            TextField(
-                "e.g. Python programming from scratch",
-                text: $topic
-            )
-            .textInputAutocapitalization(.sentences)
-            .foregroundStyle(.white)
-            .padding(.horizontal, 16)
-            .frame(height: 56)
+            HStack(spacing: 12) {
+                Image(systemName: "book.closed")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(
+                        focusedField == .topic
+                            ? Color.appAccent
+                            : Color.appTextSecondary
+                    )
+                    .frame(width: 20)
+
+                TextField(
+                    "e.g. Python programming from scratch",
+                    text: $topic
+                )
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Regular",
+                        size: 15
+                    )
+                )
+                .foregroundStyle(Color.appTextPrimary)
+                .tint(Color.appAccent)
+                .textInputAutocapitalization(.sentences)
+                .autocorrectionDisabled()
+                .focused($focusedField, equals: .topic)
+                .submitLabel(.next)
+                .onSubmit {
+                    focusedField = .preparationDetails
+                }
+
+                if !topic.isEmpty {
+                    Button {
+                        topic = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(
+                                Color.appTextSecondary.opacity(0.6)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 14)
+            .frame(height: 54)
             .background(
-                .white.opacity(0.06),
+                Color.appSurface,
                 in: RoundedRectangle(cornerRadius: 8)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(
-                        .white.opacity(0.10),
-                        lineWidth: 1
+                        focusedField == .topic
+                            ? Color.appAccent
+                            : Color.appBorder,
+                        lineWidth: focusedField == .topic ? 1.5 : 1
                     )
             }
+            .animation(
+                .easeInOut(duration: 0.15),
+                value: focusedField
+            )
         }
     }
 
@@ -262,18 +322,18 @@ struct AIDeckSetupView: View {
 
                     Image(systemName: "chevron.down")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.45))
+                        .foregroundStyle(Color.appTextSecondary)
                 }
                 .padding(.horizontal, 16)
                 .frame(height: 56)
                 .background(
-                    .white.opacity(0.06),
+                    Color.appSurface,
                     in: RoundedRectangle(cornerRadius: 8)
                 )
                 .overlay {
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(
-                            .white.opacity(0.10),
+                            Color.appBorder,
                             lineWidth: 1
                         )
                 }
@@ -284,30 +344,103 @@ struct AIDeckSetupView: View {
     // MARK: - Preparation Details
 
     private var preparationDetailsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionTitle("WHAT ARE YOU PREPARING FOR?")
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(spacing: 6) {
+                Text("Preparation details")
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-SemiBold",
+                            size: 13
+                        )
+                    )
+                    .foregroundStyle(
+                        focusedField == .preparationDetails
+                            ? Color.appTextPrimary
+                            : Color.appTextSecondary
+                    )
 
-            TextField(
-                "e.g. Math exam covering multiplication, division, and word problems",
-                text: $preparationDetails,
-                axis: .vertical
+                Text("OPTIONAL")
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-Bold",
+                            size: 9
+                        )
+                    )
+                    .tracking(0.7)
+                    .foregroundStyle(Color.appTextSecondary.opacity(0.7))
+            }
+
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "text.alignleft")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(
+                        focusedField == .preparationDetails
+                            ? Color.appAccent
+                            : Color.appTextSecondary
+                    )
+                    .frame(width: 20)
+                    .padding(.top, 3)
+
+                TextField(
+                    "e.g. Math exam covering multiplication, division, and word problems",
+                    text: $preparationDetails,
+                    axis: .vertical
+                )
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Regular",
+                        size: 15
+                    )
+                )
+                .foregroundStyle(Color.appTextPrimary)
+                .tint(Color.appAccent)
+                .textInputAutocapitalization(.sentences)
+                .autocorrectionDisabled()
+                .lineLimit(3...6)
+                .focused(
+                    $focusedField,
+                    equals: .preparationDetails
+                )
+
+                if !preparationDetails.isEmpty {
+                    Button {
+                        preparationDetails = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(
+                                Color.appTextSecondary.opacity(0.6)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 1)
+                }
+            }
+            .padding(14)
+            .frame(
+                minHeight: 112,
+                alignment: .topLeading
             )
-            .textInputAutocapitalization(.sentences)
-            .foregroundStyle(.white)
-            .lineLimit(3...6)
-            .padding(16)
-            .frame(minHeight: 112, alignment: .topLeading)
             .background(
-                .white.opacity(0.06),
+                Color.appSurface,
                 in: RoundedRectangle(cornerRadius: 8)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(
-                        .white.opacity(0.10),
-                        lineWidth: 1
+                        focusedField == .preparationDetails
+                            ? Color.appAccent
+                            : Color.appBorder,
+                        lineWidth:
+                            focusedField == .preparationDetails
+                                ? 1.5
+                                : 1
                     )
             }
+            .animation(
+                .easeInOut(duration: 0.15),
+                value: focusedField
+            )
         }
     }
 
