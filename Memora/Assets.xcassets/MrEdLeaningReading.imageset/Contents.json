@@ -1,15 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "MrEdLeaningReading.png",
+      "filename" : "MrEdLeaningReadingBook 1.pdf",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
+      "filename" : "MrEdLeaningReadingBook 2.pdf",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
+      "filename" : "MrEdLeaningReadingBook 3.pdf",
       "idiom" : "universal",
       "scale" : "3x"
     }

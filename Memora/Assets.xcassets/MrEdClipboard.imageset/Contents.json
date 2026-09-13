@@ -1,17 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "StepOne.png",
+      "filename" : "MrEdWritingClipboard 1.pdf",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "StepOne2x.png",
+      "filename" : "MrEdWritingClipboard 2.pdf",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "StepOne3x.png",
+      "filename" : "MrEdWritingClipboard 3.pdf",
       "idiom" : "universal",
       "scale" : "3x"
     }

@@ -1,15 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "MrEdJudging.png",
+      "filename" : "MrEdArmCrossed 3.pdf",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
+      "filename" : "MrEdArmCrossed 2.pdf",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
+      "filename" : "MrEdArmCrossed 1.pdf",
       "idiom" : "universal",
       "scale" : "3x"
     }
