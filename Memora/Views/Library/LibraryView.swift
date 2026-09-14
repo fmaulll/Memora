@@ -21,11 +21,45 @@ struct LibraryView: View {
     }
 
     private var favoriteDecks: [StudyDeck] {
-        decks.filter(\.isFavorite)
+        rootDecks.filter(\.isFavorite)
     }
 
     private var recentDecks: [StudyDeck] {
-        Array(decks.prefix(recentLimit))
+        Array(
+            rootDecks
+                .sorted { $0.createdAt > $1.createdAt }
+                .prefix(recentLimit)
+        )
+    }
+
+    private func hasMatchingChild(
+        _ deck: StudyDeck,
+        searchText: String
+    ) -> Bool {
+        visibleChildDecks(for: deck).contains { child in
+            child.title.localizedCaseInsensitiveContains(searchText) ||
+            child.subject.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
+    private func displayedChildDecks(
+        for deck: StudyDeck
+    ) -> [StudyDeck] {
+        let children = visibleChildDecks(for: deck)
+
+        let trimmedSearch = searchText
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedSearch.isEmpty else {
+            return children
+        }
+
+        let matches = children.filter { child in
+            child.title.localizedCaseInsensitiveContains(trimmedSearch) ||
+            child.subject.localizedCaseInsensitiveContains(trimmedSearch)
+        }
+
+        return matches.isEmpty ? children : matches
     }
 
     private var filteredDecks: [StudyDeck] {
@@ -113,6 +147,33 @@ struct LibraryView: View {
                 }
         }
         .navigationBarBackButtonHidden()
+        .onChange(of: searchText) { _, newValue in
+            let trimmedSearch = newValue
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+
+            guard !trimmedSearch.isEmpty else {
+                return
+            }
+
+            for deck in rootDecks {
+                if hasMatchingChild(
+                    deck,
+                    searchText: trimmedSearch
+                ) {
+                    expandedDeckIDs.insert(deck.id)
+                }
+            }
+        }
+    }
+    
+    private func visibleChildDecks(
+        for deck: StudyDeck
+    ) -> [StudyDeck] {
+        deck.childDecks
+            .filter { !$0.needsDeletion }
+            .sorted {
+                $0.createdAt < $1.createdAt
+            }
     }
 
     private var searchField: some View {
@@ -141,7 +202,7 @@ struct LibraryView: View {
 
     private var filterRow: some View {
         HStack(spacing: 10) {
-            filterChip(.all, title: "All", count: decks.count)
+            filterChip(.all, title: "All", count: rootDecks.count)
             filterChip(.favorites, title: "Favorites", count: favoriteDecks.count)
             filterChip(.recent, title: "Recent", count: recentDecks.count)
         }
@@ -173,9 +234,9 @@ struct LibraryView: View {
                     .padding(.vertical, 3)
                     .background(
                         isSelected
-                            ? accent.opacity(0.35)
+                            ? accent.opacity(0.20)
                             : Color.appSecondarySurface,
-                        in: Capsule()
+                        in: RoundedRectangle(cornerRadius: 8)
                     )
             }
             .padding(.horizontal, 16)
@@ -184,13 +245,15 @@ struct LibraryView: View {
                 isSelected
                     ? Color.appSecondarySurface
                     : Color.appSurface,
-                in: Capsule()
+                in: RoundedRectangle(cornerRadius: 8)
             )
             .overlay {
-                Capsule()
+                RoundedRectangle(cornerRadius: 8)
                     .stroke(
-                        isSelected ? accent : Color.appBorder,
-                        lineWidth: isSelected ? 2 : 1
+                        isSelected
+                            ? Color.appAccent
+                            : Color.appBorder,
+                        lineWidth: isSelected ? 1.5 : 1
                     )
             }
         }
@@ -198,30 +261,31 @@ struct LibraryView: View {
     }
 
     private func deckSection(for deck: StudyDeck) -> some View {
-        
-        VStack(spacing: 0) {
-            let sortedChildren = deck.childDecks
-                .filter { !$0.needsDeletion }
-                .sorted {
-                    $0.createdAt < $1.createdAt
-                }
+        let children = displayedChildDecks(for: deck)
 
+        return VStack(spacing: 0) {
             NavigationLink {
                 DeckDetailsView(deck: deck)
             } label: {
-                deckCard(for: deck)
+                deckCard(
+                    for: deck,
+                    childCount: children.count
+                )
             }
             .buttonStyle(.plain)
 
             if expandedDeckIDs.contains(deck.id) {
-                ForEach(Array(sortedChildren.enumerated()), id: \.element.id) { index, childDeck in
+                ForEach(
+                    Array(children.enumerated()),
+                    id: \.element.id
+                ) { index, childDeck in
                     NavigationLink {
                         DeckDetailsView(deck: childDeck)
                     } label: {
                         deckCard(
                             for: childDeck,
                             isChild: true,
-                            isLast: index == sortedChildren.count - 1
+                            isLast: index == children.count - 1
                         )
                     }
                     .buttonStyle(.plain)
@@ -233,11 +297,17 @@ struct LibraryView: View {
     private func deckCard(
         for deck: StudyDeck,
         isChild: Bool = false,
-        isLast: Bool = false
+        isLast: Bool = false,
+        childCount: Int = 0
     ) -> some View {
 
         HStack(spacing: 14) {
-
+            if isChild {
+                Image(systemName: "arrow.turn.down.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Color.appAccent)
+                    .frame(width: 20)
+            }
 
             VStack(alignment: .leading, spacing: 6) {
 
@@ -270,43 +340,73 @@ struct LibraryView: View {
                     }
                     .buttonStyle(.plain)
 
+                    let childCount = visibleChildDecks(for: deck).count
+                    let cardCount = deck.totalCardCount
+
                     Text(
-                        "\(deck.totalCardCount) card\(deck.totalCardCount == 1 ? "" : "s")"
+                        childCount > 0
+                            ? "\(cardCount) total cards"
+                            : "\(cardCount) card\(cardCount == 1 ? "" : "s")"
                     )
                     .font(
                         .custom(
                             "PlusJakartaSans-Regular",
-                            size: 13
+                            size: 12
                         )
                     )
                     .foregroundStyle(Color.appTextSecondary)
+
+                    Spacer()
+
+                    if !isChild && childCount > 0 {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                toggleExpanded(deck)
+                            }
+                        } label: {
+                            HStack(spacing: 7) {
+                                Text(
+                                    "\(childCount) subdeck\(childCount == 1 ? "" : "s")"
+                                )
+                                .font(
+                                    .custom(
+                                        "PlusJakartaSans-SemiBold",
+                                        size: 12
+                                    )
+                                )
+                                .foregroundStyle(Color.appTextSecondary)
+
+                                Image(
+                                    systemName:
+                                        expandedDeckIDs.contains(deck.id)
+                                        ? "chevron.up"
+                                        : "chevron.down"
+                                )
+                                .font(
+                                    .system(
+                                        size: 13,
+                                        weight: .semibold
+                                    )
+                                )
+                                .foregroundStyle(
+                                    expandedDeckIDs.contains(deck.id)
+                                        ? Color.appAccent
+                                        : Color.appTextSecondary
+                                )
+                            }
+                            .padding(.horizontal, 10)
+                            .frame(height: 34)
+                            .background(
+                                Color.appSecondarySurface,
+                                in: RoundedRectangle(cornerRadius: 8)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
 
-            Spacer()
-
-            if !deck.childDecks.isEmpty {
-                Button {
-                    toggleExpanded(deck)
-                } label: {
-                    Image(
-                        systemName:
-                            expandedDeckIDs.contains(deck.id)
-                            ? "chevron.up"
-                            : "chevron.down"
-                    )
-                    .font(
-                        .system(
-                            size: 20,
-                            weight: .semibold
-                        )
-                    )
-                    .foregroundStyle(Color.appTextSecondary)
-                    .frame(width: 40, height: 40)
-                    // .background(.white.opacity(0.18), in: Circle())
-                }
-                .buttonStyle(.plain)
-            }
+            
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
