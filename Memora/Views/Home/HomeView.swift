@@ -210,7 +210,7 @@ struct HomeView: View {
 
                 Spacer(minLength: 12)
 
-                Image("MrEdLeaning")
+                Image("MrEdGlassesAdjustment")
                     .resizable()
                     .scaledToFit()
                     .frame(width: 76, height: 88)
