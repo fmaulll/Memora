@@ -79,6 +79,8 @@ private struct UnlockedDeckDetailsView: View {
     @State private var isShowingDeleteConfirmation = false
     @State private var isShowingCreateWithAI = false
 
+    @State private var selectedChapterID: UUID?
+    @State private var isShowingChapterPicker = false
     @State private var isAnswerRevealed = false
     @State private var currentCardIndex = 0
 
@@ -126,7 +128,9 @@ private struct UnlockedDeckDetailsView: View {
     }
 
     private var availableCards: [StudyFlashcardCard] {
-        deck.cards.filter { !$0.needsDeletion }
+        displayedDeck.cards.filter {
+            !$0.needsDeletion
+        }
     }
 
     private var childDecks: [StudyDeck] {
@@ -135,6 +139,33 @@ private struct UnlockedDeckDetailsView: View {
             .sorted {
                 $0.createdAt < $1.createdAt
             }
+    }
+
+    private var selectedChapter: StudyDeck? {
+        guard isParentDeck else {
+            return nil
+        }
+
+        if let selectedChapterID,
+        let chapter = childDecks.first(
+                where: { $0.id == selectedChapterID }
+        ) {
+            return chapter
+        }
+
+        return childDecks.first
+    }
+
+    private var displayedDeck: StudyDeck {
+        selectedChapter ?? deck
+    }
+
+    private var displayedDeckParentTitle: String? {
+        guard let parent = displayedDeck.parentDeck else {
+            return nil
+        }
+
+        return parent.title
     }
 
     private var allChildCards: [StudyFlashcardCard] {
@@ -199,87 +230,42 @@ private struct UnlockedDeckDetailsView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
 
+                    if isParentDeck {
+                        chapterSelector
+                            .padding(.horizontal, 20)
+                            .padding(.top, 16)
+                    }
+
                     // MARK: Flashcard Carousel
 
                     // MARK: Main Content
-
-                    if isParentDeck {
-                        childDeckSection
-                            .padding(.top, 20)
-                            .padding(.horizontal, 24)
-
-                            examSection
-                                .padding(.top, 28)
-                                .padding(.horizontal, 24)
-                    } else {
+                    if !isParentDeck || selectedChapter != nil {
                         flashcardCarousel
-                            .padding(.top, 20)
+                            .padding(.top, 16)
+                    }
+                    // MARK: Deck Information
+
+                    if !isParentDeck || selectedChapter != nil {
+                        deckIdentitySection
+                            .padding(.horizontal, 20)
+                            .padding(.top, 16)
                     }
 
-                    // MARK: Deck Information
+                    if !isParentDeck || selectedChapter != nil {
+                        primaryStudyButton
+                            .padding(.horizontal, 20)
+                            .padding(.top, 16)
+                    }
+
+                    if isParentDeck {
+                        examSection
+                            .padding(.top, 28)
+                            .padding(.horizontal, 20)
+                    }
 
                     VStack(alignment: .leading, spacing: 0) {
 
                         // MARK: Study All Button
-
-                        if isParentDeck && !allChildCards.isEmpty {
-                            NavigationLink {
-                                StudyFlashcardsView(decks: childDecks)
-                            } label: {
-                                HStack(spacing: 10) {
-
-                                    Image(systemName: "play.fill")
-                                        .font(.system(size: 15, weight: .bold))
-
-                                    Text(
-                                        hasStudyAllProgress
-                                            ? "Continue Study"
-                                            : "Study All"
-                                    )
-                                    .font(
-                                        .custom(
-                                            "PlusJakartaSans-SemiBold",
-                                            size: 15
-                                        )
-                                    )
-                                    .foregroundStyle(Color.appTextPrimary)
-
-                                    Spacer()
-
-                                    Text(
-                                        hasStudyAllProgress
-                                            ? "\(studyAllCompletedCards) / \(allChildCards.count)"
-                                            : "\(allChildCards.count) cards"
-                                    )
-                                    .font(
-                                        .custom(
-                                            "PlusJakartaSans-Regular",
-                                            size: 12
-                                        )
-                                    )
-                                    .foregroundStyle(Color.appTextSecondary)
-                                }
-                                .padding(.horizontal, 16)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 54)
-                                .contentShape(Rectangle())
-                                .background(
-                                    Color.appAccent,
-                                    in: RoundedRectangle(cornerRadius: 8)
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 28)
-                        }
-
-                        header
-                            .padding(.top, 28)
-
-                        if !isParentDeck {
-                            progressSummary
-                                .padding(.top, 28)
-                        }
 
                         if !isParentDeck {
                             studyButton
@@ -296,7 +282,7 @@ private struct UnlockedDeckDetailsView: View {
                                 .padding(.top, 28)
                         }
                     }
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, 20)
                 }
             }
             .safeAreaInset(edge: .top, spacing: 0) {
@@ -322,6 +308,25 @@ private struct UnlockedDeckDetailsView: View {
                     isShowingCreateSubDeck = false
                 }
             )
+        }
+
+        .sheet(
+            isPresented: $isShowingChapterPicker
+        ) {
+            ChapterPickerSheet(
+                chapters: childDecks,
+                selectedChapterID: selectedChapter?.id
+            ) { chapter in
+                selectedChapterID = chapter.id
+
+                currentCardIndex = 0
+                isAnswerRevealed = false
+            }
+            .presentationDetents([
+                .medium,
+                .large
+            ])
+            .presentationDragIndicator(.visible)
         }
 
         // MARK: More Options
@@ -466,6 +471,323 @@ private struct UnlockedDeckDetailsView: View {
         .onDisappear {
             stopGenerationPolling()
         }
+    }
+
+    private var chapterSelector: some View {
+        Button {
+            isShowingChapterPicker = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "rectangle.stack.fill")
+                    .font(
+                        .system(
+                            size: 15,
+                            weight: .semibold
+                        )
+                    )
+                    .foregroundStyle(Color.appAccent)
+                    .frame(width: 38, height: 38)
+                    .background(
+                        Color.appAccent.opacity(0.10),
+                        in: RoundedRectangle(
+                            cornerRadius: 8
+                        )
+                    )
+
+                VStack(
+                    alignment: .leading,
+                    spacing: 3
+                ) {
+                    if let chapter = selectedChapter {
+                        Text(chapter.title)
+                            .font(
+                                .custom(
+                                    "PlusJakartaSans-SemiBold",
+                                    size: 15
+                                )
+                            )
+                            .foregroundStyle(
+                                Color.appTextPrimary
+                            )
+                            .lineLimit(1)
+
+                        Text(
+                            "\(chapter.totalCardCount) card\(chapter.totalCardCount == 1 ? "" : "s")"
+                        )
+                        .font(
+                            .custom(
+                                "PlusJakartaSans-Regular",
+                                size: 12
+                            )
+                        )
+                        .foregroundStyle(
+                            Color.appTextSecondary
+                        )
+                    } else {
+                        Text("Select a chapter")
+                            .font(
+                                .custom(
+                                    "PlusJakartaSans-SemiBold",
+                                    size: 15
+                                )
+                            )
+                            .foregroundStyle(
+                                Color.appTextPrimary
+                            )
+
+                        Text("Choose what you want to study")
+                            .font(
+                                .custom(
+                                    "PlusJakartaSans-Regular",
+                                    size: 12
+                                )
+                            )
+                            .foregroundStyle(
+                                Color.appTextSecondary
+                            )
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(
+                        .system(
+                            size: 13,
+                            weight: .semibold
+                        )
+                    )
+                    .foregroundStyle(
+                        Color.appTextSecondary
+                    )
+            }
+            .padding(.horizontal, 12)
+            .frame(height: 62)
+            .frame(maxWidth: .infinity)
+            .background(
+                Color.appSurface,
+                in: RoundedRectangle(
+                    cornerRadius: 8
+                )
+            )
+            .overlay {
+                RoundedRectangle(
+                    cornerRadius: 8
+                )
+                .stroke(
+                    Color.appBorder,
+                    lineWidth: 1
+                )
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var primaryStudyButton: some View {
+        NavigationLink {
+            StudyFlashcardsView(
+                deck: displayedDeck
+            )
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "play.fill")
+                    .font(
+                        .system(
+                            size: 14,
+                            weight: .semibold
+                        )
+                    )
+
+                VStack(
+                    alignment: .leading,
+                    spacing: 2
+                ) {
+                    Text(
+                        displayedDeck.isStudySessionActive
+                            ? "Continue studying"
+                            : "Start studying"
+                    )
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-SemiBold",
+                            size: 15
+                        )
+                    )
+
+                    Text(
+                        "\(availableCards.count) card\(availableCards.count == 1 ? "" : "s")"
+                    )
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-Regular",
+                            size: 11
+                        )
+                    )
+                    .opacity(0.70)
+                }
+
+                Spacer()
+
+                Image(systemName: "arrow.right")
+                    .font(
+                        .system(
+                            size: 14,
+                            weight: .semibold
+                        )
+                    )
+            }
+            .foregroundStyle(.black)
+            .padding(.horizontal, 16)
+            .frame(height: 56)
+            .frame(maxWidth: .infinity)
+            .background(
+                Color.appAccent,
+                in: RoundedRectangle(
+                    cornerRadius: 8
+                )
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(availableCards.isEmpty)
+        .opacity(
+            availableCards.isEmpty
+                ? 0.45
+                : 1
+        )
+    }
+
+    private var deckIdentitySection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+
+            // MARK: Title
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(displayedDeck.title)
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-Bold",
+                            size: 24
+                        )
+                    )
+                    .foregroundStyle(Color.appTextPrimary)
+                    .fixedSize(
+                        horizontal: false,
+                        vertical: true
+                    )
+
+                if let parentTitle = displayedDeckParentTitle {
+                    HStack(spacing: 7) {
+                        Image(systemName: "rectangle.stack.fill")
+                            .font(
+                                .system(
+                                    size: 11,
+                                    weight: .semibold
+                                )
+                            )
+                            .foregroundStyle(Color.appAccent)
+
+                        Text(parentTitle)
+                            .font(
+                                .custom(
+                                    "PlusJakartaSans-Medium",
+                                    size: 13
+                                )
+                            )
+                            .foregroundStyle(
+                                Color.appTextSecondary
+                            )
+                            .lineLimit(1)
+                    }
+                } else if !displayedDeck.subject.isEmpty {
+                    Text(displayedDeck.subject)
+                        .font(
+                            .custom(
+                                "PlusJakartaSans-Medium",
+                                size: 13
+                            )
+                        )
+                        .foregroundStyle(
+                            Color.appTextSecondary
+                        )
+                }
+            }
+
+            // MARK: Quick Info
+
+            HStack(spacing: 0) {
+                deckStat(
+                    value: "\(displayedDeck.totalCardCount)",
+                    label: "Cards"
+                )
+
+                statDivider
+
+                deckStat(
+                    value: "\(masteredCards)",
+                    label: "Mastered"
+                )
+
+                statDivider
+
+                deckStat(
+                    value: "\(Int(masteryProgress * 100))%",
+                    label: "Progress"
+                )
+            }
+            .padding(.vertical, 14)
+            .background(
+                Color.appSurface,
+                in: RoundedRectangle(cornerRadius: 8)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(
+                        Color.appBorder,
+                        lineWidth: 1
+                    )
+            }
+        }
+    }
+
+    private func deckStat(
+        value: String,
+        label: String
+    ) -> some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Bold",
+                        size: 16
+                    )
+                )
+                .foregroundStyle(
+                    Color.appTextPrimary
+                )
+
+            Text(label)
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Regular",
+                        size: 11
+                    )
+                )
+                .foregroundStyle(
+                    Color.appTextSecondary
+                )
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var statDivider: some View {
+        Rectangle()
+            .fill(Color.appBorder)
+            .frame(
+                width: 1,
+                height: 30
+            )
     }
 
     private var header: some View {
@@ -979,13 +1301,13 @@ private struct UnlockedDeckDetailsView: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: 265)
-        .padding(.horizontal, 24)
+        .padding(.horizontal, 20)
         .background(Color.appSurface, in: RoundedRectangle(cornerRadius: 8))
         .overlay {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(Color.appBorder, lineWidth: 1)
         }
-        .padding(.horizontal, 24)
+        .padding(.horizontal, 20)
     }
 
     private func masteredCount(for deck: StudyDeck) -> Int {
@@ -993,51 +1315,6 @@ private struct UnlockedDeckDetailsView: View {
             !$0.needsDeletion &&
             $0.correctCount > 0
         }.count
-    }
-
-    private var childDeckSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-
-            HStack {
-                Text("Study Decks")
-                    .font(
-                        .custom(
-                            "PlusJakartaSans-Bold",
-                            size: 17
-                        )
-                    )
-                    .foregroundStyle(Color.appTextPrimary)
-
-                Spacer()
-
-                Text("\(childDecks.count)")
-                    .font(
-                        .custom(
-                            "PlusJakartaSans-SemiBold",
-                            size: 13
-                        )
-                    )
-                    .foregroundStyle(accent)
-            }
-
-            ForEach(childDecks) { childDeck in
-
-                if childDeck.generationStatus == "completed" {
-
-                    NavigationLink {
-                        DeckDetailsView(deck: childDeck)
-                    } label: {
-                        childDeckRow(childDeck)
-                    }
-                    .buttonStyle(.plain)
-
-                } else {
-
-                    childDeckRow(childDeck)
-                        .opacity(0.6)
-                }
-            }
-        }
     }
 
     private var examSection: some View {
@@ -1515,7 +1792,7 @@ private struct UnlockedDeckDetailsView: View {
             .frame(maxWidth: .infinity)
             .frame(height: 265)
             .padding(.horizontal, 20)
-            .padding(.vertical, 24)
+            .padding(.vertical, 20)
             .background(
                 Color.appSurface,
                 in: RoundedRectangle(cornerRadius: 8)
