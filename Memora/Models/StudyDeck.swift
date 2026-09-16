@@ -28,6 +28,10 @@ final class StudyDeck {
     var studyCompletedCount: Int = 0
     var isStudySessionActive: Bool = false
 
+    var studyAllBatchCardIDs: [UUID] = []
+
+    var studyBatchCardIDs: [UUID] = []
+
     // MARK: - Study All Session
 
     var studyAllQueueIDs: [UUID] = []

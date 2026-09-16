@@ -267,8 +267,8 @@ private struct UnlockedDeckDetailsView: View {
 
                         // MARK: Study All Button
 
-                        if !isParentDeck {
-                            studyButton
+                        if isParentDeck {
+                            studyAllButton
                                 .padding(.top, 24)
                         }
 
@@ -1154,6 +1154,7 @@ private struct UnlockedDeckDetailsView: View {
             targetDeck.studyAllLearningQueueIDs = []
             targetDeck.studyAllCompletedCount = 0
             targetDeck.isStudyAllSessionActive = false
+            targetDeck.studyAllBatchCardIDs = []
         }
 
         do {
@@ -1926,6 +1927,89 @@ private struct UnlockedDeckDetailsView: View {
         childDecks.contains {
             $0.isStudyAllSessionActive
         }
+    }
+
+    private var studyAllButton: some View {
+        NavigationLink {
+            StudyFlashcardsView(
+                decks: childDecks
+            )
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "rectangle.stack.fill")
+                    .font(
+                        .system(
+                            size: 14,
+                            weight: .semibold
+                        )
+                    )
+
+                VStack(
+                    alignment: .leading,
+                    spacing: 2
+                ) {
+                    Text(
+                        hasStudyAllProgress
+                            ? "Continue Study All"
+                            : "Study All"
+                    )
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-SemiBold",
+                            size: 15
+                        )
+                    )
+
+                    Text(
+                        "\(allChildCards.count) cards across \(childDecks.count) chapters"
+                    )
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-Regular",
+                            size: 11
+                        )
+                    )
+                    .opacity(0.70)
+                }
+
+                Spacer()
+
+                Image(systemName: "arrow.right")
+                    .font(
+                        .system(
+                            size: 14,
+                            weight: .semibold
+                        )
+                    )
+            }
+            .foregroundStyle(Color.appTextPrimary)
+            .padding(.horizontal, 16)
+            .frame(height: 56)
+            .frame(maxWidth: .infinity)
+            .background(
+                Color.appSurface,
+                in: RoundedRectangle(
+                    cornerRadius: 8
+                )
+            )
+            .overlay {
+                RoundedRectangle(
+                    cornerRadius: 8
+                )
+                .stroke(
+                    Color.appBorder,
+                    lineWidth: 1
+                )
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(allChildCards.isEmpty)
+        .opacity(
+            allChildCards.isEmpty
+                ? 0.45
+                : 1
+        )
     }
 
     private var studyButton: some View {
