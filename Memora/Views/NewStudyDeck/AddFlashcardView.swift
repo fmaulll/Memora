@@ -64,67 +64,19 @@ struct AddFlashcardView: View {
         ZStack {
             AppBackground {
                 ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 0) {
-
-                        HStack {
-                            Text(deck.subject.uppercased())
-                                .font(.custom("PlusJakartaSans-Bold", size: 11))
-                                .tracking(0.5)
-                                .foregroundStyle(accent)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(
-                                    accent.opacity(0.12),
-                                    in: Capsule()
-                                )
-
-                            Spacer()
-
-                            Button {
-                                isShowingCardList = true
-                            } label: {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "square.stack.3d.up.fill")
-                                        .font(.system(size: 13))
-
-                                    Text("\(deck.cards.filter { !$0.needsDeletion }.count)")
-                                        .font(.custom("PlusJakartaSans-Bold", size: 14))
-                                }
-                                .foregroundStyle(Color.appTextPrimary)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .background(
-                                    Color.appSurface,
-                                    in: Capsule()
-                                )
-                                .overlay {
-                                    Capsule()
-                                        .stroke(Color.appBorder, lineWidth: 1)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(deck.cards.isEmpty)
-                            .opacity(deck.cards.isEmpty ? 0.5 : 1)
-                        }
-                        .padding(.top, 16)
-
-                        Text("Add flashcards")
-                            .font(.custom("PlusJakartaSans-ExtraBold", size: 40))
-                            .foregroundStyle(Color.appTextPrimary)
-                            .tracking(-1)
-                            .lineSpacing(-3)
-                            .padding(.top, 16)
-
-                        Text("Write the question and its answer")
-                            .font(.custom("PlusJakartaSans-Regular", size: 16))
-                            .foregroundStyle(Color.appTextSecondary)
+                    VStack(alignment: .leading, spacing: 10) {
+                        
+                        editorHeader
                             .padding(.top, 20)
 
                         sideSwitcher
-                            .padding(.top, 30)
+                            .padding(.top, 24)
 
                         cardEditor
                             .padding(.top, 12)
+
+                        cardActionButtons
+                            .padding(.top, 16)
 
                         if !deck.cards.isEmpty {
                             Text("Tap a card below to edit it")
@@ -150,11 +102,11 @@ struct AddFlashcardView: View {
                         Color.clear
                             .frame(height: 120)
                     }
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, 20)
                 }
                 .safeAreaInset(edge: .top, spacing: 0) {
                     BackNavigationBar {
-                        finishDeckButton
+                        EmptyView()
                     }
                 }
             }
@@ -164,28 +116,137 @@ struct AddFlashcardView: View {
         // .dismissKeyboardOnTap()
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .safeAreaInset(edge: .bottom, spacing: 0) {
+            bottomActionBar
+        }
+    }
 
-            VStack(spacing: 12) {
-
-                if !isEditMode {
-                    WorkflowIndicator(
-                        numberOfSteps: 3,
-                        currentStep: 2,
-                        accent: accent
+    private var editorHeader: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center) {
+                Text("ADD FLASHCARDS")
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-Bold",
+                            size: 13
+                        )
                     )
-                    .padding(.horizontal, 20)
-                }
+                    .foregroundStyle(accent)
 
-                cardActionButtons
+                Spacer()
+
+                Button {
+                    isShowingCardList = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(
+                            systemName:
+                                "square.stack.3d.up.fill"
+                        )
+                        .font(
+                            .system(
+                                size: 13,
+                                weight: .medium
+                            )
+                        )
+
+                        Text("\(activeCards.count)")
+                            .font(
+                                .custom(
+                                    "PlusJakartaSans-Bold",
+                                    size: 14
+                                )
+                            )
+                    }
+                    .foregroundStyle(
+                        activeCards.isEmpty
+                            ? Color.appTextSecondary
+                            : Color.appTextPrimary
+                    )
+                    .padding(.horizontal, 14)
+                    .frame(height: 34)
+                    .background(
+                        Color.appSurface,
+                        in: Capsule()
+                    )
+                    .overlay {
+                        Capsule()
+                            .stroke(
+                                Color.appBorder,
+                                lineWidth: 1
+                            )
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(activeCards.isEmpty)
             }
-            .padding(.top, 12)
-            .padding(.bottom, 12)
-            .background(Color.appBackground)
-            .overlay(alignment: .top) {
-                Rectangle()
-                    .fill(Color.appBorder)
-                    .frame(height: 1)
+
+            Text(deck.title)
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Bold",
+                        size: 20
+                    )
+                )
+                .foregroundStyle(
+                    Color.appTextPrimary
+                )
+                .lineLimit(2)
+                .padding(.top, 18)
+
+            Text(
+                isEditMode
+                    ? "Add, edit, or remove flashcards from this deck."
+                    : "Write the question and answer for each flashcard."
+            )
+            .font(
+                .custom(
+                    "PlusJakartaSans-Regular",
+                    size: 13
+                )
+            )
+            .foregroundStyle(
+                Color.appTextSecondary
+            )
+            .lineSpacing(3)
+            .padding(.top, 6)
+        }
+    }
+
+    private var bottomActionTitle: String {
+        if isEditMode {
+            return "Done"
+        }
+
+        if activeCards.isEmpty {
+            return "Create Empty Deck"
+        }
+
+        return "Finish Deck"
+    }
+
+    private var bottomActionBar: some View {
+        VStack(spacing: 0) {
+            AppButton(
+                title: bottomActionTitle,
+                foreground: Color.appTextPrimary
+            ) {
+                finishDeck()
             }
+            .padding(.horizontal, 20)
+        }
+        .padding(.top, 12)
+        .padding(.bottom, 12)
+        .background(Color.appBackground)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(.white.opacity(0.10))
+                .frame(height: 1)
+        }
+    }
+
+    private var activeCards: [StudyFlashcardCard] {
+        deck.cards.filter {
+            !$0.needsDeletion
         }
     }
 
@@ -405,7 +466,7 @@ struct AddFlashcardView: View {
                     .buttonStyle(.plain)
                     .disabled(!hasContent)
                     .opacity(hasContent ? 1 : 0.45)
-                }.padding(.horizontal, 20)
+                }
             }
         }
     }
@@ -639,27 +700,6 @@ struct AddFlashcardView: View {
         } catch {
             print("❌ FINISH DECK ERROR:", error)
         }
-    }
-
-    private var finishDeckButton: some View {
-
-        Button {
-            finishDeck()
-        } label: {
-            Image(systemName: "checkmark")
-                .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(Color.appTextPrimary)
-                .frame(width: 40, height: 40)
-                .background(
-                Color.appAccent,
-                in: Circle()
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Done adding flashcards")
-        .disabled(deck.cards.isEmpty)
-        .opacity(deck.cards.isEmpty ? 0.45 : 1)
-
     }
 
     private func flashcardRow(index: Int, card: StudyFlashcardCard) -> some View {

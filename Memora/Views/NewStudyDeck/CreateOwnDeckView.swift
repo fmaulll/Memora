@@ -93,112 +93,53 @@ struct CreateOwnDeckView: View {
     }
 
     var body: some View {
-        ZStack {
-            AppBackground {
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 0) {
+        AppBackground {
+            ScrollView(showsIndicators: false) {
+                VStack(
+                    alignment: .leading,
+                    spacing: 28
+                ) {
+                    header
 
-                        Text(headerEyebrow)
-                            .font(.custom("PlusJakartaSans-Bold", size: 14))
-                            .foregroundStyle(Color.appAccent)
-                            .padding(.top, 16)
-
-                        Text(headerTitle)
-                            .font(.custom("PlusJakartaSans-ExtraBold", size: 40))
-                            .foregroundStyle(Color.appTextPrimary)
-                            .tracking(-1)
-                            .lineSpacing(-3)
-                            .padding(.top, 16)
-
-                        Text(headerDescription)
-                            .font(.custom("PlusJakartaSans-Regular", size: 16))
-                            .foregroundStyle(Color.appTextSecondary)
-                            .padding(.top, 20)
-
-                        if let parentDeck {
-                            parentDeckPreview(parentDeck)
-                                .padding(.top, 30)
-                        }
-
-                        formField(
-                            label: "DECK TITLE",
-                            placeholder: "e.g. Spanish Vocabulary — Beginner",
-                            text: $deckTitle,
-                            field: .deckTitle
-                        )
-                        .padding(.top, parentDeck != nil ? 24 : 30)
-
-                        if mode == .withCards && parentDeck == nil {
-
-                            formField(
-                                label: "SUBJECT",
-                                placeholder: "e.g. Biology, Physics, History",
-                                text: $subject,
-                                field: .subject
-                            )
-                            .padding(.top, 24)
-
-                            educationLevelSection
-                            .padding(.top, 24)
-                        }
+                    if let parentDeck {
+                        parentDeckPreview(parentDeck)
                     }
-                    .padding(.horizontal, 24)
-                }
-                .safeAreaInset(edge: .top, spacing: 0) {
-                    BackNavigationBar(
-                        onBack: handleBack
-                    ) {
-                        EmptyView()
+
+                    deckTitleSection
+
+                    if mode == .withCards &&
+                        parentDeck == nil {
+
+                        subjectSection
+                        educationLevelSection
                     }
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 40)
             }
         }
         .preferredColorScheme(.dark)
         .navigationBarBackButtonHidden()
-        // .dismissKeyboardOnTap()
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            VStack(spacing: 0) {
-                if !isEditMode && (mode == .withCards || mode == .empty && parentDeck == nil) {
-                    WorkflowIndicator(
-                        numberOfSteps: mode == .empty ? 2 : 3,
-                        currentStep: 1,
-                        accent: accent
-                    )
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 12)
-                }
-
-                HStack {
-                    AppButton(
-                        title: isEditMode
-                            ? "Save Deck"
-                            : mode == .empty
-                                ? (parentDeck != nil ? "Create Sub-deck" : "Create Deck")
-                                : "Continue",
-                        foreground: canContinue ? .white : .white.opacity(0.45),
-                        background: Color.appAccent
-                    ) {
-                        if isEditMode {
-                            saveDeck()
-                        } else {
-                            continueToCards()
-                        }
-                    }
-                    .disabled(!canContinue)
-                    .padding(.horizontal, 24)
-                    .ignoresSafeArea(.keyboard, edges: .bottom)
-                }
-            }
-            .padding(.top, 12)
-            .padding(.bottom, 12)
-            .background(Color.appBackground)
-            .overlay(alignment: .top) {
-                Rectangle()
-                    .fill(Color.appBorder)
-                    .frame(height: 1)
+        .safeAreaInset(
+            edge: .top,
+            spacing: 0
+        ) {
+            BackNavigationBar(
+                onBack: handleBack
+            ) {
+                EmptyView()
             }
         }
-        .navigationDestination(isPresented: $isShowingAddFlashcards) {
+        .safeAreaInset(
+            edge: .bottom,
+            spacing: 0
+        ) {
+            bottomActionBar
+        }
+        .navigationDestination(
+            isPresented: $isShowingAddFlashcards
+        ) {
             if let createdDeck {
                 AddFlashcardView(
                     deck: createdDeck,
@@ -214,13 +155,17 @@ struct CreateOwnDeckView: View {
             "Discard Deck?",
             isPresented: $isShowingDiscardConfirmation
         ) {
-            Button("Discard", role: .destructive) {
+            Button(
+                "Discard",
+                role: .destructive
+            ) {
                 discardCreatedDeck()
             }
 
-            Button("Keep Editing", role: .cancel) {
-                // Do nothing.
-            }
+            Button(
+                "Keep Editing",
+                role: .cancel
+            ) {}
         } message: {
             Text(
                 "Your deck and cards haven't been finished yet. "
@@ -230,51 +175,84 @@ struct CreateOwnDeckView: View {
     }
 
     private var headerEyebrow: String {
-        if isEditMode {
-            return "EDIT STUDY DECK"
-        }
-
-        if parentDeck != nil {
-            return "CREATE SUB-DECK"
-        }
-
-        if mode == .empty {
-            return "CREATE EMPTY DECK"
-        }
-
-        return "NEW STUDY DECK"
+    if isEditMode {
+        return "EDIT DECK"
     }
+
+    if parentDeck != nil {
+        return "CREATE CHAPTER"
+    }
+
+    return "CREATE MANUALLY"
+}
 
     private var headerTitle: String {
         if isEditMode {
-            return "Edit your deck"
+            return "Edit your\ndeck"
         }
 
         if parentDeck != nil {
-            return "Add a section"
+            return "Create a new\nchapter"
         }
 
-        if mode == .empty {
-            return "Create your deck"
-        }
-
-        return "What do you want\nto learn?"
+        return "What do you want\nto study?"
     }
 
     private var headerDescription: String {
         if isEditMode {
-            return "Update your deck details"
+            return "Update your deck details."
         }
 
         if parentDeck != nil {
-            return "Organize this deck into a focused study topic."
+            return "Add a focused chapter to organize this deck."
         }
 
         if mode == .empty {
-            return "Add cards or sub-decks whenever you're ready."
+            return "Create an empty deck, then add chapters or cards whenever you're ready."
         }
 
-        return "Be specific for better flashcards"
+        return "Create your own deck and write the flashcards yourself."
+    }
+
+    // MARK: - Header
+
+    private var header: some View {
+        VStack(
+            alignment: .leading,
+            spacing: 10
+        ) {
+            Text(headerEyebrow)
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Bold",
+                        size: 13
+                    )
+                )
+                .foregroundStyle(accent)
+
+            Text(headerTitle)
+                .font(
+                    .custom(
+                        "PlusJakartaSans-ExtraBold",
+                        size: 38
+                    )
+                )
+                .foregroundStyle(Color.appTextPrimary)
+                .tracking(-1)
+                .lineSpacing(-3)
+
+            Text(headerDescription)
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Regular",
+                        size: 14
+                    )
+                )
+                .foregroundStyle(
+                    Color.appTextSecondary
+                )
+                .lineSpacing(4)
+        }
     }
 
     private func parentDeckPreview(_ parentDeck: StudyDeck) -> some View {
@@ -310,48 +288,248 @@ struct CreateOwnDeckView: View {
         }
     }
 
-    private func formField(
-        label: String,
-        placeholder: String,
-        text: Binding<String>,
-        field: Field
+    // MARK: - Bottom Action
+
+    private var bottomActionBar: some View {
+        VStack(spacing: 0) {
+            AppButton(
+                title: actionButtonTitle,
+                foreground:
+                    canContinue
+                        ? Color.appTextPrimary
+                        : Color.appTextSecondary
+            ) {
+                if isEditMode {
+                    saveDeck()
+                } else {
+                    continueToCards()
+                }
+            }
+            .disabled(!canContinue)
+            .padding(.horizontal, 20)
+        }
+        .padding(.top, 12)
+        .padding(.bottom, 12)
+        .background(Color.appBackground)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(.white.opacity(0.10))
+                .frame(height: 1)
+        }
+    }
+
+    private var actionButtonTitle: String {
+        if isEditMode {
+            return "Save Changes"
+        }
+
+        if parentDeck != nil {
+            return "Create Chapter"
+        }
+
+        if mode == .empty {
+            return "Create Deck"
+        }
+
+        return "Continue"
+    }
+
+    private func fieldTitle(
+        _ title: String,
+        isFocused: Bool
     ) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-
-            Text(label)
-                .font(
-                    .custom(
-                        "PlusJakartaSans-Bold",
-                        size: 11
-                    )
-                )
-                .foregroundStyle(Color.appTextSecondary)
-
-            TextField(
-                placeholder,
-                text: text
-            )
+        Text(title)
             .font(
                 .custom(
-                    "PlusJakartaSans-Regular",
-                    size: 16
+                    "PlusJakartaSans-SemiBold",
+                    size: 13
                 )
             )
-            .foregroundStyle(Color.appTextPrimary)
-            .tint(accent)
-            .focused(
-                $focusedField,
-                equals: field
+            .foregroundStyle(
+                isFocused
+                    ? Color.appTextPrimary
+                    : Color.appTextSecondary
             )
-            .padding(.horizontal, 16)
-            .frame(maxWidth: .infinity)
-            .frame(height: 56)
-            .contentShape(Rectangle())
-            .background(Color.appSurface, in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    // MARK: - Deck Title
+
+    private var deckTitleSection: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            fieldTitle(
+                "Deck title",
+                isFocused: focusedField == .deckTitle
+            )
+
+            HStack(spacing: 12) {
+                Image(systemName: "rectangle.stack")
+                    .font(
+                        .system(
+                            size: 16,
+                            weight: .medium
+                        )
+                    )
+                    .foregroundStyle(
+                        focusedField == .deckTitle
+                            ? accent
+                            : Color.appTextSecondary
+                    )
+                    .frame(width: 20)
+
+                TextField(
+                    parentDeck != nil
+                        ? "e.g. Cell Biology"
+                        : "e.g. Spanish Vocabulary",
+                    text: $deckTitle
+                )
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Regular",
+                        size: 15
+                    )
+                )
+                .foregroundStyle(Color.appTextPrimary)
+                .tint(accent)
+                .textInputAutocapitalization(.sentences)
+                .focused(
+                    $focusedField,
+                    equals: .deckTitle
+                )
+                .submitLabel(
+                    mode == .withCards &&
+                    parentDeck == nil
+                        ? .next
+                        : .done
+                )
+
+                if !deckTitle.isEmpty {
+                    Button {
+                        deckTitle = ""
+                    } label: {
+                        Image(
+                            systemName:
+                                "xmark.circle.fill"
+                        )
+                        .font(.system(size: 16))
+                        .foregroundStyle(
+                            Color.appTextSecondary
+                                .opacity(0.6)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 14)
+            .frame(height: 54)
+            .background(
+                Color.appSurface,
+                in: RoundedRectangle(
+                    cornerRadius: 8
+                )
+            )
             .overlay {
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.appBorder, lineWidth: 1)
+                    .stroke(
+                        focusedField == .deckTitle
+                            ? accent
+                            : Color.appBorder,
+                        lineWidth:
+                            focusedField == .deckTitle
+                                ? 1.5
+                                : 1
+                    )
             }
+            .animation(
+                .easeInOut(duration: 0.15),
+                value: focusedField
+            )
+        }
+    }
+
+    // MARK: - Subject
+
+    private var subjectSection: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            fieldTitle(
+                "Subject",
+                isFocused: focusedField == .subject
+            )
+
+            HStack(spacing: 12) {
+                Image(systemName: "book.closed")
+                    .font(
+                        .system(
+                            size: 16,
+                            weight: .medium
+                        )
+                    )
+                    .foregroundStyle(
+                        focusedField == .subject
+                            ? accent
+                            : Color.appTextSecondary
+                    )
+                    .frame(width: 20)
+
+                TextField(
+                    "e.g. Biology, Physics, History",
+                    text: $subject
+                )
+                .font(
+                    .custom(
+                        "PlusJakartaSans-Regular",
+                        size: 15
+                    )
+                )
+                .foregroundStyle(Color.appTextPrimary)
+                .tint(accent)
+                .textInputAutocapitalization(.sentences)
+                .focused(
+                    $focusedField,
+                    equals: .subject
+                )
+                .submitLabel(.done)
+
+                if !subject.isEmpty {
+                    Button {
+                        subject = ""
+                    } label: {
+                        Image(
+                            systemName:
+                                "xmark.circle.fill"
+                        )
+                        .font(.system(size: 16))
+                        .foregroundStyle(
+                            Color.appTextSecondary
+                                .opacity(0.6)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 14)
+            .frame(height: 54)
+            .background(
+                Color.appSurface,
+                in: RoundedRectangle(
+                    cornerRadius: 8
+                )
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(
+                        focusedField == .subject
+                            ? accent
+                            : Color.appBorder,
+                        lineWidth:
+                            focusedField == .subject
+                                ? 1.5
+                                : 1
+                    )
+            }
+            .animation(
+                .easeInOut(duration: 0.15),
+                value: focusedField
+            )
         }
     }
 
