@@ -5,10 +5,15 @@ struct DeckOptionsSheet: View {
     let isParentDeck: Bool
     let canCreateSubDeck: Bool
     let canCreateWithAI: Bool
+    let selectedChapter: StudyDeck?
     let aiDeckAction: AIDeckAction?
 
     let onEditDeck: () -> Void
+    let onEditChapter: () -> Void
     let onCreateSubDeck: () -> Void
+    let onMoveChapter: () -> Void
+    let onResetChapterProgress: () -> Void
+    let onDeleteChapter: () -> Void
     let onCreateWithAI: () -> Void
     let onMoveDeck: () -> Void
     let onManageCards: () -> Void
@@ -16,9 +21,6 @@ struct DeckOptionsSheet: View {
     let onDeleteDeck: () -> Void
     let onGenerateCardsWithAI: () -> Void
     let onGenerateMoreCardsWithAI: () -> Void
-    
-
-    private let accent = Color.appAccent
 
     var body: some View {
         VStack(spacing: 0) {
@@ -26,21 +28,99 @@ struct DeckOptionsSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
 
+                    // MARK: - Deck
+
+                    sectionLabel("Deck")
+                        .padding(.top, 8)
+
                     optionButton(
                         title: "Edit Deck",
                         icon: "pencil",
                         action: onEditDeck
                     )
-                    .padding(.top, 20)
 
-                    if canCreateSubDeck {
+                    // Standalone decks can be moved.
+                    // Parent decks stay as the container for their chapters.
+                    if !isParentDeck {
                         optionButton(
-                            title: "Create Sub-deck",
-                            icon: "folder.badge.plus",
-                            action: onCreateSubDeck
+                            title: "Move Deck",
+                            icon: "folder",
+                            action: onMoveDeck
                         )
                     }
-                    
+
+                    // Standalone deck owns its cards directly.
+                    if !isParentDeck {
+                        optionButton(
+                            title: "Manage Cards",
+                            icon: "rectangle.stack",
+                            action: onManageCards
+                        )
+                    }
+
+                    optionButton(
+                        title: "Reset Deck Progress",
+                        icon: "arrow.counterclockwise",
+                        action: onResetProgress
+                    )
+
+                    optionButton(
+                        title: "Delete Deck",
+                        icon: "trash",
+                        destructive: true,
+                        action: onDeleteDeck
+                    )
+
+                    // MARK: - Chapters
+
+                    if isParentDeck {
+                        sectionLabel("Chapters")
+
+                        if canCreateSubDeck {
+                            optionButton(
+                                title: "Create Chapter",
+                                icon: "folder.badge.plus",
+                                action: onCreateSubDeck
+                            )
+                        }
+
+                        if selectedChapter != nil {
+                            optionButton(
+                                title: "Edit Chapter",
+                                icon: "pencil",
+                                action: onEditChapter
+                            )
+
+                            optionButton(
+                                title: "Move Chapter",
+                                icon: "folder",
+                                action: onMoveChapter
+                            )
+
+                            optionButton(
+                                title: "Manage Cards",
+                                icon: "rectangle.stack",
+                                action: onManageCards
+                            )
+
+                            optionButton(
+                                title: "Reset Chapter Progress",
+                                icon: "arrow.counterclockwise",
+                                action: onResetChapterProgress
+                            )
+
+                            optionButton(
+                                title: "Delete Chapter",
+                                icon: "trash",
+                                destructive: true,
+                                action: onDeleteChapter
+                            )
+                        }
+                    }
+
+                    // MARK: - AI
+                    // Temporarily disabled.
+                    /*
                     if let aiDeckAction {
                         switch aiDeckAction {
 
@@ -66,35 +146,10 @@ struct DeckOptionsSheet: View {
                             )
                         }
                     }
-
-                    optionButton(
-                        title: "Move Deck",
-                        icon: "folder",
-                        action: onMoveDeck
-                    )
-
-                    if !isParentDeck {
-                        optionButton(
-                            title: "Manage Cards",
-                            icon: "rectangle.stack",
-                            action: onManageCards
-                        )
-                    }
-
-                    optionButton(
-                        title: "Reset Progress",
-                        icon: "arrow.counterclockwise",
-                        action: onResetProgress
-                    )
-
-                    optionButton(
-                        title: "Delete Deck",
-                        icon: "trash",
-                        destructive: true,
-                        action: onDeleteDeck
-                    )
+                    */
                 }
                 .padding(.horizontal, 24)
+                .padding(.bottom, 24)
             }
 
             Spacer(minLength: 0)
@@ -102,6 +157,21 @@ struct DeckOptionsSheet: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.appBackground)
         .preferredColorScheme(.dark)
+    }
+
+    private func sectionLabel(_ title: String) -> some View {
+        Text(title.uppercased())
+            .font(
+                .custom(
+                    "PlusJakartaSans-SemiBold",
+                    size: 11
+                )
+            )
+            .foregroundStyle(Color.appTextSecondary)
+            .tracking(0.8)
+            .padding(.horizontal, 4)
+            .padding(.top, 12)
+            .padding(.bottom, 2)
     }
 
     private func optionButton(
@@ -152,7 +222,9 @@ struct DeckOptionsSheet: View {
             .overlay {
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(
-                        destructive ? Color.appError : Color.appBorder,
+                        destructive
+                            ? Color.appError
+                            : Color.appBorder,
                         lineWidth: 1
                     )
             }
