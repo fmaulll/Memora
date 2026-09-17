@@ -14,6 +14,7 @@ struct DeckResponse: Decodable {
     let createdAt: Date
     let updatedAt: Date
     let parentDeckId: UUID?
+    let position: Int?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -29,6 +30,7 @@ struct DeckResponse: Decodable {
         case createdAt = "created_at"
         case updatedAt = "updated_at"
         case parentDeckId = "parent_deck_id"
+        case position
     }
 }
 

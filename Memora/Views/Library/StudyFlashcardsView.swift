@@ -186,21 +186,6 @@ struct StudyFlashcardsView: View {
 
         self.source = source
 
-        print("========== STUDY ALL DEBUG ==========")
-        print("DECK COUNT:", decks.count)
-        print("SOURCE CARD COUNT:", source.cards.count)
-
-        for deck in decks {
-            print(
-                "DECK:",
-                deck.title,
-                "| CARDS:",
-                deck.cards.count
-            )
-        }
-
-        print("=====================================")
-
         let cardsByID = Dictionary(
             uniqueKeysWithValues: source.cards.map {
                 ($0.id, $0)
@@ -209,24 +194,6 @@ struct StudyFlashcardsView: View {
 
         let hasActiveStudyAllSession = decks.contains {
             $0.isStudyAllSessionActive
-        }
-
-        print(
-            "HAS ACTIVE STUDY ALL SESSION:",
-            hasActiveStudyAllSession
-        )
-
-        for deck in decks where deck.isStudyAllSessionActive {
-            print(
-                "ACTIVE:",
-                deck.title,
-                "| QUEUE:",
-                deck.studyAllQueueIDs.count,
-                "| LEARNING:",
-                deck.studyAllLearningQueueIDs.count,
-                "| COMPLETED:",
-                deck.studyAllCompletedCount
-            )
         }
 
         if hasActiveStudyAllSession {
@@ -288,15 +255,6 @@ struct StudyFlashcardsView: View {
                 initialValue: Self.makeBatchIDs(
                     from: source.cards
                 )
-            )
-
-            print("FRESH STUDY ALL")
-            print("FRESH CARDS:", source.cards.count)
-            print(
-                "FRESH BATCH:",
-                Self.makeBatchIDs(
-                    from: source.cards
-                ).count
             )
         }
     }
