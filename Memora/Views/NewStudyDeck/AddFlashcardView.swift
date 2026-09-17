@@ -677,28 +677,26 @@ struct AddFlashcardView: View {
     }
 
     private func finishDeck() {
-
         do {
             try modelContext.save()
 
-            print("")
-            print("========== FINISH DECK ==========")
-            print("DECK:", deck.id)
-            print(
-                "ACTIVE CARDS:",
-                deck.cards.filter { !$0.needsDeletion }.count
-            )
+            Task {
+                await AppSyncManager.shared.sync(
+                    modelContext: modelContext
+                )
+            }
 
             if isEditMode {
-                print("✅ EDIT SAVED LOCALLY")
                 dismiss()
             } else {
-                print("✅ NEW DECK SAVED LOCALLY")
                 onFinish?()
             }
 
         } catch {
-            print("❌ FINISH DECK ERROR:", error)
+            print(
+                "❌ FAILED TO FINISH DECK:",
+                error
+            )
         }
     }
 

@@ -26,7 +26,9 @@ final class DeckAPI {
             educationLevel: educationLevel,
             learningLanguage: learningLanguage,
             isFavorite: isFavorite,
-            parentDeckId: parentDeckId
+            parentDeckId: parentDeckId,
+            position: 0,
+            generationStatus: "completed"
         )
 
         return try await APIClient.shared.request(
@@ -65,16 +67,20 @@ final class DeckAPI {
         title: String? = nil,
         subject: String? = nil,
         educationLevel: String? = nil,
+        learningLanguage: String? = nil,
         isFavorite: Bool? = nil,
-        parentDeckId: UUID? = nil
+        parentDeckId: UUID? = nil,
+        position: Int? = nil
     ) async throws -> DeckResponse {
 
         let request = DeckUpdateRequest(
             title: title,
             subject: subject,
             educationLevel: educationLevel,
+            learningLanguage: learningLanguage,
             isFavorite: isFavorite,
-            parentDeckId: parentDeckId
+            parentDeckId: parentDeckId,
+            position: position ?? 0
         )
 
         return try await APIClient.shared.request(

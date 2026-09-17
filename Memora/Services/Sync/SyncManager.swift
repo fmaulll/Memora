@@ -371,9 +371,18 @@ final class SyncManager {
         print("ROOT DECKS:", rootDecks.count)
 
         for deck in rootDecks {
+            do {
+                try await uploadDeck(deck)
+                try LocalAccountStore.shared.validate(session)
+            } catch {
+                print(
+                    "❌ FAILED TO SYNC DECK:",
+                    deck.id,
+                    error
+                )
 
-            try await uploadDeck(deck)
-            try LocalAccountStore.shared.validate(session)
+                throw error
+            }
         }
 
         // =====================================================
@@ -387,8 +396,6 @@ final class SyncManager {
         print("SUB-DECKS:", childDecks.count)
 
         for deck in childDecks {
-
-            // Parent must already exist on the server.
             guard let parentDeck = deck.parentDeck else {
                 continue
             }
@@ -404,8 +411,18 @@ final class SyncManager {
                 continue
             }
 
-            try await uploadDeck(deck)
-            try LocalAccountStore.shared.validate(session)
+            do {
+                try await uploadDeck(deck)
+                try LocalAccountStore.shared.validate(session)
+            } catch {
+                print(
+                    "❌ FAILED TO SYNC SUB-DECK:",
+                    deck.id,
+                    error
+                )
+
+                throw error
+            }
         }
 
         try modelContext.save()
@@ -573,6 +590,8 @@ final class SyncManager {
                     deckID,
                     error
                 )
+
+                throw error
             }
         }
 
@@ -649,6 +668,8 @@ final class SyncManager {
                     card.id,
                     error
                 )
+
+                throw error
             }
         }
 

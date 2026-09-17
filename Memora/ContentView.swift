@@ -67,31 +67,26 @@ struct ContentView: View {
         }
         .id(rootRoute)
         .onChange(of: scenePhase) { _, newPhase in
-
             guard newPhase == .active else {
                 return
             }
 
-            guard authManager.isAuthenticated, !authManager.isRestoringSession else {
-                print("NOT AUTHENTICATED — SKIPPING APP SYNC")
+            // Startup restoration owns synchronization
+            // until it has finished.
+            guard didStartRestoringSession,
+                !authManager.isRestoringSession else {
+                print(
+                    "SESSION RESTORATION IN PROGRESS — "
+                    + "WAITING BEFORE APP SYNC"
+                )
                 return
             }
 
-            Task {
-                if (try? LocalAccountStore.shared.session()) == nil {
-                    await authManager.restoreSession(modelContext: modelContext)
-                }
-                await AppSyncManager.shared.syncIfStale(
-                    modelContext: modelContext
+            guard authManager.isAuthenticated else {
+                print(
+                    "NO AUTHENTICATED SESSION — "
+                    + "SKIPPING APP SYNC"
                 )
-            }
-        }
-        .onChange(
-            of: authManager.isAuthenticated
-        ) { _, isAuthenticated in
-
-            guard isAuthenticated else {
-                firstCreatedDeck = nil
                 return
             }
 

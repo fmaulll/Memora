@@ -42,6 +42,8 @@ struct DeckCreateRequest: Encodable {
     let learningLanguage: String?
     let isFavorite: Bool
     let parentDeckId: UUID?
+    let position: Int
+    let generationStatus: String
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -51,6 +53,8 @@ struct DeckCreateRequest: Encodable {
         case learningLanguage = "learning_language"
         case isFavorite = "is_favorite"
         case parentDeckId = "parent_deck_id"
+        case position
+        case generationStatus = "generation_status"
     }
 }
 
@@ -58,33 +62,59 @@ struct DeckUpdateRequest: Encodable {
     let title: String?
     let subject: String?
     let educationLevel: String?
+    let learningLanguage: String?
     let isFavorite: Bool?
     let parentDeckId: UUID?
+    let position: Int?
 
     enum CodingKeys: String, CodingKey {
         case title
         case subject
         case educationLevel = "education_level"
+        case learningLanguage = "learning_language"
         case isFavorite = "is_favorite"
         case parentDeckId = "parent_deck_id"
+        case position
     }
 
     func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
+        var container =
+            encoder.container(
+                keyedBy: CodingKeys.self
+            )
 
-        try container.encodeIfPresent(title, forKey: .title)
-        try container.encodeIfPresent(subject, forKey: .subject)
+        try container.encodeIfPresent(
+            title,
+            forKey: .title
+        )
+
+        try container.encodeIfPresent(
+            subject,
+            forKey: .subject
+        )
+
         try container.encodeIfPresent(
             educationLevel,
             forKey: .educationLevel
         )
+
+        try container.encodeIfPresent(
+            learningLanguage,
+            forKey: .learningLanguage
+        )
+
         try container.encodeIfPresent(
             isFavorite,
             forKey: .isFavorite
         )
 
-        // IMPORTANT:
-        // Encode nil as explicit JSON null.
+        try container.encodeIfPresent(
+            position,
+            forKey: .position
+        )
+
+        // Keep this explicit because nil means:
+        // "move this deck to root".
         try container.encode(
             parentDeckId,
             forKey: .parentDeckId
