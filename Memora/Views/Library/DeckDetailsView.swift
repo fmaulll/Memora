@@ -14,6 +14,16 @@ private enum ExamFeatureError: LocalizedError {
     }
 }
 
+private enum ContentSection {
+    case cards
+    case exams
+}
+
+private enum StudyScope {
+    case chapter
+    case all
+}
+
 // Gate both the root deck and direct chapter navigation before exposing cards,
 // exams, editing, moving, or study actions.
 struct DeckDetailsView: View {
@@ -73,6 +83,11 @@ private struct UnlockedDeckDetailsView: View {
     @State private var isShowingMoveDeck = false
     @State private var isShowingCreateSubDeck = false
     @State private var isShowingEditDeck = false
+    @State private var isShowingEditChapter = false
+    @State private var deckToManageCards: StudyDeck?
+    @State private var deckToMove: StudyDeck?
+    @State private var deckToReset: StudyDeck?
+    @State private var deckToDelete: StudyDeck?
     @State private var isShowingEditCards = false
     @State private var isShowingMoreOptions = false
     @State private var isShowingResetConfirmation = false
@@ -95,6 +110,9 @@ private struct UnlockedDeckDetailsView: View {
     @State private var generatingExamType: ExamType?
     @State private var examQuestionsResponse: ExamQuestionsResponse?
     @State private var isShowingExam = false
+
+    @State private var selectedContentSection: ContentSection = .cards
+    @State private var selectedStudyScope: StudyScope = .chapter
 
     private let accent = Color.appAccent
 
@@ -243,46 +261,29 @@ private struct UnlockedDeckDetailsView: View {
                         flashcardCarousel
                             .padding(.top, 16)
                     }
-                    // MARK: Deck Information
-
-                    if !isParentDeck || selectedChapter != nil {
-                        deckIdentitySection
-                            .padding(.horizontal, 20)
-                            .padding(.top, 16)
-                    }
-
-                    if !isParentDeck || selectedChapter != nil {
-                        primaryStudyButton
-                            .padding(.horizontal, 20)
-                            .padding(.top, 16)
-                    }
-
-                    if isParentDeck {
-                        examSection
-                            .padding(.top, 28)
-                            .padding(.horizontal, 20)
-                    }
 
                     VStack(alignment: .leading, spacing: 0) {
 
-                        // MARK: Study All Button
+                        // MARK: Deck Information
 
-                        if isParentDeck {
-                            studyAllButton
-                                .padding(.top, 24)
+                        if !isParentDeck || selectedChapter != nil {
+                            deckIdentitySection
+                                .padding(.top, 16)
                         }
 
-                        if !isParentDeck {
+                        contentSectionToggle
+                            .padding(.top, 20)
+                            .padding(.bottom, 20)
+
+                        if selectedContentSection == .cards {
                             cardsSection
-                                .padding(.top, 28)
-                        }
-
-                        if isFailedGeneration {
-                            retryGenerationSection
-                                .padding(.top, 28)
+                        } else {
+                            examSection
                         }
                     }
                     .padding(.horizontal, 20)
+                    .padding(.bottom, 20)
+
                 }
             }
             .safeAreaInset(edge: .top, spacing: 0) {
@@ -297,7 +298,11 @@ private struct UnlockedDeckDetailsView: View {
         .navigationDestination(
             isPresented: $isShowingMoveDeck
         ) {
-            MoveDeckView(deck: deck)
+            if let deckToMove {
+                MoveDeckView(
+                    deck: deckToMove
+                )
+            }
         }
 
         .navigationDestination(isPresented: $isShowingCreateSubDeck) {
@@ -337,14 +342,49 @@ private struct UnlockedDeckDetailsView: View {
                 isParentDeck: isParentDeck,
                 canCreateSubDeck: canCreateSubDeck,
                 canCreateWithAI: canCreateWithAI,
+                selectedChapter: selectedChapter,
                 aiDeckAction: aiDeckAction,
                 onEditDeck: {
                     isShowingMoreOptions = false
                     isShowingEditDeck = true
                 },
+                onEditChapter: {
+                    isShowingMoreOptions = false
+                    isShowingEditChapter = true
+                },
                 onCreateSubDeck: {
                     isShowingMoreOptions = false
                     isShowingCreateSubDeck = true
+                },
+                onMoveChapter: {
+                    isShowingMoreOptions = false
+
+                    guard let selectedChapter else {
+                        return
+                    }
+
+                    deckToMove = selectedChapter
+                    isShowingMoveDeck = true
+                },  
+                onResetChapterProgress: {
+                    isShowingMoreOptions = false
+
+                    guard let selectedChapter else {
+                        return
+                    }
+
+                    deckToReset = selectedChapter
+                    isShowingResetConfirmation = true
+                },
+                onDeleteChapter: {
+                    isShowingMoreOptions = false
+
+                    guard let selectedChapter else {
+                        return
+                    }
+
+                    deckToDelete = selectedChapter
+                    isShowingDeleteConfirmation = true
                 },
                 onCreateWithAI: {
                     isShowingMoreOptions = false
@@ -352,14 +392,21 @@ private struct UnlockedDeckDetailsView: View {
                 },
                 onMoveDeck: {
                     isShowingMoreOptions = false
+                    deckToMove = deck
                     isShowingMoveDeck = true
                 },
                 onManageCards: {
                     isShowingMoreOptions = false
+
+                    deckToManageCards = isParentDeck
+                        ? selectedChapter
+                        : deck
+
                     isShowingEditCards = true
                 },
                 onResetProgress: {
                     isShowingMoreOptions = false
+                    deckToReset = nil
                     isShowingResetConfirmation = true
                 },
                 onDeleteDeck: {
@@ -380,39 +427,57 @@ private struct UnlockedDeckDetailsView: View {
         }
 
         .alert(
-            "Reset Progress?",
+            deckToReset != nil
+                ? "Reset Chapter Progress?"
+                : "Reset Deck Progress?",
             isPresented: $isShowingResetConfirmation
         ) {
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) {
+                deckToReset = nil
+            }
 
             Button("Reset", role: .destructive) {
                 resetProgress()
+                deckToReset = nil
             }
         } message: {
-            if isParentDeck {
+            if let deckToReset {
                 Text(
-                    "This will reset the learning progress of all \(childDecks.count) sub-decks and their cards. Your cards will not be deleted."
+                    "This will reset all learning progress for \"\(deckToReset.title)\". Its flashcards will not be deleted."
+                )
+            } else if isParentDeck {
+                Text(
+                    "This will reset the learning progress of all \(childDecks.count) chapters and their flashcards. Your flashcards will not be deleted."
                 )
             } else {
                 Text(
-                    "This will reset all learning progress for this deck. Your cards will not be deleted."
+                    "This will reset all learning progress for \"\(deck.title)\". Your flashcards will not be deleted."
                 )
             }
         }
 
         .alert(
-            "Delete Deck?",
+            deckToDelete != nil
+                ? "Delete Chapter?"
+                : "Delete Deck?",
             isPresented: $isShowingDeleteConfirmation
         ) {
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) {
+                deckToDelete = nil
+            }
 
             Button("Delete", role: .destructive) {
                 deleteDeck()
+                deckToDelete = nil
             }
         } message: {
-            if isParentDeck {
+            if let deckToDelete {
                 Text(
-                    "\"\(deck.title)\" contains \(childDecks.count) sub-decks and \(allChildCards.count) flashcards. All of them will be deleted."
+                    "\"\(deckToDelete.title)\" and its \(deckToDelete.cards.count) flashcards will be deleted."
+                )
+            } else if isParentDeck {
+                Text(
+                    "\"\(deck.title)\" contains \(childDecks.count) chapters and \(allChildCards.count) flashcards. All of them will be deleted."
                 )
             } else {
                 Text(
@@ -427,12 +492,22 @@ private struct UnlockedDeckDetailsView: View {
             CreateOwnDeckView(existingDeck: deck)
         }
 
+        .navigationDestination(isPresented: $isShowingEditChapter) {
+            if let selectedChapter {
+                CreateOwnDeckView(
+                    existingDeck: selectedChapter
+                )
+            }
+        }
+
         .navigationDestination(isPresented: $isShowingEditCards) {
+        if let deckToManageCards {
             AddFlashcardView(
-                deck: deck,
+                deck: deckToManageCards,
                 isEditMode: true
             )
         }
+    }
         .navigationDestination(isPresented: $isShowingCreateWithAI) {
             AIDeckSetupView(
                 onDeckCreated: { createdDeck in
@@ -470,6 +545,9 @@ private struct UnlockedDeckDetailsView: View {
         }
         .onDisappear {
             stopGenerationPolling()
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            bottomStudyBar
         }
     }
 
@@ -960,12 +1038,16 @@ private struct UnlockedDeckDetailsView: View {
     private func deleteDeck() {
         let decksToDelete: [StudyDeck]
 
-        if isParentDeck {
+        if let deckToDelete {
+            // Delete only the selected chapter.
+            decksToDelete = [deckToDelete]
+        } else if isParentDeck {
+            // Delete the parent deck and all of its chapters.
             decksToDelete = [deck] + childDecks
         } else {
+            // Delete the standalone deck.
             decksToDelete = [deck]
         }
-
         // Mark every card for deletion first
         for targetDeck in decksToDelete {
             for card in targetDeck.cards {
@@ -1125,9 +1207,14 @@ private struct UnlockedDeckDetailsView: View {
     private func resetProgress() {
         let decksToReset: [StudyDeck]
 
-        if isParentDeck {
+        if let deckToReset {
+            // Reset only the selected chapter.
+            decksToReset = [deckToReset]
+        } else if isParentDeck {
+            // Reset every chapter under the parent deck.
             decksToReset = childDecks
         } else {
+            // Reset the standalone deck.
             decksToReset = [deck]
         }
 
@@ -2070,23 +2157,184 @@ private struct UnlockedDeckDetailsView: View {
         return formatter.string(from: date)
     }
 
+    private var bottomStudyBar: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+
+                Group {
+                    if selectedStudyScope == .chapter {
+                        primaryStudyButton
+                    } else {
+                        studyAllButton
+                    }
+                }
+
+                if isParentDeck {
+                    Menu {
+                        Button {
+                            selectedStudyScope = .chapter
+                        } label: {
+                            Label(
+                                "Chapter",
+                                systemImage:
+                                    selectedStudyScope == .chapter
+                                    ? "checkmark"
+                                    : "rectangle.stack"
+                            )
+                        }
+
+                        Button {
+                            selectedStudyScope = .all
+                        } label: {
+                            Label(
+                                "All",
+                                systemImage:
+                                    selectedStudyScope == .all
+                                    ? "checkmark"
+                                    : "square.stack.3d.up"
+                            )
+                        }
+                    } label: {
+                        VStack(spacing: 4) {
+                            Image(
+                                systemName:
+                                    selectedStudyScope == .chapter
+                                    ? "rectangle.stack"
+                                    : "square.stack.3d.up"
+                            )
+                            .font(.system(size: 16, weight: .semibold))
+
+                            Text(
+                                selectedStudyScope == .chapter
+                                    ? "Chapter"
+                                    : "All"
+                            )
+                            .font(
+                                .custom(
+                                    "PlusJakartaSans-SemiBold",
+                                    size: 10
+                                )
+                            )
+                        }
+                        .foregroundStyle(Color.appTextPrimary)
+                        .frame(width: 72, height: 52)
+                        .background(
+                            Color.appSurface,
+                            in: RoundedRectangle(cornerRadius: 8)
+                        )
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(
+                                    Color.appBorder,
+                                    lineWidth: 1
+                                )
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+        .padding(.top, 12)
+        .padding(.bottom, 12)
+        .background(Color.appBackground)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(.white.opacity(0.10))
+                .frame(height: 1)
+        }
+    }
+
+    private var contentSectionToggle: some View {
+        HStack(spacing: 4) {
+            contentSectionButton(
+                title: "Cards",
+                icon: "rectangle.stack",
+                section: .cards
+            )
+
+            contentSectionButton(
+                title: "Exams",
+                icon: "doc.text",
+                section: .exams
+            )
+        }
+        .padding(4)
+        .background(
+            Color.appSecondarySurface,
+            in: RoundedRectangle(cornerRadius: 8)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(
+                    Color.appBorder,
+                    lineWidth: 1
+                )
+        }
+    }
+
+    private func contentSectionButton(
+        title: String,
+        icon: String,
+        section: ContentSection
+    ) -> some View {
+        let isSelected = selectedContentSection == section
+
+        return Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedContentSection = section
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .semibold))
+
+                Text(title)
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-SemiBold",
+                            size: 13
+                        )
+                    )
+            }
+            .foregroundStyle(
+                isSelected
+                    ? Color.appTextPrimary
+                    : Color.appTextSecondary
+            )
+            .frame(maxWidth: .infinity)
+            .frame(height: 42)
+            .background(
+                isSelected
+                    ? Color.appSurface
+                    : Color.clear,
+                in: RoundedRectangle(cornerRadius: 8)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
     private var cardsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
 
             HStack {
 
-                Text("Cards")
+                
+                Text("CARDS")
                     .font(
                         .custom(
                             "PlusJakartaSans-Bold",
-                            size: 17
+                            size: 11
                         )
                     )
-                    .foregroundStyle(Color.appTextPrimary)
+                    .foregroundStyle(Color.appTextSecondary)
 
                 Spacer()
 
                 Button {
+                    deckToManageCards = isParentDeck
+                        ? selectedChapter
+                        : deck
+
                     isShowingEditCards = true
                 } label: {
                     Text("Manage List")
