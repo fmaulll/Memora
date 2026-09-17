@@ -203,6 +203,7 @@ final class SyncManager {
                 deck.subject = serverDeck.subject
                 deck.educationLevel = serverDeck.educationLevel
                 deck.isFavorite = serverDeck.isFavorite
+                deck.position = serverDeck.position
                 deck.isSynced = true
 
             } else {
@@ -215,6 +216,7 @@ final class SyncManager {
                 )
 
                 deck.isFavorite = serverDeck.isFavorite
+                deck.position = serverDeck.position
                 deck.isSynced = true
 
                 modelContext.insert(deck)
@@ -462,6 +464,7 @@ final class SyncManager {
                 return
             }
 
+            deck.position = serverDeck.position
             deck.isSynced = true
 
             print("✅ DECK SYNCED:", deck.id)
@@ -931,6 +934,7 @@ final class SyncManager {
         localDeck.educationLevel = serverDeck.educationLevel
         localDeck.isFavorite = serverDeck.isFavorite
         localDeck.generationStatus = serverDeck.generationStatus
+        localDeck.position = serverDeck.position
 
         // =====================================================
         // CREATE / UPDATE CARDS

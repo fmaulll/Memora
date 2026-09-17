@@ -16,6 +16,8 @@ final class StudyDeck {
     // MARK: - Generation
     var generationStatus: String = "completed"
 
+    var position: Int?
+
     // Persist the first-deck gate across launches, including its chapters.
     var requiresSubscription: Bool = false
 
@@ -77,7 +79,8 @@ final class StudyDeck {
         createdAt: Date = .now,
         cards: [StudyFlashcardCard] = [],
         parentDeck: StudyDeck? = nil,
-        generationStatus: String = "completed"
+        generationStatus: String = "completed",
+        position: Int? = nil
     ) {
         self.id = id
         self.title = title
@@ -88,6 +91,7 @@ final class StudyDeck {
         self.cards = cards
         self.parentDeck = parentDeck
         self.generationStatus = generationStatus
+        self.position = position
 
         for card in cards {
             card.deck = self

@@ -11,15 +11,44 @@ struct ChapterPickerSheet: View {
 
     private var filteredChapters: [StudyDeck] {
         let query = searchText
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
 
         guard !query.isEmpty else {
-            return chapters
+            return sortedChapters
         }
 
-        return chapters.filter { chapter in
+        return sortedChapters.filter { chapter in
             chapter.title.localizedCaseInsensitiveContains(query) ||
             chapter.subject.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    private var sortedChapters: [StudyDeck] {
+        chapters.sorted { lhs, rhs in
+            switch (lhs.position, rhs.position) {
+
+            case let (lhsPosition?, rhsPosition?):
+                if lhsPosition != rhsPosition {
+                    return lhsPosition < rhsPosition
+                }
+
+                return lhs.title.localizedCaseInsensitiveCompare(
+                    rhs.title
+                ) == .orderedAscending
+
+            case (.some, .none):
+                return true
+
+            case (.none, .some):
+                return false
+
+            case (.none, .none):
+                return lhs.title.localizedCaseInsensitiveCompare(
+                    rhs.title
+                ) == .orderedAscending
+            }
         }
     }
 
@@ -137,7 +166,9 @@ struct ChapterPickerSheet: View {
             HStack(spacing: 14) {
 
                 chapterIcon(
-                    isSelected: isSelected
+                    isSelected: isSelected,
+                    position: chapter.position
+                    
                 )
 
                 VStack(
@@ -235,24 +266,46 @@ struct ChapterPickerSheet: View {
     }
 
     private func chapterIcon(
-        isSelected: Bool
+        isSelected: Bool,
+        position: Int?
     ) -> some View {
-        Image(
-            systemName: "rectangle.stack.fill"
-        )
-        .font(.system(size: 15, weight: .semibold))
-        .foregroundStyle(
-            isSelected
-                ? Color.appAccent
-                : Color.appTextSecondary
-        )
+        ZStack {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(
+                    isSelected
+                        ? Color.appAccent.opacity(0.12)
+                        : Color.appSecondarySurface
+                )
+
+            if let position {
+                Text("\(position + 1)")
+                    .font(
+                        .custom(
+                            "PlusJakartaSans-SemiBold",
+                            size: 13
+                        )
+                    )
+                    .foregroundStyle(
+                        isSelected
+                            ? Color.appAccent
+                            : Color.appTextSecondary
+                    )
+            } else {
+                Image(systemName: "rectangle.stack.fill")
+                    .font(
+                        .system(
+                            size: 15,
+                            weight: .semibold
+                        )
+                    )
+                    .foregroundStyle(
+                        isSelected
+                            ? Color.appAccent
+                            : Color.appTextSecondary
+                    )
+            }
+        }
         .frame(width: 38, height: 38)
-        .background(
-            isSelected
-                ? Color.appAccent.opacity(0.12)
-                : Color.appSecondarySurface,
-            in: RoundedRectangle(cornerRadius: 8)
-        )
     }
 
     // MARK: - Empty State

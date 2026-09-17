@@ -80,7 +80,6 @@ private struct UnlockedDeckDetailsView: View {
 
     let deck: StudyDeck
 
-    @State private var isShowingMoveDeck = false
     @State private var isShowingCreateSubDeck = false
     @State private var isShowingEditDeck = false
     @State private var isShowingEditChapter = false
@@ -154,8 +153,28 @@ private struct UnlockedDeckDetailsView: View {
     private var childDecks: [StudyDeck] {
         deck.childDecks
             .filter { !$0.needsDeletion }
-            .sorted {
-                $0.createdAt < $1.createdAt
+            .sorted { lhs, rhs in
+                switch (lhs.position, rhs.position) {
+                case let (lhsPosition?, rhsPosition?):
+                    if lhsPosition != rhsPosition {
+                        return lhsPosition < rhsPosition
+                    }
+
+                    return lhs.title.localizedCaseInsensitiveCompare(
+                        rhs.title
+                    ) == .orderedAscending
+
+                case (.some, .none):
+                    return true
+
+                case (.none, .some):
+                    return false
+
+                case (.none, .none):
+                    return lhs.title.localizedCaseInsensitiveCompare(
+                        rhs.title
+                    ) == .orderedAscending
+                }
             }
     }
 
@@ -295,14 +314,17 @@ private struct UnlockedDeckDetailsView: View {
         .preferredColorScheme(.dark)
         .navigationBarBackButtonHidden()
 
-        .navigationDestination(
-            isPresented: $isShowingMoveDeck
-        ) {
-            if let deckToMove {
-                MoveDeckView(
-                    deck: deckToMove
-                )
-            }
+        .sheet(
+            item: $deckToMove
+        ) { deckToMove in
+            MoveDeckView(
+                deck: deckToMove
+            )
+            .presentationDetents([
+                .medium,
+                .large
+            ])
+            .presentationDragIndicator(.visible)
         }
 
         .navigationDestination(isPresented: $isShowingCreateSubDeck) {
@@ -364,8 +386,7 @@ private struct UnlockedDeckDetailsView: View {
                     }
 
                     deckToMove = selectedChapter
-                    isShowingMoveDeck = true
-                },  
+                },
                 onResetChapterProgress: {
                     isShowingMoreOptions = false
 
@@ -393,7 +414,6 @@ private struct UnlockedDeckDetailsView: View {
                 onMoveDeck: {
                     isShowingMoreOptions = false
                     deckToMove = deck
-                    isShowingMoveDeck = true
                 },
                 onManageCards: {
                     isShowingMoreOptions = false
@@ -556,21 +576,33 @@ private struct UnlockedDeckDetailsView: View {
             isShowingChapterPicker = true
         } label: {
             HStack(spacing: 12) {
-                Image(systemName: "rectangle.stack.fill")
-                    .font(
-                        .system(
-                            size: 15,
-                            weight: .semibold
-                        )
-                    )
-                    .foregroundStyle(Color.appAccent)
-                    .frame(width: 38, height: 38)
-                    .background(
-                        Color.appAccent.opacity(0.10),
-                        in: RoundedRectangle(
-                            cornerRadius: 8
-                        )
-                    )
+
+                // Chapter number / fallback icon
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.appAccent.opacity(0.10))
+
+                    if let position = selectedChapter?.position {
+                        Text("\(position + 1)")
+                            .font(
+                                .custom(
+                                    "PlusJakartaSans-SemiBold",
+                                    size: 13
+                                )
+                            )
+                            .foregroundStyle(Color.appAccent)
+                    } else {
+                        Image(systemName: "rectangle.stack.fill")
+                            .font(
+                                .system(
+                                    size: 15,
+                                    weight: .semibold
+                                )
+                            )
+                            .foregroundStyle(Color.appAccent)
+                    }
+                }
+                .frame(width: 38, height: 38)
 
                 VStack(
                     alignment: .leading,
@@ -589,9 +621,17 @@ private struct UnlockedDeckDetailsView: View {
                             )
                             .lineLimit(1)
 
-                        Text(
-                            "\(chapter.totalCardCount) card\(chapter.totalCardCount == 1 ? "" : "s")"
-                        )
+                        HStack(spacing: 6) {
+                            if let position = chapter.position {
+                                Text("Chapter \(position + 1)")
+
+                                Text("•")
+                            }
+
+                            Text(
+                                "\(chapter.totalCardCount) card\(chapter.totalCardCount == 1 ? "" : "s")"
+                            )
+                        }
                         .font(
                             .custom(
                                 "PlusJakartaSans-Regular",
@@ -601,6 +641,7 @@ private struct UnlockedDeckDetailsView: View {
                         .foregroundStyle(
                             Color.appTextSecondary
                         )
+
                     } else {
                         Text("Select a chapter")
                             .font(
