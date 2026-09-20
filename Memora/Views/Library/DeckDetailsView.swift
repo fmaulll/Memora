@@ -80,6 +80,7 @@ private struct UnlockedDeckDetailsView: View {
 
     let deck: StudyDeck
 
+    @State private var isShowingReorderChapters = false
     @State private var isShowingCreateSubDeck = false
     @State private var isShowingEditDeck = false
     @State private var isShowingEditChapter = false
@@ -327,6 +328,12 @@ private struct UnlockedDeckDetailsView: View {
             .presentationDragIndicator(.visible)
         }
 
+        .sheet(isPresented: $isShowingReorderChapters) {
+            ReorderChaptersView(parentDeck: deck)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+
         .navigationDestination(isPresented: $isShowingCreateSubDeck) {
             CreateOwnDeckView(
                 mode: .empty,
@@ -386,6 +393,10 @@ private struct UnlockedDeckDetailsView: View {
                     }
 
                     deckToMove = selectedChapter
+                },
+                onReorderChapter: {
+                    isShowingMoreOptions = false
+                    isShowingReorderChapters = true
                 },
                 onResetChapterProgress: {
                     isShowingMoreOptions = false

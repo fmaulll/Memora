@@ -12,6 +12,7 @@ struct DeckOptionsSheet: View {
     let onEditChapter: () -> Void
     let onCreateSubDeck: () -> Void
     let onMoveChapter: () -> Void
+    let onReorderChapter: () -> Void
     let onResetChapterProgress: () -> Void
     let onDeleteChapter: () -> Void
     let onCreateWithAI: () -> Void
@@ -95,6 +96,12 @@ struct DeckOptionsSheet: View {
                                 title: "Move Chapter",
                                 icon: "folder",
                                 action: onMoveChapter
+                            )
+
+                            optionButton(
+                                title: "Reorder Chapter",
+                                icon: "arrow.up.arrow.down",
+                                action: onReorderChapter
                             )
 
                             optionButton(
