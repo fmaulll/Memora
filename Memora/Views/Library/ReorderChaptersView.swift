@@ -53,42 +53,45 @@ struct ReorderChaptersView: View {
     }
 
     private func saveOrder() {
-        var hasChanges = false
+        let orderedChapterIds = chapters.map(\.id)
 
-        for (index, chapter) in chapters.enumerated() {
-            guard chapter.position != index else {
-                continue
+        Task {
+            do {
+                _ = try await DeckAPI.shared.reorderChapters(
+                    parentDeckId: parentDeck.id,
+                    chapterIds: orderedChapterIds
+                )
+
+                await MainActor.run {
+                    for (index, chapter) in chapters.enumerated() {
+                        chapter.position = index
+                    }
+
+                    do {
+                        try modelContext.save()
+
+                        print(
+                            "✅ CHAPTER ORDER SYNCED:",
+                            chapters.count,
+                            "chapters"
+                        )
+
+                        dismiss()
+
+                    } catch {
+                        print(
+                            "❌ FAILED TO SAVE CHAPTER ORDER LOCALLY:",
+                            error
+                        )
+                    }
+                }
+
+            } catch {
+                print(
+                    "❌ CHAPTER REORDER FAILED:",
+                    error
+                )
             }
-
-            chapter.position = index
-            chapter.isSynced = false
-
-            hasChanges = true
-
-            print(
-                "CHAPTER POSITION UPDATED:",
-                chapter.title,
-                "→",
-                index
-            )
-        }
-
-        guard hasChanges else {
-            dismiss()
-            return
-        }
-
-        do {
-            try modelContext.save()
-
-            print("CHAPTER ORDER SAVED LOCALLY")
-
-            dismiss()
-        } catch {
-            print(
-                "FAILED TO SAVE CHAPTER ORDER:",
-                error
-            )
         }
     }
 

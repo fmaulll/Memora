@@ -121,3 +121,11 @@ struct DeckUpdateRequest: Encodable {
         )
     }
 }
+
+struct ChapterReorderRequest: Encodable {
+    let chapterIds: [UUID]
+
+    enum CodingKeys: String, CodingKey {
+        case chapterIds = "chapter_ids"
+    }
+}

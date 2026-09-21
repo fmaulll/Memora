@@ -80,7 +80,7 @@ final class DeckAPI {
             learningLanguage: learningLanguage,
             isFavorite: isFavorite,
             parentDeckId: parentDeckId,
-            position: position ?? 0
+            position: position
         )
 
         return try await APIClient.shared.request(
@@ -99,6 +99,22 @@ final class DeckAPI {
         try await APIClient.shared.requestWithoutResponse(
             endpoint: "/decks/\(id)",
             method: .delete
+        )
+    }
+
+    func reorderChapters(
+        parentDeckId: UUID,
+        chapterIds: [UUID]
+    ) async throws -> [DeckResponse] {
+
+        let request = ChapterReorderRequest(
+            chapterIds: chapterIds
+        )
+
+        return try await APIClient.shared.request(
+            endpoint: "/decks/\(parentDeckId)/chapters/reorder",
+            method: .put,
+            body: request
         )
     }
 }
