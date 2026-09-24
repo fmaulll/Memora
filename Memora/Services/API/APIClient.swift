@@ -11,7 +11,7 @@ final class APIClient {
     private let baseURL = URL(
         // string: "http://127.0.0.1:8000"
 
-        string: "http://192.168.1.8:8000"
+        string: "http://192.168.1.13:8000"
     )!
 
     private let session: URLSession = {
@@ -22,49 +22,8 @@ final class APIClient {
         return URLSession(configuration: configuration)
     }()
 
-    private let decoder: JSONDecoder = {
-        let decoder = JSONDecoder()
-
-        decoder.dateDecodingStrategy = .custom { decoder in
-            let container = try decoder.singleValueContainer()
-            let string = try container.decode(String.self)
-
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [
-                .withInternetDateTime,
-                .withFractionalSeconds
-            ]
-
-            if let date = formatter.date(from: string) {
-                return date
-            }
-
-            formatter.formatOptions = [
-                .withInternetDateTime
-            ]
-
-            if let date = formatter.date(from: string) {
-                return date
-            }
-
-            throw DecodingError.dataCorrupted(
-                DecodingError.Context(
-                    codingPath: decoder.codingPath,
-                    debugDescription: "Invalid ISO8601 date: \(string)"
-                )
-            )
-        }
-
-        return decoder
-    }()
-
-    private let encoder: JSONEncoder = {
-        let encoder = JSONEncoder()
-
-        encoder.dateEncodingStrategy = .iso8601
-
-        return encoder
-    }()
+    private let decoder = APIJSON.makeDecoder()
+    private let encoder = APIJSON.makeEncoder()
 
     // MARK: - Request
 
@@ -321,37 +280,8 @@ final class APIClient {
         data: Data?
     ) throws {
 
-        switch response.statusCode {
-
-        case 200...299:
-            return
-
-        case 401:
-            throw APIError.unauthorized
-
-        default:
-
-            var message: String?
-
-            if let data,
-               !data.isEmpty {
-
-                struct ErrorResponse: Decodable {
-                    let detail: String?
-                }
-
-                if let errorResponse = try? decoder.decode(
-                    ErrorResponse.self,
-                    from: data
-                ) {
-                    message = errorResponse.detail
-                }
-            }
-
-            throw APIError.httpError(
-                statusCode: response.statusCode,
-                message: message
-            )
+        guard (200...299).contains(response.statusCode) else {
+            throw APIError.responseError(statusCode: response.statusCode, data: data)
         }
     }
 }

@@ -117,17 +117,15 @@ final class SyncManager {
             try LocalAccountStore.shared.validate(session)
             return true
 
-        } catch APIError.httpError(let statusCode, _) {
+        } catch let error as APIError where error.statusCode != nil {
+            let statusCode = error.statusCode!
             try LocalAccountStore.shared.validate(session)
 
             if statusCode == 404 {
                 return false
             }
 
-            throw APIError.httpError(
-                statusCode: statusCode,
-                message: nil
-            )
+            throw error
         }
     }
 
@@ -720,7 +718,8 @@ final class SyncManager {
 
                 modelContext.delete(deck)
 
-            } catch APIError.httpError(let statusCode, _) {
+            } catch let error as APIError where error.statusCode != nil {
+                let statusCode = error.statusCode!
                 try LocalAccountStore.shared.validate(session)
 
                 if statusCode == 404 {
@@ -807,7 +806,8 @@ final class SyncManager {
 
                 modelContext.delete(card)
 
-            } catch APIError.httpError(let statusCode, _) {
+            } catch let error as APIError where error.statusCode != nil {
+                let statusCode = error.statusCode!
                 try LocalAccountStore.shared.validate(session)
 
                 if statusCode == 404 {

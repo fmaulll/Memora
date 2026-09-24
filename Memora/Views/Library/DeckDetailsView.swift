@@ -1550,7 +1550,7 @@ private struct UnlockedDeckDetailsView: View {
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(Color.appBorder, lineWidth: 1)
                 }
-            } else if let exams = examProgression?.exams, !exams.isEmpty {
+            } else if let exams = examProgression?.exams.filter(\.applicable), !exams.isEmpty {
                 ForEach(exams) { exam in
                     examStatusCard(exam)
                 }
@@ -1570,7 +1570,7 @@ private struct UnlockedDeckDetailsView: View {
     private func examStatusCard(
         _ exam: ExamStatusResponse
     ) -> some View {
-        let isAvailable = exam.status != .locked &&
+        let isAvailable = exam.applicable && exam.available &&
             !isDeckGenerationInProgress
         let isThisExamGenerating = isGeneratingExam &&
             generatingExamType == exam.examType
@@ -1707,15 +1707,15 @@ private struct UnlockedDeckDetailsView: View {
     private func examStatusLabel(
         _ exam: ExamStatusResponse
     ) -> String {
-        if exam.status == .locked {
-            return "Locked"
+        if !exam.applicable {
+            return "Not applicable"
         }
 
-        if exam.status == .completed {
+        if exam.completed {
             return exam.passed ? "Passed" : "Not passed"
         }
 
-        return "Available"
+        return exam.available ? "Available" : "Locked"
     }
 
     private func loadExamProgressionIfNeeded() async {
@@ -1749,7 +1749,8 @@ private struct UnlockedDeckDetailsView: View {
     }
 
     private func generateExam(_ exam: ExamStatusResponse) {
-        guard exam.status != .locked,
+        guard exam.applicable, exam.available,
+              !isDeckGenerationInProgress,
               !isGeneratingExam else {
             return
         }

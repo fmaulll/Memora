@@ -20,6 +20,15 @@ final class ExamAPI {
 
     // MARK: - Generate Exam
 
+    func getSourceCards(
+        parentDeckID: UUID,
+        examType: ExamType
+    ) async throws -> ExamSourceCardsResponse {
+        try await APIClient.shared.request(
+            endpoint: "/decks/\(parentDeckID.uuidString)/exams/\(examType.rawValue)"
+        )
+    }
+
     func generateExam(
         parentDeckID: UUID,
         examType: ExamType

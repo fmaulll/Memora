@@ -20,6 +20,18 @@ struct CardResponse: Decodable {
         case createdAt = "created_at"
         case updatedAt = "updated_at"
     }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(UUID.self, forKey: .id)
+        deckId = try values.decode(UUID.self, forKey: .deckId)
+        front = try values.decode(String.self, forKey: .front)
+        back = try values.decode(String.self, forKey: .back)
+        frontImageURL = try values.decodeIfPresent(String.self, forKey: .frontImageURL)
+        backImageURL = try values.decodeIfPresent(String.self, forKey: .backImageURL)
+        createdAt = try values.decodeLegacyUTCDate(forKey: .createdAt)
+        updatedAt = try values.decodeLegacyUTCDate(forKey: .updatedAt)
+    }
 }
 
 
