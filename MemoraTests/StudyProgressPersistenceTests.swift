@@ -334,6 +334,7 @@ struct StudyProgressPersistenceTests {
             #expect(chapter.studyAllCompletedCount == 9 && chapter.isStudyAllSessionActive)
             #expect(chapter.studyAllBatchCardIDs == [ids.2])
             #expect(decks.allSatisfy { $0.cachedProgressEpoch == nil && $0.progressEpochFetchedAt == nil })
+            #expect(decks.allSatisfy { $0.studyProgressBindingData == nil && $0.studyAllProgressBindingData == nil })
             let cards = try context.fetch(FetchDescriptor<StudyFlashcardCard>())
             #expect(cards.count == 1)
             let card = try #require(cards.first)

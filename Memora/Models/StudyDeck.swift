@@ -22,6 +22,11 @@ final class StudyDeck {
     var cachedProgressEpoch: UUID?
     var progressEpochFetchedAt: Date?
 
+    // Separate normal/Study All bindings. Encoded nil epoch means explicitly
+    // unknown for that session; it must not be replaced by a later cache fetch.
+    var studyProgressBindingData: Data?
+    var studyAllProgressBindingData: Data?
+
     // Persist the first-deck gate across launches, including its chapters.
     var requiresSubscription: Bool = false
 

@@ -1,5 +1,7 @@
 # Study Timeline integration: architecture and S1
 
+S3 local capture is complete; see [the S3 implementation and verification](study-progress-s3.md).
+
 S2 is now implemented separately; see [S2 persistence and migration handoff](study-progress-s2.md)
 for the exact fields, account behavior, tests, and manual verification. The sections
 below preserve the original S1 architecture map and later-phase boundaries.

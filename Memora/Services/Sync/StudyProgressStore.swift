@@ -42,14 +42,43 @@ final class StudyProgressStore {
     private let accounts: LocalAccountStore
     private let session: UUID
     private let accountID: UUID
+    private let saveChanges: () throws -> Void
 
-    init(modelContext: ModelContext, accounts: LocalAccountStore? = nil) throws {
+    init(modelContext: ModelContext, accounts: LocalAccountStore? = nil,
+         saveChanges: (() throws -> Void)? = nil) throws {
         let accounts = accounts ?? .shared
         session = try accounts.session()
         guard let accountID = accounts.ownerID else { throw StudyProgressStorageError.accountUnavailable }
         self.accountID = accountID
         self.accounts = accounts
         self.modelContext = modelContext
+        self.saveChanges = saveChanges ?? { try modelContext.save() }
+    }
+
+    /// S3's transaction boundary: create/append the draft and stage the study
+    /// state before ONE save. The supplied owner is validated, never adopted.
+    func appendStudyEvent(_ event: PendingStudyEvent, capturedAccountID: UUID,
+                          draftID: UUID?, stageStudy: (UUID) throws -> Void) throws -> UUID {
+        try validateAccount()
+        guard capturedAccountID == accountID else { throw StudyProgressStorageError.wrongAccount }
+        let record: PendingStudyProgress
+        if let draftID {
+            record = try find(draftID)
+        } else {
+            record = PendingStudyProgress(accountID: accountID)
+        }
+        for other in try records() where other.id != record.id {
+            if let existing = try other.events().first(where: { $0.id == event.id }) {
+                guard existing == event else { throw StudyProgressStorageError.eventIdentityConflict }
+                throw StudyProgressStorageError.eventAlreadyRecordedInAnotherBatch
+            }
+        }
+        try save {
+            if draftID == nil { modelContext.insert(record) }
+            try record.append(event)
+            try stageStudy(record.id)
+        }
+        return record.id
     }
 
     func captureContext(deckID: UUID) throws -> StudyProgressContext {
@@ -173,7 +202,7 @@ final class StudyProgressStore {
     private func save(_ change: () throws -> Void) throws {
         do {
             try change()
-            try modelContext.save()
+            try saveChanges()
         } catch {
             modelContext.rollback()
             throw error

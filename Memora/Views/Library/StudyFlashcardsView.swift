@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 //  StudyFlashcardsView.swift
 //  Memora
@@ -51,246 +52,34 @@ private struct StudySessionSource {
     }
 }
 
+@MainActor
 struct StudyFlashcardsView: View {
     private let source: StudySessionSource
 
-    private var deck: StudyDeck? {
-        source.decks.count == 1 ? source.decks.first : nil
-    }
-
-    private var isCombinedSession: Bool {
-        source.kind == .combined
-    }
-
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-
-    // MARK: Study Session Queues
-    //
-    // `sessionCards` is the initial, one-pass-through queue for this session.
-    // Cards leave it permanently once rated — either into `learningCards`
-    // (Again/Hard) or straight to completion (Good/Easy).
-    //
-    // `learningCards` is the "learning boundary" queue. Once `sessionCards`
-    // is empty, Memora cycles ONLY through `learningCards` until every card
-    // in it has been rated Good or Easy. A card can never re-enter
-    // `learningCards` once it has left via Good/Easy.
-    @State private var sessionCards: [StudyFlashcardCard]
-    @State private var learningCards: [StudyFlashcardCard] = []
-
-    @State private var currentBatchCardIDs: Set<UUID> = []
-    @State private var lastPresentedCardID: UUID?
-    
+    @State private var study: StudySession
     @State private var isAnswerRevealed = false
-    @State private var isSessionComplete = false
-    @State private var completedCardCount = 0
+    @State private var saveErrorMessage: String?
+    @State private var failedRating: CardRating?
+
+    private var currentCard: StudyFlashcardCard? { study.currentCard }
+    private var completedCardCount: Int { study.completedCount }
+    private var currentBatchCardIDs: Set<UUID> { study.batchIDs }
+    private var isSessionComplete: Bool { study.isComplete }
 
     private let background = Color(red: 0.04, green: 0.04, blue: 0.13)
     private let accent = Color(red: 0.39, green: 0.40, blue: 0.95)
     private let subjectColor = Color(red: 0.13, green: 0.77, blue: 0.37)
 
-    private let spacedRepetitionService = SpacedRepetitionService()
-
-    // How many other learning-queue cards a requeued card is reinserted behind.
-    // Again resurfaces sooner than Hard, mirroring Anki's short learning steps.
-    private static let againRequeueDelay = 1
-    private static let hardRequeueDelay = 2
-    private static let studyBatchSize = 4
-
     init(deck: StudyDeck) {
-        let source = StudySessionSource(deck: deck)
-
-        self.source = source
-
-        let cardsByID = Dictionary(
-            uniqueKeysWithValues: source.cards.map {
-                ($0.id, $0)
-            }
-        )
-
-        if deck.isStudySessionActive {
-
-            let restoredSessionCards =
-                deck.studyQueueIDs.compactMap {
-                    cardsByID[$0]
-                }
-
-            let restoredLearningCards =
-                deck.learningQueueIDs.compactMap {
-                    cardsByID[$0]
-                }
-
-            _sessionCards = State(
-                initialValue: restoredSessionCards
-            )
-
-            _learningCards = State(
-                initialValue: restoredLearningCards
-            )
-
-            _completedCardCount = State(
-                initialValue: deck.studyCompletedCount
-            )
-
-            // For now, rebuild the active batch from the
-            // cards at the front of the restored queues.
-            let activeCards =
-                restoredLearningCards.isEmpty
-                    ? Array(
-                        restoredSessionCards.prefix(
-                            Self.studyBatchSize
-                        )
-                    )
-                    : restoredLearningCards
-
-            let restoredBatchIDs: Set<UUID>
-
-            if !deck.studyBatchCardIDs.isEmpty {
-                restoredBatchIDs = Set(
-                    deck.studyBatchCardIDs
-                )
-            } else {
-                restoredBatchIDs = Set(
-                    activeCards.map(\.id)
-                )
-            }
-
-            _currentBatchCardIDs = State(
-                initialValue: restoredBatchIDs
-            )
-
-        } else {
-            _sessionCards = State(
-                initialValue: source.cards
-            )
-
-            _learningCards = State(
-                initialValue: []
-            )
-
-            _completedCardCount = State(
-                initialValue: 0
-            )
-
-            _currentBatchCardIDs = State(
-                initialValue: Self.makeBatchIDs(
-                    from: source.cards
-                )
-            )
-        }
+        source = StudySessionSource(deck: deck)
+        _study = State(initialValue: StudySession(decks: [deck], combined: false))
     }
-    
+
     init(decks: [StudyDeck]) {
-
-        let source = StudySessionSource(decks: decks)
-
-        self.source = source
-
-        let cardsByID = Dictionary(
-            uniqueKeysWithValues: source.cards.map {
-                ($0.id, $0)
-            }
-        )
-
-        let hasActiveStudyAllSession = decks.contains {
-            $0.isStudyAllSessionActive
-        }
-
-        if hasActiveStudyAllSession {
-
-            let queue = decks.flatMap { deck in
-                deck.studyAllQueueIDs.compactMap {
-                    cardsByID[$0]
-                }
-            }
-
-            let learning = decks.flatMap { deck in
-                deck.studyAllLearningQueueIDs.compactMap {
-                    cardsByID[$0]
-                }
-            }
-
-            _sessionCards = State(
-                initialValue: queue
-            )
-
-            _learningCards = State(
-                initialValue: learning
-            )
-
-            _completedCardCount = State(
-                initialValue: decks.reduce(0) {
-                    $0 + $1.studyAllCompletedCount
-                }
-            )
-
-            let savedBatchCardIDs = Set(
-                decks.flatMap {
-                    $0.studyAllBatchCardIDs
-                }
-            )
-
-            _currentBatchCardIDs = State(
-                initialValue:
-                    savedBatchCardIDs.isEmpty
-                        ? Self.makeBatchIDs(from: queue)
-                        : savedBatchCardIDs
-            )
-
-        } else {
-
-            _sessionCards = State(
-                initialValue: source.cards
-            )
-
-            _learningCards = State(
-                initialValue: []
-            )
-
-            _completedCardCount = State(
-                initialValue: 0
-            )
-
-            _currentBatchCardIDs = State(
-                initialValue: Self.makeBatchIDs(
-                    from: source.cards
-                )
-            )
-        }
-    }
-
-    // The card currently on screen: the initial queue is always shown first,
-    // then the learning queue once the initial queue is exhausted.
-    private var currentCard: StudyFlashcardCard? {
-
-        // Cards in the current batch that have
-        // not been seen for the first time yet.
-        let newCards = sessionCards.filter {
-            currentBatchCardIDs.contains($0.id)
-        }
-
-        // Always prefer new cards first.
-        if let card = newCards.first(
-            where: {
-                $0.id != lastPresentedCardID
-            }
-        ) {
-            return card
-        }
-
-        // Once there are no new cards left,
-        // continue through the review queue.
-        if let card = learningCards.first(
-            where: {
-                $0.id != lastPresentedCardID
-            }
-        ) {
-            return card
-        }
-
-        // If the same card is literally the only
-        // active card remaining, repeating it is unavoidable.
-        return newCards.first ?? learningCards.first
+        source = StudySessionSource(decks: decks)
+        _study = State(initialValue: StudySession(decks: decks, combined: true))
     }
 
     private var progress: Double {
@@ -321,15 +110,7 @@ struct StudyFlashcardsView: View {
         return index + 1
     }
 
-    private var isCurrentCardReview: Bool {
-        guard let card = currentCard else {
-            return false
-        }
-
-        return learningCards.contains {
-            $0.id == card.id
-        }
-    }
+    private var isCurrentCardReview: Bool { study.isCurrentCardReview }
 
     private var studyPhaseTitle: String {
         isCurrentCardReview
@@ -339,7 +120,7 @@ struct StudyFlashcardsView: View {
 
     private var currentBatchNumber: Int {
         let completedBatches =
-            completedCardCount / Self.studyBatchSize
+            completedCardCount / StudySession.batchSize
 
         return completedBatches + 1
     }
@@ -352,49 +133,13 @@ struct StudyFlashcardsView: View {
         return Int(
             ceil(
                 Double(source.cards.count) /
-                Double(Self.studyBatchSize)
+                Double(StudySession.batchSize)
             )
         )
     }
 
     private var currentBatchSize: Int {
         currentBatchCardIDs.count
-    }
-
-    private static func makeBatchIDs(
-        from cards: [StudyFlashcardCard]
-    ) -> Set<UUID> {
-        Set(
-            cards
-                .prefix(studyBatchSize)
-                .map(\.id)
-        )
-    }
-
-    private var hasActiveBatchCards: Bool {
-        let hasNewCardsInBatch = sessionCards.contains {
-            currentBatchCardIDs.contains($0.id)
-        }
-
-        let hasLearningCardsInBatch = learningCards.contains {
-            currentBatchCardIDs.contains($0.id)
-        }
-
-        return hasNewCardsInBatch || hasLearningCardsInBatch
-    }
-
-    private func loadNextBatchIfNeeded() {
-        guard !hasActiveBatchCards else {
-            return
-        }
-
-        guard !sessionCards.isEmpty else {
-            return
-        }
-
-        currentBatchCardIDs = Self.makeBatchIDs(
-            from: sessionCards
-        )
     }
 
     var body: some View {
@@ -405,8 +150,7 @@ struct StudyFlashcardsView: View {
 
                 HStack {
                     Button {
-                        saveStudySession()
-                        dismiss()
+                        closeSession()
                     } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 16, weight: .medium))
@@ -450,6 +194,24 @@ struct StudyFlashcardsView: View {
         }
         .preferredColorScheme(.dark)
         .navigationBarBackButtonHidden(true)
+        .onAppear { startSession() }
+        .alert("Could not save study progress", isPresented: Binding(
+            get: { saveErrorMessage != nil },
+            set: { if !$0 { saveErrorMessage = nil } }
+        )) {
+            Button("Try Again") {
+                if let failedRating {
+                    rateCard(failedRating, presentationID: study.presentationID)
+                } else if !study.isStarted {
+                    startSession()
+                } else {
+                    closeSession()
+                }
+            }
+            Button("Stay here", role: .cancel) { }
+        } message: {
+            Text(saveErrorMessage ?? "Your answer was not saved. Please try again.")
+        }
     }
 
     private var batchContext: some View {
@@ -504,7 +266,8 @@ struct StudyFlashcardsView: View {
     // MARK: Study Content
 
     private func studyContent(card: StudyFlashcardCard) -> some View {
-        VStack(spacing: 0) {
+        let presentationID = study.presentationID
+        return VStack(spacing: 0) {
 
             Spacer(minLength: 24)
 
@@ -531,18 +294,26 @@ struct StudyFlashcardsView: View {
 
             // MARK: Bottom Content
 
-            if isAnswerRevealed {
+            if isAnswerRevealed && study.isStarted {
                 RatingControls(
                     onRate: { rating in
-                        rateCard(rating)
+                        rateCard(rating, presentationID: presentationID)
                     }
                 )
+                .disabled(failedRating != nil)
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
                 .transition(
                     .opacity
                     .combined(with: .move(edge: .bottom))
                 )
+            }
+
+            if let failedRating {
+                Button("Retry saving answer") {
+                    rateCard(failedRating, presentationID: study.presentationID)
+                }
+                .padding(.top, 12)
             }
 
             Spacer(minLength: 20)
@@ -565,263 +336,37 @@ struct StudyFlashcardsView: View {
         }
     }
 
-    // MARK: Rating
-    private func rateCard(_ rating: CardRating) {
-        guard let card = currentCard else {
-            return
-        }
+    // MARK: Local persistence
 
-        lastPresentedCardID = card.id
-
-        spacedRepetitionService.review(
-            card: card,
-            rating: rating
-        )
-
-        if sessionCards.contains(where: { $0.id == card.id }) {
-            handleInitialCardRating(
-                card,
-                rating
-            )
-        } else {
-            handleLearningCardRating(
-                card,
-                rating
-            )
-        }
-
-        isAnswerRevealed = false
-
-        // If the current batch has been completely learned,
-        // move on to the next group of new cards.
-        loadNextBatchIfNeeded()
-
-        if sessionCards.isEmpty && learningCards.isEmpty {
-            finishStudySession()
-        } else {
-            saveStudySession()
-
-            withAnimation(.easeInOut(duration: 0.25)) {
-                advanceToNextCard()
-            }
-        }
-    }
-
-    /// Handles a rating for a card still in the initial, one-pass-through queue.
-    /// Good/Easy leave the session for good; Again/Hard move into the learning queue.
-    private func handleInitialCardRating(
-        _ card: StudyFlashcardCard,
-        _ rating: CardRating
-    ) {
-        sessionCards.removeAll {
-            $0.id == card.id
-        }
-
-        switch rating {
-
-        case .again, .hard:
-            // Failed on the first encounter.
-            // Put it into the review queue with a short delay.
-            requeueLearningCard(
-                card,
-                rating: .again
-            )
-
-        case .good, .easy:
-            // Even if the user got it right the first time,
-            // require one later recall before completing it.
-            learningCards.append(card)
-        }
-    }
-
-    /// Handles a rating for a card being cycled through the learning queue.
-    /// A card can only leave the learning queue permanently via Good/Easy.
-    private func handleLearningCardRating(
-        _ card: StudyFlashcardCard,
-        _ rating: CardRating
-    ) {
-        learningCards.removeAll {
-            $0.id == card.id
-        }
-
-        switch rating {
-
-        case .again, .hard:
-            // Still struggling.
-            // Keep the card in review and show it again later.
-            requeueLearningCard(
-                card,
-                rating: .again
-            )
-
-        case .good, .easy:
-            // Successful recall during REVIEW.
-            // This card is finished for this study session.
-            completedCardCount += 1
-        }
-    }
-
-    /// Reinserts a struggling card into the learning queue at a short delay.
-    /// Again resurfaces sooner than Hard; Good/Easy never call this.
-    private func requeueLearningCard(_ card: StudyFlashcardCard, rating: CardRating) {
-        let requeueDelay: Int
-
-        switch rating {
-        case .again:
-            requeueDelay = Self.againRequeueDelay
-        case .hard:
-            requeueDelay = Self.hardRequeueDelay
-        case .good, .easy:
-            return
-        }
-
-        let insertionIndex = min(requeueDelay, learningCards.count)
-        learningCards.insert(card, at: insertionIndex)
-    }
-
-    private func saveStudySession() {
-        if isCombinedSession {
-            saveCombinedStudySession()
-            return
-        }
-
-        guard let deck else {
-            return
-        }
-
-        deck.studyQueueIDs = sessionCards.map(\.id)
-        deck.learningQueueIDs = learningCards.map(\.id)
-        deck.studyCompletedCount = completedCardCount
-        deck.isStudySessionActive = true
-
-        deck.studyBatchCardIDs = Array(
-            currentBatchCardIDs
-        )
-
+    private func startSession() {
         do {
-            try modelContext.save()
+            try study.start(context: modelContext)
         } catch {
-            print("❌ Failed to save study session:", error)
+            saveErrorMessage = "Your session could not be saved. Please try again."
         }
     }
 
-    private func saveCombinedStudySession() {
-
-        for childDeck in source.decks {
-
-            let childCards = childDeck.cards.filter {
-                !$0.needsDeletion
-            }
-
-            let childCardIDs = Set(
-                childCards.map(\.id)
-            )
-
-            let childSessionCards = sessionCards.filter {
-                childCardIDs.contains($0.id)
-            }
-
-            let childLearningCards = learningCards.filter {
-                childCardIDs.contains($0.id)
-            }
-
-            let completedCount =
-                childCards.count
-                - childSessionCards.count
-                - childLearningCards.count
-
-            childDeck.studyAllQueueIDs =
-                childSessionCards.map(\.id)
-
-            childDeck.studyAllLearningQueueIDs =
-                childLearningCards.map(\.id)
-
-            childDeck.studyAllCompletedCount =
-                max(completedCount, 0)
-
-            childDeck.isStudyAllSessionActive =
-                !childSessionCards.isEmpty ||
-                !childLearningCards.isEmpty
-
-            childDeck.studyAllBatchCardIDs = Array(
-                currentBatchCardIDs.filter { cardID in
-                    childDeck.cards.contains { card in
-                        card.id == cardID
-                    }
-                }
-            )
-        }
-
+    private func rateCard(_ rating: CardRating, presentationID: UUID) {
+        guard isAnswerRevealed else { return }
         do {
-            try modelContext.save()
+            if try study.rate(rating, expectedPresentation: presentationID) {
+                failedRating = nil
+                isAnswerRevealed = false
+            }
         } catch {
-            print(
-                "❌ Failed to save Study All session:",
-                error
-            )
+            if failedRating == nil { failedRating = rating }
+            saveErrorMessage = "Your answer was not saved. It is still on this card. Please try again."
         }
     }
 
-    /// The session only completes once both the initial queue and the
-    /// learning queue are empty — never just because `sessionCards` ran out.
-    private func advanceToNextCard() {
-        if sessionCards.isEmpty && learningCards.isEmpty {
-            isSessionComplete = true
-        }
-    }
-
-    private func finishStudySession() {
-
-        isSessionComplete = true
-
-        if isCombinedSession {
-            finishCombinedStudySession()
-            return
-        }
-
-        guard let deck else {
-            return
-        }
-
-        deck.studyQueueIDs = []
-        deck.learningQueueIDs = []
-        deck.studyCompletedCount = 0
-        deck.isStudySessionActive = false
-
-        deck.studyBatchCardIDs = []
-
+    private func closeSession() {
         do {
-            try modelContext.save()
+            // Start/save errors must not silently dismiss an unpersisted session.
+            if !study.isStarted { try study.start(context: modelContext) }
+            try study.saveForExit()
+            dismiss()
         } catch {
-            print(
-                "❌ Failed to finish study session:",
-                error
-            )
-        }
-    }
-
-    private func finishCombinedStudySession() {
-
-        for deck in source.decks {
-
-            deck.studyAllQueueIDs = []
-
-            deck.studyAllLearningQueueIDs = []
-
-            deck.studyAllCompletedCount = 0
-
-            deck.isStudyAllSessionActive = false
-
-            deck.studyAllBatchCardIDs = []
-        }
-
-        do {
-            try modelContext.save()
-        } catch {
-            print(
-                "❌ Failed to finish Study All session:",
-                error
-            )
+            saveErrorMessage = "Your session could not be saved. Please try again."
         }
     }
 

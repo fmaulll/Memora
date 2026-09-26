@@ -1,5 +1,8 @@
 # Swift S2: durable local study progress
 
+S3 local capture is now implemented; see [the S3 handoff](study-progress-s3.md).
+The description below records the S2 boundary and persistence foundation.
+
 S2 adds local persistence only. There are no callers in StudyFlashcardsView, no
 progress uploads, no reset integration, and no timeline or notification changes.
 
