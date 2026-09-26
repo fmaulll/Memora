@@ -3,6 +3,9 @@ import SwiftData
 import Testing
 @testable import Memora
 
+// Disk fixtures and URLProtocol callbacks share the main actor. Serialize test
+// cases so fixture creation cannot exhaust production network timeout budgets.
+@Suite(.serialized)
 @MainActor
 struct StudyProgressSyncTests {
     @Test func freshFetchCachesRealEpochBeforeBinding() async throws {
@@ -455,14 +458,14 @@ struct StudyProgressSyncTests {
         #expect(try f.store().pending().first?.state == .reconciliationRequired)
     }
 
-    @MainActor private final class Signal {
+    @MainActor final class Signal {
         private var ready = false
         private var waiters: [CheckedContinuation<Void, Never>] = []
         func wait() async { if !ready { await withCheckedContinuation { waiters.append($0) } } }
         func open() { ready = true; waiters.forEach { $0.resume() }; waiters = [] }
     }
 
-    @MainActor private final class Fixture {
+    @MainActor final class Fixture {
         let directory: URL
         let suite = "StudyProgressSyncTests.\(UUID())"
         let defaults: UserDefaults

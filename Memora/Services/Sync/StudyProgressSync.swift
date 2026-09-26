@@ -5,10 +5,10 @@ import SwiftData
 @MainActor
 final class StudyProgressSync {
     static let shared = StudyProgressSync()
-    private let api: StudyProgressAPI
-    private let accounts: LocalAccountStore
+    let api: StudyProgressAPI
+    let accounts: LocalAccountStore
     private let refresh: () async throws -> Void
-    private var flushing = Set<UUID>()
+    let gate = StudyProgressGate()
 
     init(api: StudyProgressAPI? = nil, accounts: LocalAccountStore? = nil,
          refresh: @escaping () async throws -> Void = { _ = try await AuthAPI.shared.refreshAccessToken() }) {
@@ -64,13 +64,16 @@ final class StudyProgressSync {
               let store = try? StudyProgressStore(modelContext: context, accounts: accounts) else { return }
         do { try store.sealDrafts() }
         catch { Self.log("sealing deferred"); return }
-        guard flushing.insert(owner).inserted else { return }
-        defer { flushing.remove(owner) }
+        guard gate.tryAcquire(owner) else { return }
+        defer { gate.release(owner) }
+        await StudyProgressResetSync(progress: self).recover(context: context)
+        guard let resetStore = try? StudyResetStore(context: context, accounts: accounts) else { return }
         var attempted = Set<UUID>()
         do {
             while true {
                 try accounts.validate(session)
                 try Task.checkCancellation()
+                if gate.hasWaiter(owner) { return }
                 let pending = try store.pending().sorted {
                     ($0.completedAt ?? $0.createdAt) < ($1.completedAt ?? $1.createdAt)
                 }
@@ -78,6 +81,7 @@ final class StudyProgressSync {
                     !attempted.contains($0.id) && ($0.state == .sealed || $0.state == .reconciliationRequired)
                 }) else { return }
                 attempted.insert(item.id)
+                if try resetStore.uploadIsFenced(deckIDs: Set(item.events.map(\.deckID))) { continue }
                 if item.state == .reconciliationRequired {
                     try await reconcile(item, store: store, session: session)
                     continue
@@ -122,7 +126,7 @@ final class StudyProgressSync {
         }
     }
 
-    private func authenticated<T>(session: UUID, operation: () async throws -> T) async throws -> T {
+    func authenticated<T>(session: UUID, operation: () async throws -> T) async throws -> T {
         try accounts.validate(session)
         do { return try await operation() }
         catch {

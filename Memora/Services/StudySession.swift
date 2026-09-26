@@ -26,6 +26,7 @@ final class StudySession {
     private(set) var reachedFlushBoundary = false
     private var lastPresentedCardID: UUID?
 
+    @ObservationIgnored private let resetIDs: [UUID: UUID]
     @ObservationIgnored let wasResuming: Bool
     @ObservationIgnored private var bindings: [UUID: StudySessionEpochBinding] = [:]
     @ObservationIgnored private var context: ModelContext?
@@ -47,6 +48,7 @@ final class StudySession {
 
     init(decks: [StudyDeck], combined: Bool) {
         self.decks = decks
+        resetIDs = Dictionary(uniqueKeysWithValues: decks.compactMap { deck in deck.lastStudyResetID.map { (deck.id, $0) } })
         isCombined = combined
         cards = decks.flatMap(\.cards).filter { !$0.needsDeletion }
         let byID = Dictionary(uniqueKeysWithValues: cards.map { ($0.id, $0) })
@@ -87,6 +89,7 @@ final class StudySession {
                saveChanges: (() throws -> Void)? = nil) throws {
         guard !isStarted else { return }
         let accounts = accounts ?? .shared
+        try validateReset(context: context, owner: accounts.ownerID)
         if self.context != nil, accounts.ownerID != ownerAtStart {
             throw StudyProgressStorageError.wrongAccount
         }
@@ -129,6 +132,7 @@ final class StudySession {
         guard isStarted, expectedPresentation == presentationID,
               let context, let accounts else { return false }
         guard accounts.ownerID == ownerAtStart else { throw StudyProgressStorageError.wrongAccount }
+        try validateReset(context: context, owner: accounts.ownerID)
         guard let card = currentCard else { return false }
 
         // Qualification is captured BEFORE any counters or queues mutate.
@@ -259,6 +263,10 @@ final class StudySession {
     func saveForExit() throws {
         guard isStarted, let context, let accounts else { return }
         guard accounts.ownerID == ownerAtStart else { throw StudyProgressStorageError.wrongAccount }
+        // An intentional reset has already saved empty queues. Never resurrect
+        // them when an old controller later exits.
+        if decks.contains(where: { $0.lastStudyResetID != resetIDs[$0.id] }) { return }
+        try validateReset(context: context, owner: accounts.ownerID)
         do {
             try stageSession()
             try saveChanges?()
@@ -266,6 +274,11 @@ final class StudySession {
             context.rollback()
             throw error
         }
+    }
+
+    private func validateReset(context: ModelContext, owner: UUID?) throws {
+        guard !decks.contains(where: { $0.lastStudyResetID != resetIDs[$0.id] }) else { throw StudyResetError.sessionInvalidated }
+        try StudyResetStore.assertStudyAllowed(context: context, owner: owner, deckIDs: Set(decks.map(\.id)))
     }
 
     /// Same queue/count formulas as the original view. Finishing clears local

@@ -20,6 +20,10 @@ final class StudyProgressAPI {
         )
     }
 
+    func reset(deckID: UUID, payload: Data) async throws -> StudyProgressResetResponse {
+        try await client.request(endpoint: "/decks/\(deckID)/study-progress/reset", method: .post, rawJSONBody: payload)
+    }
+
     func reset(deckID: UUID, request: StudyProgressResetRequest) async throws -> StudyProgressResetResponse {
         try await client.request(
             endpoint: "/decks/\(deckID)/study-progress/reset", method: .post, body: request

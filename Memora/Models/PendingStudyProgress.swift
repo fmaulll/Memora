@@ -61,6 +61,13 @@ final class PendingStudyProgress {
         stateRawValue = (reconcile ? PendingStudyProgressState.reconciliationRequired : .terminalFailure).rawValue
     }
 
+    // Restore live observed state after a failed transaction/SwiftData rollback.
+    // This never changes event identity or sealed request bytes.
+    func restoreFailureState(_ state: String, code: String?) {
+        stateRawValue = state
+        failureCode = code
+    }
+
     func events() throws -> [PendingStudyEvent] {
         // Local event timestamps retain full Date precision, independent of the
         // backend's wire encoder. A malformed record must never become empty work.

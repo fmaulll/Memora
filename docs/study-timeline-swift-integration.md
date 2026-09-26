@@ -1,5 +1,7 @@
 # Study Timeline integration: architecture and S1
 
+S5 backend Reset Progress is implemented; see [the S5 durability design and verification steps](study-progress-s5.md).
+
 S4 synchronization is complete; see [the S4 implementation, verification, and live-backend steps](study-progress-s4.md).
 
 S3 local capture is complete; see [the S3 implementation and verification](study-progress-s3.md).

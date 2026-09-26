@@ -21,6 +21,8 @@ final class StudyDeck {
     // Backend-owned, per card-owning deck. nil means unknown; never inherit it.
     var cachedProgressEpoch: UUID?
     var progressEpochFetchedAt: Date?
+    // Invalidates an already-open controller after intentional Reset Progress.
+    var lastStudyResetID: UUID?
 
     // Separate normal/Study All bindings. Encoded nil epoch means explicitly
     // unknown for that session; it must not be replaced by a later cache fetch.

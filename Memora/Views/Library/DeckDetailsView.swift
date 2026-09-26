@@ -87,6 +87,11 @@ private struct UnlockedDeckDetailsView: View {
     @State private var deckToManageCards: StudyDeck?
     @State private var deckToMove: StudyDeck?
     @State private var deckToReset: StudyDeck?
+    @State private var isResettingProgress = false
+    @State private var resetError: String?
+    @State private var resetCanRetry = true
+    @State private var resetScopeID: UUID?
+    @State private var resetOperationID: UUID?
     @State private var deckToDelete: StudyDeck?
     @State private var isShowingEditCards = false
     @State private var isShowingMoreOptions = false
@@ -399,6 +404,7 @@ private struct UnlockedDeckDetailsView: View {
                     isShowingReorderChapters = true
                 },
                 onResetChapterProgress: {
+                    guard !isResettingProgress else { return }
                     isShowingMoreOptions = false
 
                     guard let selectedChapter else {
@@ -436,6 +442,7 @@ private struct UnlockedDeckDetailsView: View {
                     isShowingEditCards = true
                 },
                 onResetProgress: {
+                    guard !isResettingProgress else { return }
                     isShowingMoreOptions = false
                     deckToReset = nil
                     isShowingResetConfirmation = true
@@ -457,6 +464,21 @@ private struct UnlockedDeckDetailsView: View {
             .presentationBackground(.clear)
         }
 
+        .disabled(isResettingProgress)
+        .overlay {
+            if isResettingProgress {
+                ProgressView("Resetting progress…")
+                    .padding(24)
+                    .background(Color.appSurface, in: RoundedRectangle(cornerRadius: 8))
+            }
+        }
+        .alert("Reset could not finish", isPresented: Binding(
+            get: { resetError != nil }, set: { if !$0 { resetError = nil } }
+        )) {
+            if resetCanRetry { Button("Try Again") { resetProgress() } }
+            Button("Close", role: .cancel) { }
+        } message: { Text(resetError ?? "") }
+
         .alert(
             deckToReset != nil
                 ? "Reset Chapter Progress?"
@@ -468,6 +490,8 @@ private struct UnlockedDeckDetailsView: View {
             }
 
             Button("Reset", role: .destructive) {
+                resetOperationID = nil
+                resetScopeID = (deckToReset ?? deck).id
                 resetProgress()
                 deckToReset = nil
             }
@@ -1257,54 +1281,20 @@ private struct UnlockedDeckDetailsView: View {
     }
 
     private func resetProgress() {
-        let decksToReset: [StudyDeck]
-
-        if let deckToReset {
-            // Reset only the selected chapter.
-            decksToReset = [deckToReset]
-        } else if isParentDeck {
-            // Reset every chapter under the parent deck.
-            decksToReset = childDecks
-        } else {
-            // Reset the standalone deck.
-            decksToReset = [deck]
-        }
-
-        for targetDeck in decksToReset {
-
-            // Reset every card's spaced-repetition progress
-            for card in targetDeck.cards where !card.needsDeletion {
-                card.reviewCount = 0
-                card.correctCount = 0
-                card.lastReviewedAt = nil
-                card.nextReviewAt = nil
-                card.difficulty = 0.0
-                card.interval = 0
+        guard !isResettingProgress, let scopeID = resetScopeID else { return }
+        isResettingProgress = true
+        resetError = nil
+        Task { @MainActor in
+            defer { isResettingProgress = false }
+            do {
+                try await StudyProgressResetSync.shared.reset(scopeID: scopeID, context: modelContext, operationID: resetOperationID) {
+                    resetOperationID = $0
+                }
+            } catch {
+                let resetFailure = error as? StudyResetError
+                resetCanRetry = resetFailure?.canRetry ?? true
+                resetError = resetFailure?.localizedDescription ?? StudyResetError.unavailable.localizedDescription
             }
-
-            // Reset normal study session
-            targetDeck.studyQueueIDs = []
-            targetDeck.learningQueueIDs = []
-            targetDeck.studyCompletedCount = 0
-            targetDeck.isStudySessionActive = false
-
-            // Reset Study All session
-            targetDeck.studyAllQueueIDs = []
-            targetDeck.studyAllLearningQueueIDs = []
-            targetDeck.studyAllCompletedCount = 0
-            targetDeck.isStudyAllSessionActive = false
-            targetDeck.studyAllBatchCardIDs = []
-        }
-
-        do {
-            try modelContext.save()
-
-            print("========== PROGRESS RESET ==========")
-            print("DECK:", deck.title)
-            print("RESET DECKS:", decksToReset.count)
-
-        } catch {
-            print("❌ RESET PROGRESS ERROR:", error)
         }
     }
 

@@ -347,7 +347,7 @@ struct StudyFlashcardsView: View {
         do {
             try study.start(context: modelContext)
         } catch {
-            saveErrorMessage = "Your session could not be saved. Please try again."
+            saveErrorMessage = (error as? StudyResetError)?.localizedDescription ?? "Your session could not be saved. Please try again."
         }
     }
 
@@ -361,7 +361,7 @@ struct StudyFlashcardsView: View {
             }
         } catch {
             if failedRating == nil { failedRating = rating }
-            saveErrorMessage = "Your answer was not saved. It is still on this card. Please try again."
+            saveErrorMessage = (error as? StudyResetError)?.localizedDescription ?? "Your answer was not saved. It is still on this card. Please try again."
         }
     }
 
@@ -376,6 +376,9 @@ struct StudyFlashcardsView: View {
             if !study.isStarted { try study.start(context: modelContext) }
             try study.saveForExit()
             flushProgress()
+            dismiss()
+        } catch is StudyResetError {
+            // Reset owns persisted state; closing this old screen must not write it.
             dismiss()
         } catch {
             saveErrorMessage = "Your session could not be saved. Please try again."
