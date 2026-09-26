@@ -1,5 +1,7 @@
 # Study Timeline integration: architecture and S1
 
+S4 synchronization is complete; see [the S4 implementation, verification, and live-backend steps](study-progress-s4.md).
+
 S3 local capture is complete; see [the S3 implementation and verification](study-progress-s3.md).
 
 S2 is now implemented separately; see [S2 persistence and migration handoff](study-progress-s2.md)

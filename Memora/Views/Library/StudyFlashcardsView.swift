@@ -194,7 +194,12 @@ struct StudyFlashcardsView: View {
         }
         .preferredColorScheme(.dark)
         .navigationBarBackButtonHidden(true)
-        .onAppear { startSession() }
+        .task {
+            let revision = LocalAccountStore.shared.revision
+            await StudyProgressSync.shared.prepare(study, context: modelContext)
+            guard !Task.isCancelled, LocalAccountStore.shared.revision == revision else { return }
+            startSession()
+        }
         .alert("Could not save study progress", isPresented: Binding(
             get: { saveErrorMessage != nil },
             set: { if !$0 { saveErrorMessage = nil } }
@@ -300,7 +305,7 @@ struct StudyFlashcardsView: View {
                         rateCard(rating, presentationID: presentationID)
                     }
                 )
-                .disabled(failedRating != nil)
+                .disabled(!study.isStarted || failedRating != nil)
                 .padding(.horizontal, 20)
                 .padding(.top, 16)
                 .transition(
@@ -352,6 +357,7 @@ struct StudyFlashcardsView: View {
             if try study.rate(rating, expectedPresentation: presentationID) {
                 failedRating = nil
                 isAnswerRevealed = false
+                if study.reachedFlushBoundary { flushProgress() }
             }
         } catch {
             if failedRating == nil { failedRating = rating }
@@ -359,11 +365,17 @@ struct StudyFlashcardsView: View {
         }
     }
 
+    private func flushProgress() {
+        // Independent task: dismissing the view must not cancel a persisted upload.
+        Task { await StudyProgressSync.shared.flush(context: modelContext) }
+    }
+
     private func closeSession() {
         do {
             // Start/save errors must not silently dismiss an unpersisted session.
             if !study.isStarted { try study.start(context: modelContext) }
             try study.saveForExit()
+            flushProgress()
             dismiss()
         } catch {
             saveErrorMessage = "Your session could not be saved. Please try again."
@@ -512,7 +524,7 @@ struct StudyFlashcardsView: View {
             // MARK: Done
 
             Button {
-                dismiss()
+                closeSession()
             } label: {
                 HStack(spacing: 8) {
                     Text("Done")

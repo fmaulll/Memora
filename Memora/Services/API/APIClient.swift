@@ -4,23 +4,25 @@ final class APIClient {
 
     static let shared = APIClient()
 
-    private init() {}
+    private let accounts: LocalAccountStore?
+    private let accessToken: () throws -> String?
 
-    // MARK: - Configuration
-
-    private let baseURL = URL(
-        // string: "http://127.0.0.1:8000"
-
-        string: "http://192.168.1.13:8000"
-    )!
-
-    private let session: URLSession = {
+    init(baseURL: URL = URL(string: "http://192.168.1.13:8000")!,
+         session: URLSession? = nil, accounts: LocalAccountStore? = nil,
+         accessToken: @escaping () throws -> String? = { try KeychainService.shared.getAccessToken() }) {
+        self.baseURL = baseURL
+        self.accounts = accounts
+        self.accessToken = accessToken
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 30
         configuration.timeoutIntervalForResource = 300
+        self.session = session ?? URLSession(configuration: configuration)
+    }
 
-        return URLSession(configuration: configuration)
-    }()
+    // MARK: - Configuration
+
+    private let baseURL: URL
+    private let session: URLSession
 
     private let decoder = APIJSON.makeDecoder()
     private let encoder = APIJSON.makeEncoder()
@@ -32,13 +34,15 @@ final class APIClient {
         endpoint: String,
         method: HTTPMethod = .get,
         body: (any Encodable)? = nil,
+        rawJSONBody: Data? = nil,
         authenticated: Bool = true,
         timeout: TimeInterval? = nil
     ) async throws -> Response {
 
         // Build authorization on the same actor as account switching, before
         // suspending for the network, so an old sync cannot pick up new tokens.
-        let revision = LocalAccountStore.shared.revision
+        let accountStore = accounts ?? .shared
+        let revision = accountStore.revision
         let builtRequest = try buildRequest(
             endpoint: endpoint,
             method: method,
@@ -46,7 +50,14 @@ final class APIClient {
             authenticated: authenticated
         )
 
+        // A durable operation supplies its already-encoded bytes, never a model
+        // to reconstruct. All other transport/auth/error handling stays shared.
+        guard body == nil || rawJSONBody == nil else { throw APIError.invalidResponse }
         var request = builtRequest
+        if let rawJSONBody {
+            request.httpBody = rawJSONBody
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
 
         if let timeout {
             request.timeoutInterval = timeout
@@ -59,7 +70,7 @@ final class APIClient {
                 for: request
             )
 
-            try LocalAccountStore.shared.validateRevision(revision)
+            try accountStore.validateRevision(revision)
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw APIError.invalidResponse
             }
@@ -149,7 +160,7 @@ final class APIClient {
         }
 
         if authenticated,
-           let token = try KeychainService.shared.getAccessToken() {
+           let token = try accessToken() {
             request.setValue(
                 "Bearer \(token)",
                 forHTTPHeaderField: "Authorization"
@@ -189,7 +200,8 @@ final class APIClient {
         authenticated: Bool = true
     ) async throws {
 
-        let revision = LocalAccountStore.shared.revision
+        let accountStore = accounts ?? .shared
+        let revision = accountStore.revision
         let request = try buildRequest(
             endpoint: endpoint,
             method: method,
@@ -202,7 +214,7 @@ final class APIClient {
                 for: request
             )
 
-            try LocalAccountStore.shared.validateRevision(revision)
+            try accountStore.validateRevision(revision)
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw APIError.invalidResponse
             }
@@ -254,7 +266,7 @@ final class APIClient {
         }
 
         if authenticated {
-            if let token = try KeychainService.shared.getAccessToken() {
+            if let token = try accessToken() {
                 request.setValue(
                     "Bearer \(token)",
                     forHTTPHeaderField: "Authorization"

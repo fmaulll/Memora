@@ -23,6 +23,7 @@ struct PendingStudyProgressSnapshot: Identifiable {
     let events: [PendingStudyEvent]
     let operationID: UUID?
     let completedAt: Date?
+    let failureCode: String?
 }
 
 struct SealedStudyProgressUpload: Equatable {
@@ -62,8 +63,12 @@ final class StudyProgressStore {
         try validateAccount()
         guard capturedAccountID == accountID else { throw StudyProgressStorageError.wrongAccount }
         let record: PendingStudyProgress
-        if let draftID {
-            record = try find(draftID)
+        // A binding may still reference a sealed, split or acknowledged draft.
+        // Resolve it at the same synchronous transaction as the next answer.
+        let previous = try draftID.flatMap { id in try records().first { $0.id == id } }
+        let reusesDraft = previous?.stateRawValue == PendingStudyProgressState.draft.rawValue
+        if reusesDraft, let previous {
+            record = previous
         } else {
             record = PendingStudyProgress(accountID: accountID)
         }
@@ -74,7 +79,7 @@ final class StudyProgressStore {
             }
         }
         try save {
-            if draftID == nil { modelContext.insert(record) }
+            if !reusesDraft { modelContext.insert(record) }
             try record.append(event)
             try stageStudy(record.id)
         }
@@ -160,6 +165,55 @@ final class StudyProgressStore {
                                          operationID: operationID, completedAt: completedAt, payload: payload)
     }
 
+    /// The app has no authoritative persistent-plan timezone yet. Equal event
+    /// instants are the only safe grouping across every possible plan timezone.
+    /// Split+seal+delete is one save: a crash leaves either drafts or immutable ops.
+    func sealDrafts() throws {
+        try validateAccount()
+        let drafts = try records().filter { $0.stateRawValue == PendingStudyProgressState.draft.rawValue }
+        guard !drafts.isEmpty else { return }
+        try save {
+            for draft in drafts {
+                let groups = Dictionary(grouping: try draft.events(), by: \.completedAt)
+                for time in groups.keys.sorted() {
+                    let operation = PendingStudyProgress(accountID: accountID, createdAt: draft.createdAt)
+                    for event in groups[time]! { try operation.append(event) }
+                    try operation.seal(completedAt: time)
+                    modelContext.insert(operation)
+                }
+                modelContext.delete(draft)
+            }
+        }
+    }
+
+    func acknowledge(_ upload: SealedStudyProgressUpload) throws {
+        try validateAccount()
+        guard try sealedUpload(batchID: upload.batchID) == upload else {
+            throw StudyProgressStorageError.corruptRecord
+        }
+        let record = try find(upload.batchID)
+        try save { modelContext.delete(record) }
+    }
+
+    func block(batchID: UUID, code: String, reconcile: Bool) throws {
+        try validateAccount()
+        let record = try find(batchID)
+        try save { record.block(code: code, reconcile: reconcile) }
+    }
+
+    /// Durable rejected facts also disable credit for a still-running/resumed
+    /// binding. Its captured epoch never changes. Local queues remain untouched.
+    func creditIsBlocked(deckID: UUID, epoch: UUID, cardID: UUID) throws -> Bool {
+        try validateAccount()
+        return try records().contains { record in
+            guard record.failureCode == "stale_progress_epoch" || record.failureCode == "card_not_in_deck" else { return false }
+            return try record.events().contains {
+                $0.deckID == deckID && $0.progressEpoch == epoch
+                    && (record.failureCode == "stale_progress_epoch" || $0.cardID == cardID)
+            }
+        }
+    }
+
     private func validateAccount() throws {
         try accounts.validate(session)
         guard accounts.ownerID == accountID else { throw StudyProgressStorageError.wrongAccount }
@@ -196,7 +250,7 @@ final class StudyProgressStore {
         }
         return PendingStudyProgressSnapshot(id: record.id, accountID: record.accountID,
             createdAt: record.createdAt, state: state, events: try record.events(),
-            operationID: record.operationID, completedAt: record.completedAt)
+            operationID: record.operationID, completedAt: record.completedAt, failureCode: record.failureCode)
     }
 
     private func save(_ change: () throws -> Void) throws {

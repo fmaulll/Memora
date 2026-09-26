@@ -12,6 +12,8 @@ struct PendingStudyEvent: Codable, Equatable, Identifiable {
 enum PendingStudyProgressState: String {
     case draft
     case sealed
+    case reconciliationRequired
+    case terminalFailure
 }
 
 enum StudyProgressStorageError: Error, Equatable {
@@ -43,6 +45,7 @@ final class PendingStudyProgress {
     private(set) var operationID: UUID?
     private(set) var payloadData: Data?
     private(set) var completedAt: Date?
+    private(set) var failureCode: String?
 
     init(accountID: UUID, createdAt: Date = .now) {
         id = UUID()
@@ -50,6 +53,12 @@ final class PendingStudyProgress {
         self.createdAt = createdAt
         stateRawValue = PendingStudyProgressState.draft.rawValue
         eventsData = Data("[]".utf8)
+    }
+
+    func block(code: String, reconcile: Bool) {
+        // Failure metadata never changes the immutable operation or its events.
+        failureCode = code
+        stateRawValue = (reconcile ? PendingStudyProgressState.reconciliationRequired : .terminalFailure).rawValue
     }
 
     func events() throws -> [PendingStudyEvent] {

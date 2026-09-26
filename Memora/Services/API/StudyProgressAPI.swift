@@ -3,20 +3,25 @@ import Foundation
 @MainActor
 final class StudyProgressAPI {
     static let shared = StudyProgressAPI()
-    private init() {}
+    private let client: APIClient
+    init(client: APIClient = .shared) { self.client = client }
 
-    func get(deckID: UUID) async throws -> StudyProgressResponse {
-        try await APIClient.shared.request(endpoint: "/decks/\(deckID)/study-progress")
+    func submit(payload: Data) async throws -> StudyProgressSubmissionResponse {
+        try await client.request(endpoint: "/study/progress/submissions", method: .post, rawJSONBody: payload)
+    }
+
+    func get(deckID: UUID, timeout: TimeInterval? = nil) async throws -> StudyProgressResponse {
+        try await client.request(endpoint: "/decks/\(deckID)/study-progress", timeout: timeout)
     }
 
     func submit(_ submission: StudyProgressSubmission) async throws -> StudyProgressSubmissionResponse {
-        try await APIClient.shared.request(
+        try await client.request(
             endpoint: "/study/progress/submissions", method: .post, body: submission
         )
     }
 
     func reset(deckID: UUID, request: StudyProgressResetRequest) async throws -> StudyProgressResetResponse {
-        try await APIClient.shared.request(
+        try await client.request(
             endpoint: "/decks/\(deckID)/study-progress/reset", method: .post, body: request
         )
     }

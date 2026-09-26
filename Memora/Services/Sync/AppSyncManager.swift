@@ -22,18 +22,23 @@ final class AppSyncManager {
     func syncIfStale(
         modelContext: ModelContext
     ) async {
+        await StudyProgressSync.shared.flush(context: modelContext)
         guard shouldRunAutomaticSync else {
             print("⚠️ AUTOMATIC SYNC SKIPPED — RECENT SYNC EXISTS")
             return
         }
 
-        await sync(modelContext: modelContext)
+        await syncContent(modelContext: modelContext)
     }
 
     func sync(
         modelContext: ModelContext
     ) async {
+        await StudyProgressSync.shared.flush(context: modelContext)
+        await syncContent(modelContext: modelContext)
+    }
 
+    private func syncContent(modelContext: ModelContext) async {
         guard let session = try? LocalAccountStore.shared.session() else { return }
         guard syncingSession != session else {
             print("⚠️ APP SYNC ALREADY RUNNING")

@@ -23,9 +23,10 @@ final class StudySession {
     private(set) var isComplete = false
     private(set) var presentationID = UUID()
     private(set) var isStarted = false
+    private(set) var reachedFlushBoundary = false
     private var lastPresentedCardID: UUID?
 
-    @ObservationIgnored private let wasResuming: Bool
+    @ObservationIgnored let wasResuming: Bool
     @ObservationIgnored private var bindings: [UUID: StudySessionEpochBinding] = [:]
     @ObservationIgnored private var context: ModelContext?
     @ObservationIgnored private var accounts: LocalAccountStore?
@@ -142,7 +143,13 @@ final class StudySession {
         } else {
             let owner = card.deck.flatMap { owner in decks.first { $0.id == owner.id } }
             let binding = owner.flatMap { bindings[$0.id] }
-            let eligible = wasReview && rating == .good && binding?.epoch != nil
+            let blocked: Bool
+            if wasReview, rating == .good, let owner, let epoch = binding?.epoch,
+               (try? accounts.session()) != nil {
+                blocked = try StudyProgressStore(modelContext: context, accounts: accounts)
+                    .creditIsBlocked(deckID: owner.id, epoch: epoch, cardID: card.id)
+            } else { blocked = false }
+            let eligible = !blocked && wasReview && rating == .good && binding?.epoch != nil
                 && binding?.accountID == accounts.ownerID && (try? accounts.session()) != nil
             let event: PendingStudyEvent?
             if eligible, let owner, let epoch = binding?.epoch {
@@ -166,7 +173,9 @@ final class StudySession {
         do {
             applyLocalRating(attempt.rating, to: card)
             if let event = attempt.event, let owner = attempt.capturedAccountID,
-               owner == accounts.ownerID, (try? accounts.session()) != nil {
+               owner == accounts.ownerID, (try? accounts.session()) != nil,
+               try !StudyProgressStore(modelContext: context, accounts: accounts)
+                    .creditIsBlocked(deckID: event.deckID, epoch: event.progressEpoch, cardID: event.cardID) {
                 let store = try StudyProgressStore(modelContext: context, accounts: accounts, saveChanges: saveChanges)
                 let draftID = bindings[event.deckID]?.draftID
                 _ = try store.appendStudyEvent(event, capturedAccountID: owner, draftID: draftID) { draftID in
@@ -180,6 +189,7 @@ final class StudySession {
                 try stageSession()
                 try saveChanges?()
             }
+            reachedFlushBoundary = isComplete || batchIDs != previous.2
             failedAttempt = nil
             presentationID = UUID()
             return true
