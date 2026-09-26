@@ -48,6 +48,9 @@ final class LocalAccountStore {
         suspend()
         // Delete local objects directly; do not mark them for server deletion.
         // Explicitly include orphan cards and every chapter, not just root decks.
+        // PendingStudyProgress is an account-owned operation log, not cache.
+        // Keep it across logout/auth recovery; StudyProgressStore gates access
+        // through the active account and revision. Do not bulk-delete all models.
         do {
             let cards = try modelContext.fetch(FetchDescriptor<StudyFlashcardCard>())
             let decks = try modelContext.fetch(FetchDescriptor<StudyDeck>())

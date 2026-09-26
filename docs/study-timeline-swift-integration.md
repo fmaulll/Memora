@@ -1,5 +1,9 @@
 # Study Timeline integration: architecture and S1
 
+S2 is now implemented separately; see [S2 persistence and migration handoff](study-progress-s2.md)
+for the exact fields, account behavior, tests, and manual verification. The sections
+below preserve the original S1 architecture map and later-phase boundaries.
+
 Scope: API contracts first. No Timeline UI, notifications, new learning engine,
 progress persistence, progress uploads, or backend reset calls are activated in S1.
 

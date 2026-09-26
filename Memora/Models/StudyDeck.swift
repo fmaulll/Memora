@@ -18,6 +18,10 @@ final class StudyDeck {
 
     var position: Int?
 
+    // Backend-owned, per card-owning deck. nil means unknown; never inherit it.
+    var cachedProgressEpoch: UUID?
+    var progressEpochFetchedAt: Date?
+
     // Persist the first-deck gate across launches, including its chapters.
     var requiresSubscription: Bool = false
 

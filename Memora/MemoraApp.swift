@@ -11,12 +11,7 @@ import SwiftData
 @main
 struct MemoraApp: App {
     var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-            StudyDeck.self,
-            StudyFlashcardCard.self,
-            LocalUserProfile.self
-        ])
+        let schema = MemoraSchema.current
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
         do {
